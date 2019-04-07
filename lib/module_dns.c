@@ -55,8 +55,7 @@ int format_dns_packet(libtrace_t *trace, libtrace_packet_t *packet, bd_record_t 
 
     hdr = (format_dns_header_t *)payload;
 
-    fprintf(stderr, "dns packet request id %u to dst: %s\n", ntohs(hdr->identified),
-        data->dst_ip);
+    fprintf(stderr, "dns packet request id %u\n", ntohs(hdr->identified));
 
     return 1;
 }
