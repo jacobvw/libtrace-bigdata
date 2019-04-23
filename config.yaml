@@ -1,0 +1,16 @@
+foreach:
+  - flow
+  - dns-request-response
+metrics:
+  src_ip
+  dst_ip
+  packet_count
+  lpi_classification
+#where:
+#  - influxdb:
+#    host: "testhost.com" # scalar value
+#    port: 1234
+#    username: "user"
+#    password: "pass"
+#  - test:
+#    host: "dfdf"

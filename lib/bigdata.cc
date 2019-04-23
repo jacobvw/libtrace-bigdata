@@ -16,12 +16,14 @@
 #include "bigdata_flow.c"
 
 // Capture modules
-#include "module_dns.c"
+#include "module_dns.cc"
 #include "module_http.c"
 #include "module_influxdb.c"
+#include "module_port.cc"
 
 // this is only here for register_event. Can i remove it somehow??
-bigdata_global_t *global_data;
+bd_global_t *global_data;
+
 
 void libtrace_cleanup(libtrace_t *trace, libtrace_callback_set_t *processing,
     libtrace_callback_set_t *reporter) {
@@ -45,10 +47,10 @@ static void *start_processing(libtrace_t *trace, libtrace_thread_t *thread,
     void *global) {
 
     // gain access to global data
-    bigdata_global_t *global_data = (bigdata_global_t *)global;
+    bd_global_t *global_data = (bd_global_t *)global;
 
     // create thread local storage
-    bigdata_local_t *local = (bigdata_local_t *)malloc(sizeof(bigdata_local_t));
+    bd_thread_local_t *local = (bd_thread_local_t *)malloc(sizeof(bd_thread_local_t));
     if (local == NULL) {
         fprintf(stderr, "Unable to allocate memory\n");
         return NULL;
@@ -67,10 +69,13 @@ static void *start_processing(libtrace_t *trace, libtrace_thread_t *thread,
         return NULL;
     }
 
-    // call handlers to modules that need initialise some thread local data
-    ltbigdata_event_handlers *handler = global_data->listeners[STARTING];
-    for (; handler != NULL; handler = handler->next) {
-        handler->cb(local);
+    // call handlers to modules that need initialise some event local data
+    bd_cb_set *cbs = global_data->callbacks;
+    for (; cbs != NULL; cbs = cbs->next) {
+        if (cbs->start_cb != NULL) {
+            fprintf(stderr, "calling starting\n");
+            cbs->mls = cbs->start_cb(local);
+        }
     }
 
 
@@ -80,61 +85,134 @@ static void *start_processing(libtrace_t *trace, libtrace_thread_t *thread,
 libtrace_packet_t *per_packet(libtrace_t *trace, libtrace_thread_t *thread,
     void *global, void *tls, libtrace_packet_t *packet) {
 
-    ltbigdata_event_handlers *handler = NULL;
+    Flow *flow = NULL;
+    int ret = 0;
 
     // Get global and thread local data
-    bigdata_global_t *global_data = (bigdata_global_t *)global;
-    bigdata_local_t *local_data = (bigdata_local_t *)tls;
+    bd_global_t *global_data = (bd_global_t *)global;
 
     // pass packet into the flow manager
-    flow_per_packet(trace, packet, global_data, local_data);
+    flow = flow_per_packet(trace, packet, global, tls);
 
-    // call handlers that want every packet
-    handler = global_data->listeners[ALL];
-    for (; handler != NULL; handler = handler->next) {
-        handler->cb(trace, packet, local_data);
-    }
-
-    // Apply BPF filters to packets passing matched packets to handlers
-    handler = global_data->listeners[FILTER];
-    for (; handler != NULL; handler = handler->next) {
-        // Apply the filter
-        if (trace_apply_filter(handler->filter, packet)) {
-            handler->cb(trace, packet, local_data);
+    bd_cb_set *cbs = global_data->callbacks;
+    for (; cbs != NULL; cbs = cbs->next) {
+        if (cbs->packet_cb != NULL) {
+            if (cbs->filter != NULL) {
+                if (trace_apply_filter(cbs->filter, packet)) {
+                    cbs->packet_cb(trace, packet, flow, tls, cbs->mls);
+                }
+            } else {
+                cbs->packet_cb(trace, packet, flow, tls, cbs->mls);
+            }
         }
     }
 
     /* Expire all suitably idle flows. Note: this will export expired flow metrics */
-    flow_expire(trace, packet, global_data, local_data);
+    flow_expire(trace, packet, global, tls);
 
     return packet;
 }
 
 static void stop_processing(libtrace_t *trace, libtrace_thread_t *thread, void *global,
-    void *local) {
+    void *tls) {
 
-    // gain access to global data
-    bigdata_global_t *global_data = (bigdata_global_t *)global;
-
-    // call handlers register to the stopping of a thread
-    ltbigdata_event_handlers *handler = global_data->listeners[STOPPING];
-    for (; handler != NULL; handler = handler->next) {
-        handler->cb(local);
-    }
-}
-
-int bd_output_record(bd_record_t *record) {
-    int ret = 1;
-    ltbigdata_event_handlers *handler = global_data->listeners[OUTPUT];
-
-
-    for (; handler != NULL; handler = handler->next) {
-        if (handler->cb(record) != 0) {
-            ret = -1;
+    bd_cb_set *cbs = global_data->callbacks;
+    for (; cbs != NULL; cbs = cbs->next) {
+        if (cbs->stop_cb != NULL) {
+            cbs->stop_cb(tls, cbs->mls);
         }
     }
 
-    return ret;
+
+    // cleanup thread local storage, flow managers etc..
+}
+
+bd_result_set_t *bd_result_set_create(const char *mod) {
+    // create result set structure
+    bd_result_set_t *res = (bd_result_set_t *)malloc(sizeof(bd_result_set_t));
+    if (res == NULL) {
+        fprintf(stderr, "Unable to allocate memory. func. bd_create_output_result_set()\n");
+        return NULL;
+    }
+    // allocate space for 10 results
+    res->results = (bd_result_t *)malloc(sizeof(bd_result_t)*10);
+    if (res->results == NULL) {
+        fprintf(stderr, "Unable to allocate memory. func. bd_create_output_result_set()\n");
+        return NULL;
+    }
+    res->module = mod;
+    res->num_results = 0;
+    res->allocated_results = 10;
+
+    return res;
+}
+int bd_result_set_insert(bd_result_set_t *result_set, const char *key, bd_record_type dtype,
+    bd_record_value value) {
+
+    if (result_set == NULL) {
+        fprintf(stderr, "NULL result set. func. bd_result_set_insert()\n");
+        return 1;
+    }
+
+    // re-allocated more result structures if needed
+    if (result_set->num_results >= result_set->allocated_results) {
+        result_set->allocated_results += 10;
+        result_set->results = (bd_result_t *)realloc(result_set->results,
+            result_set->allocated_results);
+        if (result_set->results == NULL) {
+            fprintf(stderr, "Unable to allocate memory. func. bd_result_set_insert()\n");
+            return 1;
+        }
+    }
+
+    result_set->results[result_set->num_results].key = key;
+    result_set->results[result_set->num_results].type = dtype;
+    result_set->results[result_set->num_results].value = value;
+
+    result_set->num_results += 1;
+
+    return 0;
+
+}
+int bd_result_set_insert_string(bd_result_set_t *result_set, const char *key,
+    const char *value) {
+
+    union bd_record_value val;
+    val.data_string = value;
+    bd_result_set_insert(result_set, key, BD_TYPE_STRING, val);
+
+    return 0;
+}
+int bd_result_set_output(bd_result_set *result) {
+
+    if (result == NULL) {
+        fprintf(stderr, "NULL result set. func. bd_result_set_output()\n");
+        return 1;
+    }
+
+    bd_cb_set *cbs = global_data->callbacks;
+    for (; cbs != NULL; cbs = cbs->next) {
+        if (cbs->output_cb != NULL) {
+            cbs->output_cb(cbs->mls, result);
+        }
+    }
+
+    return 0;
+}
+int bd_result_set_free(bd_result_set *result_set) {
+
+    if (result_set == NULL) {
+        fprintf(stderr, "NULL result set. func. bd_result_set_free()\n");
+        return 1;
+    }
+
+    if (result_set->results != NULL) {
+        free(result_set->results);
+    }
+
+    free(result_set);
+
+    return 0;
 }
 
 int parse_config(char *filename) {
@@ -204,26 +282,21 @@ int main(int argc, char *argv[]) {
     }
 
     /* Create global data */
-    global_data = (bigdata_global_t *)
-        malloc(sizeof(bigdata_global_t));
+    global_data = (bd_global_t *)malloc(sizeof(bd_global_t));
     if (global_data == NULL) {
         fprintf(stderr, "Unable to allocate memory for global data\n");
-        return -1;
-    }
-    global_data->listeners = (ltbigdata_event_handlers**)
-        malloc(sizeof(ltbigdata_event_handlers)*NUM_EVENTS);
-    if (global_data->listeners == NULL) {
-        fprintf(stderr, "Unable to allocate memory for event listeners\n");
         return -1;
     }
     if (pthread_mutex_init(&global_data->lock, NULL) != 0) {
         printf("\n mutex init failed\n");
         return -1;
     }
+    global_data->callbacks = NULL;
 
     module_influxdb_init();
-    format_dns_init();
-    //format_http_init();
+    module_dns_init();
+    //module_port_init();
+    //module_http_init();
 
     libtrace_t *trace = NULL;
     libtrace_callback_set_t *processing = NULL;
@@ -279,58 +352,33 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 
-int bd_register_event(bigdata_event event, callback cb, const char *filter) {
-
-    ltbigdata_event_handlers *t;
-    if (!(t = (ltbigdata_event_handlers*)
-        malloc(sizeof(ltbigdata_event_handlers)))) {
-        fprintf(stderr, "Unable to allocate memory");
-        return -1;
+bd_cb_set *bd_create_cb_set() {
+    bd_cb_set *cbset = (bd_cb_set *)calloc(1, sizeof(bd_cb_set));
+    if (cbset == NULL) {
+        fprintf(stderr, "Unable to create callback set. func. bd_create_cb_set()\n");
+        return NULL;
     }
-
-    t->cb = cb;
-    t->filter = NULL;
-
-    if (event == FILTER) {
-        if (filter == NULL) {
-            fprintf(stderr, "A filter must be provided when registering a filter event\n");
-            return -1;
-        }
-        // Filter cannot be tested for correctness here, it is checked when compiled
-        t->filter = trace_create_filter(filter);
-    }
-
-    bd_add_event_to_handler(event, t);
-
-    return 1;
+    return cbset;
 }
-
-int bd_add_event_to_handler(bigdata_event event, ltbigdata_event_handlers *t) {
-
+int bd_register_cb_set(bd_cb_set *cbset) {
     // obtain lock for global data
     pthread_mutex_lock(&global_data->lock);
 
-    // Get the array of event handlers
-    ltbigdata_event_handlers *handlers = global_data->listeners[event];
+    bd_cb_set *tmp = global_data->callbacks;
 
-    // No handlers exist for this event
-    if (handlers == NULL) {
-        global_data->listeners[event] = t;
+    if (tmp == NULL) {
+       global_data->callbacks = cbset;
     } else {
-        while (handlers->next != NULL) {
-            handlers = handlers->next;
-
-            // Check this handler is not allready registered
-            if (handlers->cb == t->cb) {
-                pthread_mutex_unlock(&global_data->lock);
-                return 1;
-            }
+        while (tmp->next != NULL) {
+             tmp = tmp->next;
         }
-
-        handlers->next = t;
+        tmp->next = cbset;
     }
 
     pthread_mutex_unlock(&global_data->lock);
-
-    return 1;
+    return 0;
+}
+int bd_add_filter_to_cb_set(bd_cb_set *cbset, const char *filter) {
+    cbset->filter = trace_create_filter(filter);
+    return 0;
 }

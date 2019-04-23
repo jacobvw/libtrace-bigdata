@@ -3,12 +3,28 @@
 #include <libprotoident.h>
 #include <netinet/in.h>
 
-void flow_per_packet(libtrace_t *trace, libtrace_packet_t *packet, void *global, void *local) {
-    // Get thread local storage
-    bigdata_global_t *global_data = (bigdata_global_t *)global;
-    bigdata_local_t *local_data = (bigdata_local_t *)local;
-    Flow *flow;
+typedef struct bigdata_flow_record {
+    double start_ts;
+    double end_ts;
+    char *proto;
+    char *src_ip;
+    char *dst_ip;
+    uint16_t src_port;
+    uint16_t dst_port;
+    uint64_t in_packets;
+    uint64_t out_packets;
+    uint64_t in_bytes;
+    uint64_t out_bytes;
+    uint8_t init_dir;
+    lpi_data_t lpi;
+} bd_flow_record_t;
 
+Flow *flow_per_packet(libtrace_t *trace, libtrace_packet_t *packet, void *global, void *tls) {
+    // Get thread local storage
+    bd_global_t *global_data = (bd_global_t *)global;
+    bd_thread_local_t *local_data = (bd_thread_local_t *)tls;
+
+    Flow *flow;
     double ts = trace_get_seconds(packet);
     uint8_t dir;
     bool is_new = false;
@@ -19,8 +35,8 @@ void flow_per_packet(libtrace_t *trace, libtrace_packet_t *packet, void *global,
     /* Libflowmanager only deals with IP traffic, so ignore anything
      * that does not have an IP header */
     ip = (libtrace_ip_t *)trace_get_layer3(packet, &l3_type, NULL);
-    if (l3_type != 0x0800) { return; }
-    if (ip == NULL) { return; }
+    if (l3_type != 0x0800) { return NULL; }
+    if (ip == NULL) { return NULL; }
 
     /* Get the direction of the trace, this could be improved */
     dir = trace_get_direction(packet);
@@ -28,7 +44,7 @@ void flow_per_packet(libtrace_t *trace, libtrace_packet_t *packet, void *global,
     /* Ignore packets where the IP addresses are the same - something is
      * probably screwy and it's REALLY hard to determine direction */
     if (ip->ip_src.s_addr == ip->ip_dst.s_addr)
-        return;
+        return NULL;
 
     /* Match the packet to a Flow - this will create a new flow if
      * there is no matching flow already in the Flow map and set the
@@ -38,17 +54,17 @@ void flow_per_packet(libtrace_t *trace, libtrace_packet_t *packet, void *global,
     /* Libflowmanager did not like something about that packet - best to
      * just ignore it and carry on */
     if (flow == NULL)
-        return;
+        return NULL;
 
     /* If this is a new flow, metrics need to be allocated for it */
     if (is_new) {
         flow_init_metrics(packet, flow, dir, ts);
 
-        // Call flow start callbacks
-        ltbigdata_event_handlers *handler = global_data->listeners[FLOW_START];
-        /* Call callbacks registered to the start of a flow */
-        for (; handler != NULL; handler = handler->next) {
-            handler->cb(trace, packet, local_data);
+        bd_cb_set *cbs = global_data->callbacks;
+        for (; cbs != NULL; cbs = cbs->next) {
+            if (cbs->flowstart_cb != NULL) {
+                cbs->flowstart_cb();
+            }
         }
     }
 
@@ -57,20 +73,25 @@ void flow_per_packet(libtrace_t *trace, libtrace_packet_t *packet, void *global,
 
     /* Tell libflowmanager to update the expiry time for this flow */
     local_data->flow_manager->updateFlowExpiry(flow, packet, dir, ts);
+
+    return flow;
 }
 
-void flow_init_metrics(libtrace_packet_t *packet, Flow *flow, uint8_t dir, double ts) {
-    bd_record_t *flow_record;
-    flow_record = (bd_record_t *)malloc(sizeof(bd_record_t));
+int flow_init_metrics(libtrace_packet_t *packet, Flow *flow, uint8_t dir, double ts) {
+    // create flow record for the flow
+    bd_flow_record_t *flow_record = (bd_flow_record_t *)malloc(sizeof(bd_flow_record_t));
 
-    // allocate memory for source/destination ips, allow for space to store v6 addresses
-    flow_record->src_ip = (char *)malloc(INET6_ADDRSTRLEN);
-    flow_record->dst_ip = (char *)malloc(INET6_ADDRSTRLEN);
+
+    flow_record->src_ip = (char *)malloc(sizeof(INET6_ADDRSTRLEN));
+    flow_record->dst_ip = (char *)malloc(sizeof(INET6_ADDRSTRLEN));
+    if (flow_record->src_ip == NULL || flow_record->dst_ip == NULL) {
+        fprintf(stderr, "Unable to allocate memory. func. flow_init_metrics()\n");
+        return 1;
+    }
     flow_record->src_ip = trace_get_source_address_string(packet,
         flow_record->src_ip, INET6_ADDRSTRLEN);
     flow_record->dst_ip = trace_get_destination_address_string(packet,
         flow_record->dst_ip, INET6_ADDRSTRLEN);
-
     flow_record->src_port = trace_get_source_port(packet);
     flow_record->dst_port = trace_get_destination_port(packet);
     flow_record->start_ts = ts;
@@ -82,13 +103,14 @@ void flow_init_metrics(libtrace_packet_t *packet, Flow *flow, uint8_t dir, doubl
     flow_record->out_bytes = 0;
     lpi_init_data(&flow_record->lpi);
 
-    fprintf(stderr, "created new flow\n");
-
+    // link flow record to the flow
     flow->extension = flow_record;
+
+    return 0;
 }
 
-void flow_process_metrics(libtrace_packet_t *packet, Flow *flow, double dir, double ts) {
-    bd_record_t *flow_record = (bd_record_t *)flow->extension;
+int flow_process_metrics(libtrace_packet_t *packet, Flow *flow, double dir, double ts) {
+    bd_flow_record_t *flow_record = (bd_flow_record_t *)flow->extension;
 
     flow_record->end_ts = ts;
 
@@ -102,32 +124,35 @@ void flow_process_metrics(libtrace_packet_t *packet, Flow *flow, double dir, dou
 
     /* update libprotoident */
     lpi_update_data(packet, &flow_record->lpi, flow_record->init_dir);
+
+    return 0;
 }
 
-void flow_expire(libtrace_t *trace, libtrace_packet_t *packet, void *global, void *local) {
+int flow_expire(libtrace_t *trace, libtrace_packet_t *packet, void *global, void *tls) {
 
-    bigdata_global_t *global_data = (bigdata_global_t *)global;
-    bigdata_local_t *local_data = (bigdata_local_t *)local;
+    bd_global_t *global_data = (bd_global_t *)global;
+    bd_thread_local_t *local_data = (bd_thread_local_t *)tls;
     FlowManager *fm = local_data->flow_manager;
-    ltbigdata_event_handlers *handler = global_data->listeners[FLOW_END];
+    bd_cb_set *cbs = global_data->callbacks;
 
-    Flow *expired;
+    Flow *expired_flow;
 
-    while ((expired = fm->expireNextFlow(trace_get_seconds(packet), false)) != NULL) {
+    while ((expired_flow = fm->expireNextFlow(trace_get_seconds(packet), false)) != NULL) {
         /* Gain access to the flow metrics */
-        bd_record_t *flow_record = (bd_record_t *)expired->extension;
+        bd_flow_record_t *flow_record = (bd_flow_record_t *)expired_flow->extension;
 
         /* Guess the protocol */
         lpi_module_t *proto = lpi_guess_protocol(&flow_record->lpi);
-        flow_record->proto = (char *)malloc(sizeof(proto->name));
         flow_record->proto = strdup(proto->name);
 
-        /* Export the metrics */
-        bd_output_record(flow_record);
+        // output the result -- need to make generic record format??
 
-        /* Call callbacks registered to the end of a flow */
-        for (; handler != NULL; handler = handler->next) {
-            handler->cb(trace, packet, local_data);
+
+        // call all callbacks registered to flowend events
+        for (; cbs != NULL; cbs = cbs->next) {
+            if (cbs->flowend_cb != NULL) {
+                cbs->flowend_cb();
+            }
         }
 
         /* Free the metrics structure and release the flow to libflowmanager */
@@ -135,6 +160,9 @@ void flow_expire(libtrace_t *trace, libtrace_packet_t *packet, void *global, voi
         free(flow_record->dst_ip);
         free(flow_record->proto);
         free(flow_record);
-        fm->releaseFlow(expired);
+        fm->releaseFlow(expired_flow);
     }
+
+    return 0;
 }
+
