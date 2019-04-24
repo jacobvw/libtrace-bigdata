@@ -93,7 +93,7 @@ int module_influxdb_post(void *mls, bd_result_set *result) {
     }
 
     ret = post_http_send_line(client, str, strlen(str));
-    fprintf(stdout, "Send %s event to influxdb\n", result->module);
+    fprintf(stdout, "Send %s event to influxdb code %d\n", result->module, ret);
 
     return ret;
 }
