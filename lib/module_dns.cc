@@ -1,6 +1,7 @@
 #include <unordered_map>
 #include <string>
 #include "module_dns_spcdns.h"
+#include "module_dns_spcdns_mappings.h"
 
 struct module_dns_req {
     double start_ts;
@@ -12,13 +13,7 @@ struct module_dns_local {
     std::unordered_map<uint16_t, struct module_dns_req *> *reqs;
 };
 
-bd_result_set module_dns_create_bd_result() {
-
-}
-
-int module_dns_free_bd_result(bd_result_set_t *result) {
-
-}
+int module_dns_answer_to_result_set(bd_result_set_t *result_set, dns_answer_t *ans);
 
 void *module_dns_starting(void *tls) {
 
@@ -46,6 +41,7 @@ int module_dns_packet(libtrace_t *trace, libtrace_packet_t *packet, Flow *flow, 
     uint32_t remaining;
     uint16_t ethertype;
     void *payload;
+    int i;
 
     payload = trace_get_layer3(packet, &ethertype, &remaining);
 
@@ -108,9 +104,9 @@ int module_dns_packet(libtrace_t *trace, libtrace_packet_t *packet, Flow *flow, 
         dns_query_t *resp = (dns_query_t *)bufresult;
 
         dns_question_t *question = (dns_question_t *)resp->questions;
-        dns_answer_t *ans = (dns_answer_t *)resp->answers;
-        dns_answer_t *ns = (dns_answer_t *)resp->nameservers;
-        dns_answer_t *addi = (dns_answer_t *)resp->additional;
+        //dns_answer_t *ans = (dns_answer_t *)resp->answers;
+        //dns_answer_t *ns = (dns_answer_t *)resp->nameservers;
+        //dns_answer_t *addi = (dns_answer_t *)resp->additional;
 
         // finish populating the result structure
         req->end_ts = trace_get_seconds(packet);
@@ -127,11 +123,29 @@ int module_dns_packet(libtrace_t *trace, libtrace_packet_t *packet, Flow *flow, 
         // output the result -- need to make generic record format??
         // create result set
         bd_result_set_t *result_set = bd_result_set_create("dns");
-        bd_result_set_insert_string(result_set, "test", "data");
+        bd_result_set_insert_uint(result_set, "question_count", (uint64_t)resp->qdcount);
+        bd_result_set_insert_uint(result_set, "answer_count", (uint64_t)resp->ancount);
+        bd_result_set_insert_uint(result_set, "nameserver_count", (uint64_t)resp->nscount);
+        bd_result_set_insert_uint(result_set, "additional_count", (uint64_t)resp->arcount);
+        bd_result_set_insert_double(result_set, "rtt", req->end_ts - req->start_ts);
+
+        // for each question
+        for (i=0; i<resp->qdcount; i++) {
+            bd_result_set_insert_string(result_set, "question_name", question[i].name);
+            //bd_result_set_insert_string(result_set, "question_class",
+            //    dns_class_text(question[i].class));
+            bd_result_set_insert_string(result_set, "question_type",
+                dns_type_text(question[i].type));
+        }
+
+        for (i=0; i<resp->ancount; i++) {
+            module_dns_answer_to_result_set(result_set, &resp->answers[i]);
+        }
+        //module_dns_add_answer_to_result_set(result_set, resp->nameservers, resp->nscount);
+        //module_dns_add_answer_to_result_set(result_set, resp->additional, resp->arcount);
 
         bd_result_set_output(result_set);
         bd_result_set_free(result_set);
-        fprintf(stderr, "print dns result\n");
 
         // remove request from map and free memory for request and response
         map->erase(identifier);
@@ -147,6 +161,39 @@ int module_dns_ending(void *tls, void *mls) {
     module_dns_local *storage = (module_dns_local *)mls;
 
     return 0;
+}
+
+int module_dns_answer_to_result_set(bd_result_set_t *result_set, dns_answer_t *ans) {
+
+    char ipaddr[INET6_ADDRSTRLEN];
+
+    switch(ans->generic.type) {
+        case RR_NS:
+            bd_result_set_insert_string(result_set, "answer_ns", ans->ns.nsdname);
+            break;
+        case RR_A:
+            inet_ntop(AF_INET, &ans->a.address, ipaddr, sizeof(ipaddr));
+            bd_result_set_insert_string(result_set, "answer_a", ipaddr);
+            break;
+        case RR_AAAA:
+            inet_ntop(AF_INET6, &ans->aaaa.address, ipaddr, sizeof(ipaddr));
+            bd_result_set_insert_string(result_set, "answer_aaaa", ipaddr);
+            break;
+        case RR_CNAME:
+            bd_result_set_insert_string(result_set, "answer_cname", ans->cname.cname);
+            break;
+        case RR_MX:
+            //strcat(buf, pans[i].mx.preference);
+            //strcat(buf, " ");
+            //strcat(buf, pans[i].mx.exchange);
+            //bd_result_set_insert_string(result_set, "answer_mx", buf);
+            break;
+        case RR_PTR:
+            bd_result_set_insert_string(result_set, "answer_ptr", ans->ptr.ptr);
+            break;
+        default:
+            break;
+    }
 }
 
 int module_dns_init() {

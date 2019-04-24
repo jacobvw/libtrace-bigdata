@@ -21,6 +21,9 @@
 #include "module_influxdb.c"
 #include "module_port.cc"
 
+#define RESULT_SET_INIT_SIZE 20
+#define RESULT_SET_INC_SIZE 10
+
 // this is only here for register_event. Can i remove it somehow??
 bd_global_t *global_data;
 
@@ -73,7 +76,6 @@ static void *start_processing(libtrace_t *trace, libtrace_thread_t *thread,
     bd_cb_set *cbs = global_data->callbacks;
     for (; cbs != NULL; cbs = cbs->next) {
         if (cbs->start_cb != NULL) {
-            fprintf(stderr, "calling starting\n");
             cbs->mls = cbs->start_cb(local);
         }
     }
@@ -134,15 +136,16 @@ bd_result_set_t *bd_result_set_create(const char *mod) {
         fprintf(stderr, "Unable to allocate memory. func. bd_create_output_result_set()\n");
         return NULL;
     }
-    // allocate space for 10 results
-    res->results = (bd_result_t *)malloc(sizeof(bd_result_t)*10);
+    // allocate space for results
+    res->results = (bd_result_t *)malloc(sizeof(bd_result_t)*RESULT_SET_INIT_SIZE);
     if (res->results == NULL) {
         fprintf(stderr, "Unable to allocate memory. func. bd_create_output_result_set()\n");
         return NULL;
     }
     res->module = mod;
     res->num_results = 0;
-    res->allocated_results = 10;
+    res->allocated_results = RESULT_SET_INIT_SIZE;
+    res->timestamp = 0;
 
     return res;
 }
@@ -156,9 +159,9 @@ int bd_result_set_insert(bd_result_set_t *result_set, const char *key, bd_record
 
     // re-allocated more result structures if needed
     if (result_set->num_results >= result_set->allocated_results) {
-        result_set->allocated_results += 10;
+        result_set->allocated_results += RESULT_SET_INC_SIZE;
         result_set->results = (bd_result_t *)realloc(result_set->results,
-            result_set->allocated_results);
+            sizeof(bd_result_t)*result_set->allocated_results);
         if (result_set->results == NULL) {
             fprintf(stderr, "Unable to allocate memory. func. bd_result_set_insert()\n");
             return 1;
@@ -178,12 +181,68 @@ int bd_result_set_insert_string(bd_result_set_t *result_set, const char *key,
     const char *value) {
 
     union bd_record_value val;
-    val.data_string = value;
+    val.data_string = strdup(value);
+    if (val.data_string == NULL) {
+        fprintf(stderr, "Unable to allocate memory. func. bd_result_set_insert_string()\n");
+        return 1;
+    }
+
     bd_result_set_insert(result_set, key, BD_TYPE_STRING, val);
 
     return 0;
 }
-int bd_result_set_output(bd_result_set *result) {
+int bd_result_set_insert_float(bd_result_set_t *result_set, const char *key,
+    float value) {
+
+    union bd_record_value val;
+    val.data_float = value;
+    bd_result_set_insert(result_set, key, BD_TYPE_FLOAT, val);
+
+    return 0;
+}
+int bd_result_set_insert_double(bd_result_set_t *result_set, const char *key,
+    double value) {
+
+    union bd_record_value val;
+    val.data_double = value;
+    bd_result_set_insert(result_set, key, BD_TYPE_DOUBLE, val);
+
+    return 0;
+}
+int bd_result_set_insert_int(bd_result_set_t *result_set, const char *key,
+    int64_t value) {
+
+    union bd_record_value val;
+    val.data_int = value;
+    bd_result_set_insert(result_set, key, BD_TYPE_INT, val);
+
+    return 0;
+}
+int bd_result_set_insert_uint(bd_result_set_t *result_set, const char *key,
+    uint64_t value) {
+
+    union bd_record_value val;
+    val.data_uint = value;
+    bd_result_set_insert(result_set, key, BD_TYPE_UINT, val);
+
+    return 0;
+}
+int bd_result_set_insert_bool(bd_result_set_t *result_set, const char *key,
+    bool value) {
+
+    union bd_record_value val;
+    val.data_bool = value;
+    bd_result_set_insert(result_set, key, BD_TYPE_BOOL, val);
+
+    return 0;
+}
+int bd_result_set_set_timestamp(bd_result_set_t *result_set, double timestamp) {
+    result_set->timestamp = timestamp;
+    return 0;
+}
+int bd_result_set_output(bd_result_set_t *result) {
+
+    int ret;
 
     if (result == NULL) {
         fprintf(stderr, "NULL result set. func. bd_result_set_output()\n");
@@ -193,13 +252,16 @@ int bd_result_set_output(bd_result_set *result) {
     bd_cb_set *cbs = global_data->callbacks;
     for (; cbs != NULL; cbs = cbs->next) {
         if (cbs->output_cb != NULL) {
-            cbs->output_cb(cbs->mls, result);
+            ret = cbs->output_cb(cbs->mls, result);
+            // if ret isnt 0 output failed so store and output and try again later??
         }
     }
 
     return 0;
 }
-int bd_result_set_free(bd_result_set *result_set) {
+int bd_result_set_free(bd_result_set_t *result_set) {
+
+    int i;
 
     if (result_set == NULL) {
         fprintf(stderr, "NULL result set. func. bd_result_set_free()\n");
@@ -207,6 +269,14 @@ int bd_result_set_free(bd_result_set *result_set) {
     }
 
     if (result_set->results != NULL) {
+        // iterate over each clearing any strings
+        for (i=0; i<result_set->num_results; i++) {
+            if (result_set->results[i].type == BD_TYPE_STRING) {
+                if (result_set->results[i].value.data_string != NULL) {
+                    free(result_set->results[i].value.data_string);
+                }
+            }
+        }
         free(result_set->results);
     }
 

@@ -4,21 +4,19 @@
 
 enum bd_record_type {
     BD_TYPE_STRING,
-    bd_type_float,
-    bd_type_double,
-    bd_type_uint8,
-    bd_type_uint16,
-    bd_type_uint32,
-    bd_type_uint64
+    BD_TYPE_FLOAT,
+    BD_TYPE_DOUBLE,
+    BD_TYPE_INT,
+    BD_TYPE_BOOL,
+    BD_TYPE_UINT
 };
 union bd_record_value {
-    const char *data_string;
+    char *data_string;
     float data_float;
     double data_double;
-    uint8_t data_uint8;
-    uint16_t data_uint16;
-    uint32_t data_uint32;
-    uint64_t data_uint64;
+    int64_t data_int;
+    uint64_t data_uint;
+    bool data_bool;
 };
 typedef struct bd_result {
     const char *key;
@@ -30,6 +28,7 @@ typedef struct bd_result_set {
     bd_result_t *results;
     int num_results;
     int allocated_results;
+    double timestamp;
 } bd_result_set_t;
 
 typedef void* (*cb_start) (void *tls);
@@ -94,8 +93,19 @@ int bd_result_set_insert(bd_result_set_t *result_set, const char *key,
     bd_record_type dtype, bd_record_value value);
 int bd_result_set_insert_string(bd_result_set_t *result_set, const char *key,
     const char *value);
-int bd_result_set_output(bd_result_set *record);
-int bd_result_set_free(bd_result_set *result_set);
+int bd_result_set_insert_float(bd_result_set_t *result_set, const char *key,
+    float value);
+int bd_result_set_insert_double(bd_result_set_t *result_set, const char *key,
+    double value);
+int bd_result_set_insert_int(bd_result_set_t *result_set, const char *key,
+    int64_t value);
+int bd_result_set_insert_uint(bd_result_set_t *result_set, const char *key,
+    uint64_t value);
+int bd_result_set_insert_bool(bd_result_set_t *result_set, const char *key,
+    bool value);
+int bd_result_set_set_timestamp(bd_result_set_t *result_set, double ts);
+int bd_result_set_output(bd_result_set_t *record);
+int bd_result_set_free(bd_result_set_t *result_set);
 
 /* Flow function prototypes */
 Flow *flow_per_packet(libtrace_t *trace, libtrace_packet_t *packet, void *global, void *tls);

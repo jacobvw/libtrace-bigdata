@@ -1,5 +1,8 @@
 #include "influxdb.h"
 
+#define INFLUX_BUF_LEN 2000
+#define INFLUX_LINE_LEN 4000
+
 void *module_influxdb_starting(void *tls) {
     influx_client_t *client = (influx_client_t *)malloc(sizeof(influx_client_t));
 
@@ -10,43 +13,89 @@ void *module_influxdb_starting(void *tls) {
     client->usr = strdup("admin");
     client->pwd = strdup("admin");
 
-    fprintf(stderr, "influx start\n");
-
     return client;
 }
 
 int module_influxdb_post(void *mls, bd_result_set *result) {
 
     influx_client_t *client = (influx_client_t *)mls;
+    int i;
+    int ret;
 
-    fprintf(stderr, "outpuuting to influx\n");
-
-    post_http(client,
-        INFLUX_MEAS(result->module),
-        INFLUX_F_STR(result->results[0].key, result->results[0].value),
-        INFLUX_END);
-
-/*    if ((post_http(client,
-        INFLUX_MEAS("flow"),
-        INFLUX_F_STR("src_ip", result->src_ip),
-        INFLUX_F_STR("dst_ip", result->dst_ip),
-        INFLUX_F_INT("src_port", result->src_port),
-        INFLUX_F_INT("dst_port", result->dst_port),
-        INFLUX_F_STR("protocol", result->proto),
-        INFLUX_F_INT("in_packets", result->in_packets),
-        INFLUX_F_INT("out_packets", result->out_packets),
-        INFLUX_F_INT("in_bytes", result->in_bytes),
-        INFLUX_F_INT("out_bytes", result->out_bytes),
-        INFLUX_F_INT("start_ts", result->start_ts*1000),
-        INFLUX_F_INT("end_ts", result->end_ts*1000),
-        INFLUX_END)) != 0) {
-
-
-        fprintf(stderr, "Failed posting record to influxdb\n");
-        return -1;
+    char *str = (char *)malloc(INFLUX_LINE_LEN);
+    if (str == NULL) {
+        fprintf(stderr, "Unable to allocate memory. func. module_influxdb_post()\n");
+        return 1;
     }
-*/
+    str[0] = '\0';
+    char buf[INFLUX_BUF_LEN] = "";
 
+    // construct insert line
+    // insert measurement/module name
+    strcat(str, result->module);
+    strcat(str, ",");
+
+    // add tag sets. This is meta data that doesnt change
+    strcat(str, "capture_application=\"libtrace-bigdata\" ");
+
+    // add data as field sets. This is data that does change
+    for (i=0; i<result->num_results; i++) {
+        if (result->results[i].type == BD_TYPE_STRING) {
+            strcat(str, result->results[i].key);
+            strcat(str, "=\"");
+            strcat(str, result->results[i].value.data_string);
+            strcat(str, "\"");
+        } else if (result->results[i].type == BD_TYPE_FLOAT) {
+            snprintf(buf, INFLUX_BUF_LEN, "%f", result->results[i].value.data_float);
+            strcat(str, result->results[i].key);
+            strcat(str, "=");
+            strcat(str, buf);
+        } else if (result->results[i].type == BD_TYPE_DOUBLE) {
+            snprintf(buf, INFLUX_BUF_LEN, "%lf", result->results[i].value.data_double);
+            strcat(str, result->results[i].key);
+            strcat(str, "=");
+            strcat(str, buf);
+        } else if (result->results[i].type == BD_TYPE_INT) {
+            snprintf(buf, INFLUX_BUF_LEN, "%" PRId64, result->results[i].value.data_int);
+            strcat(str, result->results[i].key);
+            strcat(str, "=");
+            strcat(str, buf);
+            // influx expects "i" at the end of a int64
+            strcat(str, "i");
+        // influxdb needs to be compiled with uint64 support. NOTE i at end
+        } else if (result->results[i].type == BD_TYPE_UINT) {
+            snprintf(buf, INFLUX_BUF_LEN, "%" PRIu64, result->results[i].value.data_uint);
+            strcat(str, result->results[i].key);
+            strcat(str, "=");
+            strcat(str, buf);
+            // influx expects "u" at the end of a uint64
+            strcat(str, "i");
+        } else if (result->results[i].type == BD_TYPE_BOOL) {
+            strcat(str, result->results[i].key);
+            strcat(str, "=");
+            if (result->results[i].value.data_bool) {
+                strcat(str, "t");
+            } else {
+                strcat(str, "f");
+            }
+        }
+
+        if (i != result->num_results - 1) {
+            strcat(str, ",");
+        }
+    }
+
+    // add the timestamp if it was set
+    if (result->timestamp != 0) {
+        strcat(str, " ");
+        snprintf(buf, INFLUX_BUF_LEN, "%lf", result->timestamp);
+        strcat(str, buf);
+    }
+
+    ret = post_http_send_line(client, str, strlen(str));
+    fprintf(stderr, "%d ret code\n", ret);
+
+    return ret;
 }
 
 void *module_influxdb_stopping(void *tls, void *mls) {
