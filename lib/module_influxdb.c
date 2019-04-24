@@ -1,4 +1,4 @@
-#include "influxdb.h"
+#include "module_influxdb.h"
 
 #define INFLUX_BUF_LEN 2000
 #define INFLUX_LINE_LEN 4000
@@ -93,7 +93,7 @@ int module_influxdb_post(void *mls, bd_result_set *result) {
     }
 
     ret = post_http_send_line(client, str, strlen(str));
-    fprintf(stderr, "%d ret code\n", ret);
+    fprintf(stdout, "Send %s event to influxdb\n", result->module);
 
     return ret;
 }
