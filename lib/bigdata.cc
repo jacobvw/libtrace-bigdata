@@ -23,6 +23,7 @@
 
 #define RESULT_SET_INIT_SIZE 20
 #define RESULT_SET_INC_SIZE 10
+#define BIGDATA_TICKRATE 1000 // milliseconds
 
 // this is only here for register_event. Can i remove it somehow??
 bd_global_t *global_data;
@@ -43,6 +44,8 @@ void libtrace_cleanup(libtrace_t *trace, libtrace_callback_set_t *processing,
         trace_destroy_callback_set(reporter);
     }
 }
+
+
 
 /* Called when a processing thread is started before any packets are read
  * return a pointer to the threads local storage */
@@ -94,23 +97,23 @@ libtrace_packet_t *per_packet(libtrace_t *trace, libtrace_thread_t *thread,
     bd_global_t *global_data = (bd_global_t *)global;
 
     // pass packet into the flow manager
-    flow = flow_per_packet(trace, packet, global, tls);
+    flow = flow_per_packet(trace, thread, packet, global, tls);
 
     bd_cb_set *cbs = global_data->callbacks;
     for (; cbs != NULL; cbs = cbs->next) {
         if (cbs->packet_cb != NULL) {
             if (cbs->filter != NULL) {
                 if (trace_apply_filter(cbs->filter, packet)) {
-                    cbs->packet_cb(trace, packet, flow, tls, cbs->mls);
+                    cbs->packet_cb(trace, thread, flow, packet, tls, cbs->mls);
                 }
             } else {
-                cbs->packet_cb(trace, packet, flow, tls, cbs->mls);
+                cbs->packet_cb(trace, thread, flow, packet, tls, cbs->mls);
             }
         }
     }
 
     /* Expire all suitably idle flows. Note: this will export expired flow metrics */
-    flow_expire(trace, packet, global, tls);
+    flow_expire(trace, thread, packet, global, tls);
 
     return packet;
 }
@@ -128,6 +131,55 @@ static void stop_processing(libtrace_t *trace, libtrace_thread_t *thread, void *
 
     // cleanup thread local storage, flow managers etc..
 }
+
+
+
+
+static void per_tick(libtrace_t *trace, libtrace_thread_t *thread, void *global,
+    void *tls, uint64_t tick) {
+
+
+}
+
+
+
+
+static void *reporter_start(libtrace_t *trace, libtrace_thread_t *thread,
+    void *global) {
+
+}
+
+static void reporter_result(libtrace_t *trace, libtrace_thread_t *thread,
+    void *global, void *tls, libtrace_result_t *res) {
+
+    fprintf(stderr, "received published result\n");
+
+    int ret;
+    // get the generic structure holding the result
+    libtrace_generic_t gen = res->value;
+    // cast back to a result set
+    bd_result_set_t *result = (bd_result_set_t *)gen.ptr;
+    bd_global_t *g_data = (bd_global_t *)global;
+    bd_cb_set *cbs = g_data->callbacks;
+
+    for (; cbs != NULL; cbs = cbs->next) {
+        if (cbs->output_cb != NULL) {
+            ret = cbs->output_cb(cbs->mls, result);
+            // if ret isnt 0 output failed so store and output and try again later??
+        }
+    }
+
+    // cleanup the resultset
+    bd_result_set_free(result);
+}
+
+static void reporter_end(libtrace_t *trace, libtrace_thread_t *thread,
+    void *global, void *tls) {
+
+}
+
+
+
 
 bd_result_set_t *bd_result_set_create(const char *mod) {
     // create result set structure
@@ -240,22 +292,21 @@ int bd_result_set_set_timestamp(bd_result_set_t *result_set, double timestamp) {
     result_set->timestamp = timestamp;
     return 0;
 }
-int bd_result_set_output(bd_result_set_t *result) {
-
-    int ret;
+int bd_result_set_output(libtrace_t *trace, libtrace_thread_t *thread,
+    bd_result_set_t *result) {
 
     if (result == NULL) {
         fprintf(stderr, "NULL result set. func. bd_result_set_output()\n");
         return 1;
     }
 
-    bd_cb_set *cbs = global_data->callbacks;
-    for (; cbs != NULL; cbs = cbs->next) {
-        if (cbs->output_cb != NULL) {
-            ret = cbs->output_cb(cbs->mls, result);
-            // if ret isnt 0 output failed so store and output and try again later??
-        }
-    }
+    libtrace_generic_t resultset;
+    resultset.ptr = (void *)result;
+    uint64_t ts = (uint64_t)result->timestamp;
+
+    // send the result to the reporter thread
+    trace_publish_result(trace, thread, ts, resultset, RESULT_USER);
+    fprintf(stderr, "published result\n");
 
     return 0;
 }
@@ -381,9 +432,9 @@ int main(int argc, char *argv[]) {
 
     trace_set_reporter_thold(trace, 1);
     // Send tick message once per second
-    trace_set_tick_interval(trace, 1000);
+    trace_set_tick_interval(trace, BIGDATA_TICKRATE);
 
-    trace_set_combiner(trace, &combiner_ordered, (libtrace_generic_t){0});
+    trace_set_combiner(trace, &combiner_unordered, (libtrace_generic_t){0});
     // Setup number of processing threads
     trace_set_perpkt_threads(trace, 4);
     // Using this hasher will keep all packets related to a flow on the same thread
@@ -392,16 +443,18 @@ int main(int argc, char *argv[]) {
     // setup processing callbacks
     processing = trace_create_callback_set();
     trace_set_starting_cb(processing, start_processing);
-    //trace_set_first_packet_cb(processing, first_packet);
     trace_set_packet_cb(processing, per_packet);
     trace_set_stopping_cb(processing, stop_processing);
-    //trace_set_tick_interval_cb(processing, per_tick);
+    trace_set_tick_interval_cb(processing, per_tick);
 
     // setup report thread
     reporter = trace_create_callback_set();
-    //trace_set_starting_callback(reporter, init_reporter);
-    //trace_set_result_callback(reporter, report_results);
-    //trace_set_stopping_cb(reporter, end_reporter);
+    trace_set_starting_cb(reporter, reporter_start);
+    trace_set_result_cb(reporter, reporter_result);
+    trace_set_stopping_cb(reporter, reporter_end);
+    // process reports as soon as they are received
+    trace_set_reporter_thold(trace, 1);
+
 
     // start the trace
     if (trace_pstart(trace, global_data, processing, reporter) == -1) {

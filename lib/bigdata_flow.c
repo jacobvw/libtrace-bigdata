@@ -19,7 +19,9 @@ typedef struct bigdata_flow_record {
     lpi_data_t lpi;
 } bd_flow_record_t;
 
-Flow *flow_per_packet(libtrace_t *trace, libtrace_packet_t *packet, void *global, void *tls) {
+Flow *flow_per_packet(libtrace_t *trace, libtrace_thread_t *thread,
+    libtrace_packet_t *packet, void *global, void *tls) {
+
     // Get thread local storage
     bd_global_t *global_data = (bd_global_t *)global;
     bd_thread_local_t *local_data = (bd_thread_local_t *)tls;
@@ -128,7 +130,8 @@ int flow_process_metrics(libtrace_packet_t *packet, Flow *flow, double dir, doub
     return 0;
 }
 
-int flow_expire(libtrace_t *trace, libtrace_packet_t *packet, void *global, void *tls) {
+int flow_expire(libtrace_t *trace, libtrace_thread_t *thread,
+    libtrace_packet_t *packet, void *global, void *tls) {
 
     bd_global_t *global_data = (bd_global_t *)global;
     bd_thread_local_t *local_data = (bd_thread_local_t *)tls;
@@ -159,9 +162,7 @@ int flow_expire(libtrace_t *trace, libtrace_packet_t *packet, void *global, void
         bd_result_set_insert_uint(result_set, "in_bytes", flow_record->in_bytes);
         bd_result_set_insert_uint(result_set, "out_bytes", flow_record->out_bytes);
         // output the result set
-        bd_result_set_output(result_set);
-        // free result set
-        bd_result_set_free(result_set);
+        bd_result_set_output(trace, thread, result_set);
 
         // call all callbacks registered to flowend events
         for (; cbs != NULL; cbs = cbs->next) {

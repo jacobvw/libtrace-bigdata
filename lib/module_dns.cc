@@ -30,7 +30,8 @@ void *module_dns_starting(void *tls) {
     return storage;
 }
 
-int module_dns_packet(libtrace_t *trace, libtrace_packet_t *packet, Flow *flow, void *tls, void *mls) {
+int module_dns_packet(libtrace_t *trace, libtrace_thread_t *thread,
+    Flow *flow, libtrace_packet_t *packet, void *tls, void *mls) {
 
     // Gain access to module local storage and thread local storage
     struct module_dns_local *m_local = (struct module_dns_local *)mls;
@@ -144,8 +145,8 @@ int module_dns_packet(libtrace_t *trace, libtrace_packet_t *packet, Flow *flow, 
         //module_dns_add_answer_to_result_set(result_set, resp->nameservers, resp->nscount);
         //module_dns_add_answer_to_result_set(result_set, resp->additional, resp->arcount);
 
-        bd_result_set_output(result_set);
-        bd_result_set_free(result_set);
+        // send resultset to reporter thread
+        bd_result_set_output(trace, thread, result_set);
 
         // remove request from map and free memory for request and response
         map->erase(identifier);

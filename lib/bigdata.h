@@ -32,8 +32,8 @@ typedef struct bd_result_set {
 } bd_result_set_t;
 
 typedef void* (*cb_start) (void *tls);
-typedef int (*cb_packet) (libtrace_t *trace, libtrace_packet_t *packet,
-    Flow *flow, void *tls, void *mls);
+typedef int (*cb_packet) (libtrace_t *trace, libtrace_thread_t *thread,
+    Flow *flow, libtrace_packet_t *packet, void *tls, void *mls);
 typedef int (*cb_stop) (void *tls, void *mls);
 typedef int (*cb_output) (void *mls, bd_result_set *result);
 typedef int (*cb_flowend) ();
@@ -104,7 +104,8 @@ int bd_result_set_insert_uint(bd_result_set_t *result_set, const char *key,
 int bd_result_set_insert_bool(bd_result_set_t *result_set, const char *key,
     bool value);
 int bd_result_set_set_timestamp(bd_result_set_t *result_set, double ts);
-int bd_result_set_output(bd_result_set_t *record);
+int bd_result_set_output(libtrace_t *trace, libtrace_thread_t *thread,
+    bd_result_set_t *result);
 int bd_result_set_free(bd_result_set_t *result_set);
 
 /* Flow function prototypes */
