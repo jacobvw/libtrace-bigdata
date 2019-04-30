@@ -1,4 +1,7 @@
-#libcyaml - https://github.com/tlsa/libcyaml
 libflowmanager
 libprotoident
 libtrace
+
+libyaml - https://github.com/yaml/libyaml
+libm
+lstdc++
