@@ -1,6 +1,24 @@
-#include <stdint.h>
+#ifndef BIGDATA_H
+#define BIGDATA_H
+
+#include <libtrace_parallel.h>
 #include <libprotoident.h>
 #include <libflowmanager.h>
+#include <yaml.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <errno.h>
+
+// internal modules
+#include "bigdata_flow.h"
+
+// Capture modules
+#include "module_dns.h"
+#include "module_http.h"
+#include "module_influxdb.h"
+#include "module_port.h"
+
 
 enum bd_record_type {
     BD_TYPE_STRING,
@@ -113,3 +131,5 @@ Flow *flow_per_packet(libtrace_t *trace, libtrace_packet_t *packet, void *global
 int flow_init_metrics(libtrace_packet_t *packet, Flow *flow, uint8_t dir, double ts);
 int flow_process_metrics(libtrace_packet_t *packet, Flow *flow, double dir, double ts);
 int flow_expire(libtrace_t *trace, libtrace_packet_t *packet, void *global, void *tls);
+
+#endif

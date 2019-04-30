@@ -1,6 +1,5 @@
-#include <libtrace_parallel.h>
-#include <libflowmanager.h>
-#include <libprotoident.h>
+#include "bigdata_flow.h"
+#include "bigdata.h"
 #include <netinet/in.h>
 
 typedef struct bigdata_flow_record {
@@ -18,6 +17,10 @@ typedef struct bigdata_flow_record {
     uint8_t init_dir;
     lpi_data_t lpi;
 } bd_flow_record_t;
+
+/* private prototypes */
+int flow_init_metrics(libtrace_packet_t *packet, Flow *flow, uint8_t dir, double ts);
+int flow_process_metrics(libtrace_packet_t *packet, Flow *flow, double dir, double ts);
 
 Flow *flow_per_packet(libtrace_t *trace, libtrace_thread_t *thread,
     libtrace_packet_t *packet, void *global, void *tls) {

@@ -1,3 +1,9 @@
+#include "module_http.h"
+#include "bigdata.h"
+
+int module_http_packet(libtrace_t *trace, libtrace_packet_t *packet, Flow *flow,
+    void *tls, void *mls);
+
 int module_http_packet(libtrace_t *trace, libtrace_packet_t *packet, Flow *flow,
     void *tls, void *mls) {
 

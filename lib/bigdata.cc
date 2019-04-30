@@ -1,25 +1,9 @@
 #include "bigdata.h"
 
-#include <libtrace_parallel.h>
-
-#include <yaml.h>
 
 #include <iostream>
 #include <list>
 #include <iterator>
-
-#include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
-
-#include "bigdata_flow.c"
-
-// Capture modules
-#include "module_dns.cc"
-#include "module_http.c"
-#include "module_influxdb.c"
-#include "module_port.cc"
 
 #define RESULT_SET_INIT_SIZE 20
 #define RESULT_SET_INC_SIZE 10
@@ -340,7 +324,7 @@ int parse_config(char *filename) {
     FILE *fd;
     yaml_parser_t parser;
     yaml_event_t event;
-    yaml_document_t document;
+    bd_conf_t *conf = (bd_conf_t *)malloc(sizeof(bd_conf_t));
 
     // try open the config file
     if ((fd = fopen(filename, "r")) == NULL) {
@@ -348,47 +332,49 @@ int parse_config(char *filename) {
 	return -1;
     }
 
-    // create the parser object
-    yaml_parser_initialize(&parser);
+    /* Initialize parser */
+    if(!yaml_parser_initialize(&parser))
+        fputs("Failed to initialize parser!\n", stderr);
+    if(fd == NULL)
+        fputs("Failed to open file!\n", stderr);
+
+    /* Set input file */
     yaml_parser_set_input_file(&parser, fd);
 
-    if (!yaml_parser_load(&parser, &document)) {
-        fprintf(stderr, "Invalid config file %s\n", filename);
-        return -1;
-    }
-
+    /* START new code */
     do {
         if (!yaml_parser_parse(&parser, &event)) {
-            fprintf(stderr, "Failed to parse config file %d\n", parser.error);
+            printf("Parser error %d\n", parser.error);
             exit(EXIT_FAILURE);
         }
 
-        switch (event.type) {
+        switch(event.type) {
             case YAML_NO_EVENT: puts("No event!"); break;
-            // Stream start/end
+            /* Stream start/end */
             case YAML_STREAM_START_EVENT: puts("STREAM START"); break;
             case YAML_STREAM_END_EVENT:   puts("STREAM END");   break;
-            // Block delimeters
+            /* Block delimeters */
             case YAML_DOCUMENT_START_EVENT: puts("<b>Start Document</b>"); break;
             case YAML_DOCUMENT_END_EVENT:   puts("<b>End Document</b>");   break;
             case YAML_SEQUENCE_START_EVENT: puts("<b>Start Sequence</b>"); break;
             case YAML_SEQUENCE_END_EVENT:   puts("<b>End Sequence</b>");   break;
             case YAML_MAPPING_START_EVENT:  puts("<b>Start Mapping</b>");  break;
             case YAML_MAPPING_END_EVENT:    puts("<b>End Mapping</b>");    break;
-            // Data
+            /* Data */
             case YAML_ALIAS_EVENT:  printf("Got alias (anchor %s)\n", event.data.alias.anchor); break;
             case YAML_SCALAR_EVENT: printf("Got scalar (value %s)\n", event.data.scalar.value); break;
         }
-
-        if (event.type != YAML_STREAM_END_EVENT) {
+        if(event.type != YAML_STREAM_END_EVENT)
             yaml_event_delete(&event);
-        }
-
-    } while (event.type != YAML_STREAM_END_EVENT);
+    } while(event.type != YAML_STREAM_END_EVENT);
 
     yaml_event_delete(&event);
+    /* END new code */
+
+    /* Cleanup */
     yaml_parser_delete(&parser);
     fclose(fd);
+
     return 0;
 }
 

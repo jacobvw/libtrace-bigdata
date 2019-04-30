@@ -1,3 +1,5 @@
+#include "module_dns.h"
+#include "bigdata.h"
 #include <unordered_map>
 #include <string>
 #include "module_dns_spcdns.h"
@@ -13,6 +15,11 @@ struct module_dns_local {
     std::unordered_map<uint16_t, struct module_dns_req *> *reqs;
 };
 
+int module_dns_answer_to_result_set(bd_result_set_t *result_set, dns_answer_t *ans);
+void *module_dns_starting(void *tls);
+int module_dns_packet(libtrace_t *trace, libtrace_thread_t *thread,
+    Flow *flow, libtrace_packet_t *packet, void *tls, void *mls);
+int module_dns_ending(void *tls, void *mls);
 int module_dns_answer_to_result_set(bd_result_set_t *result_set, dns_answer_t *ans);
 
 void *module_dns_starting(void *tls) {
@@ -97,17 +104,13 @@ int module_dns_packet(libtrace_t *trace, libtrace_thread_t *thread,
             // insert request into the map
             map->insert({identifier, req_stor});
         }
+
     } else {
 
         // retrieve the original request
         struct module_dns_req *req = (struct module_dns_req *)search->second;
         // retrieve the response
         dns_query_t *resp = (dns_query_t *)bufresult;
-
-        dns_question_t *question = (dns_question_t *)resp->questions;
-        //dns_answer_t *ans = (dns_answer_t *)resp->answers;
-        //dns_answer_t *ns = (dns_answer_t *)resp->nameservers;
-        //dns_answer_t *addi = (dns_answer_t *)resp->additional;
 
         // finish populating the result structure
         req->end_ts = trace_get_seconds(packet);
@@ -121,9 +124,10 @@ int module_dns_packet(libtrace_t *trace, libtrace_thread_t *thread,
         req->dst_ip = trace_get_destination_address_string(packet, req->dst_ip, INET6_ADDRSTRLEN);
 
 
-        // output the result -- need to make generic record format??
-        // create result set
+        // create the result set
         bd_result_set_t *result_set = bd_result_set_create("dns");
+        bd_result_set_insert_string(result_set, "src_ip", req->src_ip);
+        bd_result_set_insert_string(result_set, "dst_ip", req->dst_ip);
         bd_result_set_insert_uint(result_set, "question_count", (uint64_t)resp->qdcount);
         bd_result_set_insert_uint(result_set, "answer_count", (uint64_t)resp->ancount);
         bd_result_set_insert_uint(result_set, "nameserver_count", (uint64_t)resp->nscount);
@@ -132,28 +136,40 @@ int module_dns_packet(libtrace_t *trace, libtrace_thread_t *thread,
 
         // for each question
         for (i=0; i<resp->qdcount; i++) {
-            bd_result_set_insert_string(result_set, "question_name", question[i].name);
+            bd_result_set_insert_string(result_set, "question_name", resp->questions[i].name);
             //bd_result_set_insert_string(result_set, "question_class",
             //    dns_class_text(question[i].class));
             bd_result_set_insert_string(result_set, "question_type",
-                dns_type_text(question[i].type));
+                dns_type_text(resp->questions[i].type));
         }
-
+        // for each answer
         for (i=0; i<resp->ancount; i++) {
             module_dns_answer_to_result_set(result_set, &resp->answers[i]);
         }
-        //module_dns_add_answer_to_result_set(result_set, resp->nameservers, resp->nscount);
-        //module_dns_add_answer_to_result_set(result_set, resp->additional, resp->arcount);
+        // for each nameserver
+        for (i=0; i<resp->nscount; i++) {
+            module_dns_answer_to_result_set(result_set, &resp->nameservers[i]);
+        }
+        // for each additional
+        for (i=0; i<resp->arcount; i++) {
+            module_dns_answer_to_result_set(result_set, &resp->additional[i]);
+        }
+
 
         // send resultset to reporter thread
         bd_result_set_output(trace, thread, result_set);
 
         // remove request from map and free memory for request and response
         map->erase(identifier);
+        free(req->src_ip);
+        free(req->dst_ip);
         free(req);
 
-        // remove requests that have not received a response??
     }
+
+
+    // TODO: remove requests that have not received a response??
+
 
     return 0;
 }

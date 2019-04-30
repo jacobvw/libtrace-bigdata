@@ -1,7 +1,13 @@
 #include "module_influxdb.h"
+#include "module_influxdb_core.h"
+#include "bigdata.h"
 
 #define INFLUX_BUF_LEN 2000
 #define INFLUX_LINE_LEN 4000
+
+void *module_influxdb_starting(void *tls);
+int module_influxdb_post(void *mls, bd_result_set *result);
+void *module_influxdb_stopping(void *tls, void *mls);
 
 void *module_influxdb_starting(void *tls) {
     influx_client_t *client = (influx_client_t *)malloc(sizeof(influx_client_t));
