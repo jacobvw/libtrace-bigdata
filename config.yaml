@@ -1,16 +1,32 @@
+# network interface to capture data on. 
+interfaces: ens18
+
+# capture modules
 foreach:
-  - flow
-  - dns-request-response
-metrics:
-  src_ip
-  dst_ip
-  packet_count
-  lpi_classification
-#where:
-#  - influxdb:
-#    host: "testhost.com" # scalar value
-#    port: 1234
-#    username: "user"
-#    password: "pass"
-#  - test:
-#    host: "dfdf"
+
+  # flow module
+  flow:
+    metrics:
+      - src_ip
+      - dst_ip
+      - packet_count
+      - byte_count
+      - protocol
+
+  #dns module
+  dns:
+    metrics:
+      - question
+      - question_type
+      - answer
+      - rtt
+
+# output modules
+where:
+
+  influxdb:
+    host: 127.0.0.1 
+    port: 8086
+    database: libtrace
+    username: admin
+    password: admin
