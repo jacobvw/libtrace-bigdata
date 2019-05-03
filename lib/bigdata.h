@@ -18,7 +18,7 @@
 #include "module_http.h"
 #include "module_influxdb.h"
 #include "module_port.h"
-
+#include "module_statistics.h"
 
 enum bd_record_type {
     BD_TYPE_STRING,
@@ -56,6 +56,8 @@ typedef int (*cb_stop) (void *tls, void *mls);
 typedef int (*cb_output) (void *mls, bd_result_set *result);
 typedef int (*cb_flowend) ();
 typedef int (*cb_flowstart) ();
+typedef int (*cb_tick) ();
+typedef int (*cb_combiner) ();
 
 typedef struct bigdata_callback_set bd_cb_set;
 typedef struct bigdata_callback_set {
@@ -65,7 +67,10 @@ typedef struct bigdata_callback_set {
     cb_output output_cb;
     cb_flowend flowend_cb;
     cb_flowstart flowstart_cb;
-    void *mls;
+    cb_tick tick_cb;
+    size_t tickrate;               // base tickrate
+    size_t c_tickrate;             // countdown for tickrate
+    cb_combiner combiner_cb;
     libtrace_filter_t *filter;
     bd_cb_set *next;
 } bd_cb_set;
@@ -73,6 +78,7 @@ typedef struct bigdata_callback_set {
 typedef struct bigdata_global {
     pthread_mutex_t lock;
     bd_cb_set *callbacks;
+    int callback_count;
     char *filters[];
     char *metrics[];
     char *where[];
@@ -80,6 +86,7 @@ typedef struct bigdata_global {
 
 typedef struct bigdata_thread_local {
     FlowManager *flow_manager;
+    void **mls;                 // array of pointer for module storage
 } bd_thread_local_t;
 
 typedef struct bigdata_config {
@@ -104,6 +111,7 @@ typedef struct bigdata_config_output {
 bd_cb_set *bd_create_cb_set();
 int bd_register_cb_set(bd_cb_set *cbset);
 int bd_add_filter_to_cb_set(bd_cb_set *cbset, const char *filter);
+int bd_add_tickrate_to_cb_set(bd_cb_set *cbset, size_t tickrate);
 
 /* output result set prototypes */
 bd_result_set_t *bd_result_set_create(const char *mod);

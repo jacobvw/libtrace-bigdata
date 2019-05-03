@@ -1,3 +1,4 @@
+#include "module_port.h"
 #include "bigdata.h"
 
 typedef struct module_port_stats {
@@ -13,7 +14,6 @@ typedef struct module_port_storage {
 void *module_port_starting(void *tls);
 int module_port_packet(libtrace_t *trace, libtrace_packet_t *packet, Flow *flow, void *tls, void *mls);
 void *module_port_ending(void *tls, void *mls);
-int module_port_init();
 
 void *module_port_starting(void *tls) {
     mod_port_t *storage = (mod_port_t *)malloc(sizeof(mod_port_t));

@@ -1,13 +1,14 @@
 CC=gcc
 
 # LINK EVERYTHING TOGETHER
-main: module_dns_spcdns_codec.o module_dns_spcdns_mappings.o module_dns.o bigdata_flow.o module_http.o module_influxdb.o bigdata.o
+main: module_dns_spcdns_codec.o module_dns_spcdns_mappings.o module_dns.o bigdata_flow.o module_http.o module_influxdb.o bigdata.o module_statistics.o
 	$(CC) lib/module_dns_spcdns_codec.o lib/module_dns_spcdns_mappings.o \
 		lib/module_dns.o \
 		lib/bigdata_flow.o \
 		lib/module_http.o \
 		lib/module_influxdb.o \
 		lib/bigdata.o \
+		lib/module_statistics.o \
 		-ltrace -lflowmanager -lyaml -lprotoident -lm -lstdc++ \
 		-o bigdata -g
 
@@ -33,6 +34,10 @@ module_http.o: lib/module_http.cc lib/module_http.h
 # INFLUXDB MODULE
 module_influxdb.o: lib/module_influxdb.cc lib/module_influxdb.h lib/module_influxdb_core.h
 	$(CC) lib/module_influxdb.cc -c -o lib/module_influxdb.o -g
+
+# STATISTICS MODULE
+module_statistics.o: lib/module_statistics.cc lib/module_statistics.h
+	$(CC) lib/module_statistics.cc -c -o lib/module_statistics.o -g
 
 # MAIN APPLICATION
 bigdata.o: lib/bigdata.cc lib/bigdata.h

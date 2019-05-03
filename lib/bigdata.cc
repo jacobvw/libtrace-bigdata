@@ -13,6 +13,11 @@
 bd_global_t *global_data;
 
 
+void init_modules() {
+    module_statistics_init();
+    module_dns_init();
+}
+
 void libtrace_cleanup(libtrace_t *trace, libtrace_callback_set_t *processing,
     libtrace_callback_set_t *reporter) {
 
@@ -36,8 +41,9 @@ void libtrace_cleanup(libtrace_t *trace, libtrace_callback_set_t *processing,
 static void *start_processing(libtrace_t *trace, libtrace_thread_t *thread,
     void *global) {
 
+    int cb_counter = 0;
     // gain access to global data
-    bd_global_t *global_data = (bd_global_t *)global;
+    bd_global_t *g_data = (bd_global_t *)global;
 
     // create thread local storage
     bd_thread_local_t *local = (bd_thread_local_t *)malloc(sizeof(bd_thread_local_t));
@@ -45,6 +51,8 @@ static void *start_processing(libtrace_t *trace, libtrace_thread_t *thread,
         fprintf(stderr, "Unable to allocate memory\n");
         return NULL;
     }
+    // create module local storage pointer space
+    local->mls = (void **)malloc(sizeof(void *) * g_data->callback_count);
 
     // Setup the flow manager for this thread
     local->flow_manager = new FlowManager();
@@ -60,11 +68,12 @@ static void *start_processing(libtrace_t *trace, libtrace_thread_t *thread,
     }
 
     // call handlers to modules that need initialise some event local data
-    bd_cb_set *cbs = global_data->callbacks;
+    bd_cb_set *cbs = g_data->callbacks;
     for (; cbs != NULL; cbs = cbs->next) {
         if (cbs->start_cb != NULL) {
-            cbs->mls = cbs->start_cb(local);
+            local->mls[cb_counter] = cbs->start_cb(local);
         }
+        cb_counter += 1;
     }
 
 
@@ -76,24 +85,27 @@ libtrace_packet_t *per_packet(libtrace_t *trace, libtrace_thread_t *thread,
 
     Flow *flow = NULL;
     int ret = 0;
+    int cb_counter = 0;
 
     // Get global and thread local data
-    bd_global_t *global_data = (bd_global_t *)global;
+    bd_global_t *g_data = (bd_global_t *)global;
+    bd_thread_local_t *l_data = (bd_thread_local_t *)tls;
 
     // pass packet into the flow manager
     flow = flow_per_packet(trace, thread, packet, global, tls);
 
-    bd_cb_set *cbs = global_data->callbacks;
+    bd_cb_set *cbs = g_data->callbacks;
     for (; cbs != NULL; cbs = cbs->next) {
         if (cbs->packet_cb != NULL) {
             if (cbs->filter != NULL) {
                 if (trace_apply_filter(cbs->filter, packet)) {
-                    cbs->packet_cb(trace, thread, flow, packet, tls, cbs->mls);
+                    cbs->packet_cb(trace, thread, flow, packet, tls, l_data->mls[cb_counter]);
                 }
             } else {
-                cbs->packet_cb(trace, thread, flow, packet, tls, cbs->mls);
+                cbs->packet_cb(trace, thread, flow, packet, tls, l_data->mls[cb_counter]);
             }
         }
+        cb_counter += 1;
     }
 
     /* Expire all suitably idle flows. Note: this will export expired flow metrics */
@@ -105,15 +117,23 @@ libtrace_packet_t *per_packet(libtrace_t *trace, libtrace_thread_t *thread,
 static void stop_processing(libtrace_t *trace, libtrace_thread_t *thread, void *global,
     void *tls) {
 
-    bd_cb_set *cbs = global_data->callbacks;
+    int cb_counter = 0;
+    // get global and thread local storage
+    bd_global_t *g_data = (bd_global_t *)global;
+    bd_thread_local_t *l_data = (bd_thread_local_t *)tls;
+
+    bd_cb_set *cbs = g_data->callbacks;
     for (; cbs != NULL; cbs = cbs->next) {
         if (cbs->stop_cb != NULL) {
-            cbs->stop_cb(tls, cbs->mls);
+            cbs->stop_cb(tls, l_data->mls[cb_counter]);
         }
+        cb_counter += 1;
     }
 
-
-    // cleanup thread local storage, flow managers etc..
+    // cleanup thread local storage, flow managers, etc.
+    free(l_data->mls);
+    delete(l_data->flow_manager);
+    free(l_data);
 }
 
 
@@ -122,13 +142,29 @@ static void stop_processing(libtrace_t *trace, libtrace_thread_t *thread, void *
 static void per_tick(libtrace_t *trace, libtrace_thread_t *thread, void *global,
     void *tls, uint64_t tick) {
 
+    int cb_counter = 0;
+    // get the global data
+    bd_global_t *g_data = (bd_global_t *)global;
 
+    bd_cb_set *cbs = g_data->callbacks;
+    for (; cbs != NULL; cbs = cbs->next) {
+        if (cbs->tick_cb != NULL) {
+            // check if the callback tick is due NOT WORKING, NEED TO CONSIDER DIFF THREADS
+            cbs->c_tickrate = cbs->c_tickrate - BIGDATA_TICKRATE;
+            if (cbs->c_tickrate < BIGDATA_TICKRATE) {
+
+                cbs->tick_cb();
+                cbs->c_tickrate = cbs->tickrate;
+            }
+        }
+        cb_counter += 1;
+    }
 }
 
 
 
 
-static void *reporter_start(libtrace_t *trace, libtrace_thread_t *thread,
+static void *reporter_starting(libtrace_t *trace, libtrace_thread_t *thread,
     void *global) {
 
 }
@@ -136,29 +172,33 @@ static void *reporter_start(libtrace_t *trace, libtrace_thread_t *thread,
 static void reporter_result(libtrace_t *trace, libtrace_thread_t *thread,
     void *global, void *tls, libtrace_result_t *res) {
 
-    fprintf(stderr, "received published result\n");
-
     int ret;
+    int cb_counter = 0;
     // get the generic structure holding the result
     libtrace_generic_t gen = res->value;
     // cast back to a result set
     bd_result_set_t *result = (bd_result_set_t *)gen.ptr;
-    bd_global_t *g_data = (bd_global_t *)global;
-    bd_cb_set *cbs = g_data->callbacks;
 
+    // get global and thread storage
+    bd_global_t *g_data = (bd_global_t *)global;
+    bd_thread_local_t *l_data = (bd_thread_local_t *)tls;
+
+    bd_cb_set *cbs = g_data->callbacks;
     for (; cbs != NULL; cbs = cbs->next) {
         if (cbs->output_cb != NULL) {
-            ret = cbs->output_cb(cbs->mls, result);
+            ret = cbs->output_cb(l_data->mls[cb_counter], result);
             // if ret isnt 0 output failed so store and output and try again later??
         }
+        cb_counter += 1;
     }
 
     // cleanup the resultset
     bd_result_set_free(result);
 }
 
-static void reporter_end(libtrace_t *trace, libtrace_thread_t *thread,
+static void reporter_stopping(libtrace_t *trace, libtrace_thread_t *thread,
     void *global, void *tls) {
+
 
 }
 
@@ -399,11 +439,10 @@ int main(int argc, char *argv[]) {
         return -1;
     }
     global_data->callbacks = NULL;
+    global_data->callback_count = 0;
 
-    module_influxdb_init();
-    module_dns_init();
-    //module_port_init();
-    //module_http_init();
+    // initialise modules
+    init_modules();
 
     libtrace_t *trace = NULL;
     libtrace_callback_set_t *processing = NULL;
@@ -435,9 +474,9 @@ int main(int argc, char *argv[]) {
 
     // setup report thread
     reporter = trace_create_callback_set();
-    trace_set_starting_cb(reporter, reporter_start);
+    trace_set_starting_cb(reporter, reporter_starting);
     trace_set_result_cb(reporter, reporter_result);
-    trace_set_stopping_cb(reporter, reporter_end);
+    trace_set_stopping_cb(reporter, reporter_stopping);
     // process reports as soon as they are received
     trace_set_reporter_thold(trace, 1);
 
@@ -467,6 +506,11 @@ bd_cb_set *bd_create_cb_set() {
         fprintf(stderr, "Unable to create callback set. func. bd_create_cb_set()\n");
         return NULL;
     }
+
+    // assign default tickrate.
+    cbset->tickrate = BIGDATA_TICKRATE;
+    cbset->c_tickrate = BIGDATA_TICKRATE;
+
     return cbset;
 }
 int bd_register_cb_set(bd_cb_set *cbset) {
@@ -484,10 +528,23 @@ int bd_register_cb_set(bd_cb_set *cbset) {
         tmp->next = cbset;
     }
 
+    // increment callback count
+    global_data->callback_count += 1;
+
     pthread_mutex_unlock(&global_data->lock);
     return 0;
 }
 int bd_add_filter_to_cb_set(bd_cb_set *cbset, const char *filter) {
     cbset->filter = trace_create_filter(filter);
+    return 0;
+}
+int bd_add_tickrate_to_cb_set(bd_cb_set *cbset, size_t tickrate) {
+    if ((tickrate % BIGDATA_TICKRATE) != 0) {
+        fprintf(stderr, "Tickrate must be a multiple of %d\n",
+            BIGDATA_TICKRATE);
+        return 1;
+    }
+    cbset->tickrate = tickrate;
+    cbset->c_tickrate = tickrate;
     return 0;
 }
