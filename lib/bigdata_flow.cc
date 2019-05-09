@@ -94,9 +94,9 @@ int flow_init_metrics(libtrace_packet_t *packet, Flow *flow, uint8_t dir, double
         return 1;
     }
     flow_record->src_ip = trace_get_source_address_string(packet,
-        flow_record->src_ip, INET6_ADDRSTRLEN);
+    flow_record->src_ip, INET6_ADDRSTRLEN);
     flow_record->dst_ip = trace_get_destination_address_string(packet,
-        flow_record->dst_ip, INET6_ADDRSTRLEN);
+    flow_record->dst_ip, INET6_ADDRSTRLEN);
     flow_record->src_port = trace_get_source_port(packet);
     flow_record->dst_port = trace_get_destination_port(packet);
     flow_record->start_ts = ts;

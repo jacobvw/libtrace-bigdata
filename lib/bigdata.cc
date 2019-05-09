@@ -16,6 +16,7 @@ bd_global_t *global_data;
 void init_modules() {
     module_statistics_init();
     module_dns_init();
+    module_influxdb_init();
 }
 
 void libtrace_cleanup(libtrace_t *trace, libtrace_callback_set_t *processing,
@@ -48,11 +49,15 @@ static void *start_processing(libtrace_t *trace, libtrace_thread_t *thread,
     // create thread local storage
     bd_thread_local_t *local = (bd_thread_local_t *)malloc(sizeof(bd_thread_local_t));
     if (local == NULL) {
-        fprintf(stderr, "Unable to allocate memory\n");
-        return NULL;
+        fprintf(stderr, "Unable to allocate memory. func start_processing()\n");
+        exit(BD_OUTOFMEMORY);
     }
     // create module local storage pointer space
     local->mls = (void **)malloc(sizeof(void *) * g_data->callback_count);
+    if (local->mls == NULL) {
+        fprintf(stderr, "Unable to allocate memory. func. start_processing()\n");
+        exit(BD_OUTOFMEMORY);
+    }
 
     // Setup the flow manager for this thread
     local->flow_manager = new FlowManager();
@@ -145,6 +150,7 @@ static void per_tick(libtrace_t *trace, libtrace_thread_t *thread, void *global,
     int cb_counter = 0;
     // get the global data
     bd_global_t *g_data = (bd_global_t *)global;
+    bd_thread_local_t *l_data = (bd_thread_local_t *)tls;
 
     bd_cb_set *cbs = g_data->callbacks;
     for (; cbs != NULL; cbs = cbs->next) {
@@ -153,7 +159,7 @@ static void per_tick(libtrace_t *trace, libtrace_thread_t *thread, void *global,
             cbs->c_tickrate = cbs->c_tickrate - BIGDATA_TICKRATE;
             if (cbs->c_tickrate < BIGDATA_TICKRATE) {
 
-                cbs->tick_cb();
+                cbs->tick_cb(tls, l_data->mls[cb_counter], tick);
                 cbs->c_tickrate = cbs->tickrate;
             }
         }
@@ -167,6 +173,34 @@ static void per_tick(libtrace_t *trace, libtrace_thread_t *thread, void *global,
 static void *reporter_starting(libtrace_t *trace, libtrace_thread_t *thread,
     void *global) {
 
+    int cb_counter = 0;
+    // gain access to global data
+    bd_global_t *g_data = (bd_global_t *)global;
+
+    // create report thread local storage
+    bd_rthread_local_t *local = (bd_rthread_local_t *)malloc(sizeof(bd_rthread_local_t));
+    if (local == NULL) {
+        fprintf(stderr, "Unable to allocate memory. func reporter_starting()\n");
+        exit(BD_OUTOFMEMORY);
+    }
+    // create module local storage pointer space
+    local->mls = (void **)malloc(sizeof(void *) * g_data->callback_count);
+    if (local->mls == NULL) {
+        fprintf(stderr, "Unable to allocate memory. func. reporter_starting()\n");
+        exit(BD_OUTOFMEMORY);
+    }
+
+    // call handlers to modules that need initialise some report module
+    // local storage
+    bd_cb_set *cbs = g_data->callbacks;
+    for (; cbs != NULL; cbs = cbs->next) {
+        if (cbs->reporter_start_cb != NULL) {
+            local->mls[cb_counter] = (void *)cbs->reporter_start_cb(local);
+        }
+        cb_counter += 1;
+    }
+
+    return local;
 }
 
 static void reporter_result(libtrace_t *trace, libtrace_thread_t *thread,
@@ -179,14 +213,14 @@ static void reporter_result(libtrace_t *trace, libtrace_thread_t *thread,
     // cast back to a result set
     bd_result_set_t *result = (bd_result_set_t *)gen.ptr;
 
-    // get global and thread storage
+    // get global and reporter thread storage
     bd_global_t *g_data = (bd_global_t *)global;
-    bd_thread_local_t *l_data = (bd_thread_local_t *)tls;
+    bd_rthread_local_t *l_data = (bd_rthread_local_t *)tls;
 
     bd_cb_set *cbs = g_data->callbacks;
     for (; cbs != NULL; cbs = cbs->next) {
-        if (cbs->output_cb != NULL) {
-            ret = cbs->output_cb(l_data->mls[cb_counter], result);
+        if (cbs->reporter_output_cb != NULL) {
+            ret = cbs->reporter_output_cb(tls, l_data->mls[cb_counter], result);
             // if ret isnt 0 output failed so store and output and try again later??
         }
         cb_counter += 1;
@@ -199,10 +233,25 @@ static void reporter_result(libtrace_t *trace, libtrace_thread_t *thread,
 static void reporter_stopping(libtrace_t *trace, libtrace_thread_t *thread,
     void *global, void *tls) {
 
+    int cb_counter = 0;
+    // get global and thread local storage
+    bd_global_t *g_data = (bd_global_t *)global;
+    bd_thread_local_t *l_data = (bd_thread_local_t *)tls;
 
+    // call all reporter stopping callbacks, each module is required to free any
+    // module local storage
+    bd_cb_set *cbs = g_data->callbacks;
+    for (; cbs != NULL; cbs = cbs->next) {
+        if (cbs->reporter_stop_cb != NULL) {
+            cbs->reporter_stop_cb(tls, l_data->mls[cb_counter]);
+        }
+        cb_counter += 1;
+    }
+
+    // cleanup thread local storage, flow managers, etc.
+    free(l_data->mls);
+    free(l_data);
 }
-
-
 
 
 bd_result_set_t *bd_result_set_create(const char *mod) {
@@ -210,13 +259,13 @@ bd_result_set_t *bd_result_set_create(const char *mod) {
     bd_result_set_t *res = (bd_result_set_t *)malloc(sizeof(bd_result_set_t));
     if (res == NULL) {
         fprintf(stderr, "Unable to allocate memory. func. bd_create_output_result_set()\n");
-        return NULL;
+        exit(BD_OUTOFMEMORY);
     }
     // allocate space for results
     res->results = (bd_result_t *)malloc(sizeof(bd_result_t)*RESULT_SET_INIT_SIZE);
     if (res->results == NULL) {
         fprintf(stderr, "Unable to allocate memory. func. bd_create_output_result_set()\n");
-        return NULL;
+        exit(BD_OUTOFMEMORY);
     }
     res->module = mod;
     res->num_results = 0;
@@ -230,7 +279,7 @@ int bd_result_set_insert(bd_result_set_t *result_set, const char *key, bd_record
 
     if (result_set == NULL) {
         fprintf(stderr, "NULL result set. func. bd_result_set_insert()\n");
-        return 1;
+        exit(BD_OUTOFMEMORY);
     }
 
     // re-allocated more result structures if needed
@@ -260,7 +309,7 @@ int bd_result_set_insert_string(bd_result_set_t *result_set, const char *key,
     val.data_string = strdup(value);
     if (val.data_string == NULL) {
         fprintf(stderr, "Unable to allocate memory. func. bd_result_set_insert_string()\n");
-        return 1;
+        exit(BD_OUTOFMEMORY);
     }
 
     bd_result_set_insert(result_set, key, BD_TYPE_STRING, val);
@@ -321,7 +370,7 @@ int bd_result_set_output(libtrace_t *trace, libtrace_thread_t *thread,
 
     if (result == NULL) {
         fprintf(stderr, "NULL result set. func. bd_result_set_output()\n");
-        return 1;
+        exit(BD_OUTOFMEMORY);
     }
 
     libtrace_generic_t resultset;
@@ -340,7 +389,7 @@ int bd_result_set_free(bd_result_set_t *result_set) {
 
     if (result_set == NULL) {
         fprintf(stderr, "NULL result set. func. bd_result_set_free()\n");
-        return 1;
+        exit(BD_OUTOFMEMORY);
     }
 
     if (result_set->results != NULL) {
@@ -432,7 +481,7 @@ int main(int argc, char *argv[]) {
     global_data = (bd_global_t *)malloc(sizeof(bd_global_t));
     if (global_data == NULL) {
         fprintf(stderr, "Unable to allocate memory for global data\n");
-        return -1;
+        exit(BD_OUTOFMEMORY);
     }
     if (pthread_mutex_init(&global_data->lock, NULL) != 0) {
         printf("\n mutex init failed\n");
@@ -504,7 +553,7 @@ bd_cb_set *bd_create_cb_set() {
     bd_cb_set *cbset = (bd_cb_set *)calloc(1, sizeof(bd_cb_set));
     if (cbset == NULL) {
         fprintf(stderr, "Unable to create callback set. func. bd_create_cb_set()\n");
-        return NULL;
+        exit(BD_OUTOFMEMORY);
     }
 
     // assign default tickrate.
@@ -547,4 +596,14 @@ int bd_add_tickrate_to_cb_set(bd_cb_set *cbset, size_t tickrate) {
     cbset->tickrate = tickrate;
     cbset->c_tickrate = tickrate;
     return 0;
+}
+
+int bd_get_packet_direction(libtrace_packet_t *packet) {
+    if (packet == NULL) {
+        fprintf(stderr, "NULL packet. func. bd_get_packet_direction()\n");
+        return -1;
+    }
+
+    return trace_get_direction(packet);
+
 }

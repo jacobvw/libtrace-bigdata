@@ -6,7 +6,7 @@
 #define INFLUX_LINE_LEN 4000
 
 void *module_influxdb_starting(void *tls);
-int module_influxdb_post(void *mls, bd_result_set *result);
+int module_influxdb_post(void *tls, void *mls, bd_result_set *result);
 void *module_influxdb_stopping(void *tls, void *mls);
 
 void *module_influxdb_starting(void *tls) {
@@ -22,9 +22,10 @@ void *module_influxdb_starting(void *tls) {
     return client;
 }
 
-int module_influxdb_post(void *mls, bd_result_set *result) {
+int module_influxdb_post(void *tls, void *mls, bd_result_set *result) {
 
     influx_client_t *client = (influx_client_t *)mls;
+
     int i;
     int ret;
 
@@ -119,9 +120,11 @@ int module_influxdb_init() {
 
     bd_cb_set *callbacks = bd_create_cb_set();
 
-    callbacks->start_cb = (cb_start)module_influxdb_starting;
-    callbacks->output_cb = (cb_output)module_influxdb_post;
-    callbacks->stop_cb = (cb_stop)module_influxdb_stopping;
+    // Because this is a output only module we register callbacks against
+    // the reporter thread.
+    callbacks->reporter_start_cb =(cb_reporter_start)module_influxdb_starting;
+    callbacks->reporter_output_cb = (cb_reporter_output)module_influxdb_post;
+    callbacks->reporter_stop_cb = (cb_reporter_stop)module_influxdb_stopping;
 
     bd_register_cb_set(callbacks);
 }
