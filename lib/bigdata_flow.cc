@@ -155,7 +155,7 @@ int flow_expire(libtrace_t *trace, libtrace_thread_t *thread,
         bd_result_set_t *result_set = bd_result_set_create("flow");
         bd_result_set_insert_double(result_set, "start_ts", flow_record->start_ts);
         bd_result_set_insert_double(result_set, "end_ts", flow_record->end_ts);
-        bd_result_set_insert_string(result_set, "protocol", flow_record->proto);
+        bd_result_set_insert_tag(result_set, "protocol", flow_record->proto);
         bd_result_set_insert_string(result_set, "src_ip", flow_record->src_ip);
         bd_result_set_insert_string(result_set, "dst_ip", flow_record->dst_ip);
         bd_result_set_insert_uint(result_set, "src_port", (uint64_t)flow_record->src_port);
@@ -165,7 +165,7 @@ int flow_expire(libtrace_t *trace, libtrace_thread_t *thread,
         bd_result_set_insert_uint(result_set, "in_bytes", flow_record->in_bytes);
         bd_result_set_insert_uint(result_set, "out_bytes", flow_record->out_bytes);
         // output the result set
-        bd_result_set_output(trace, thread, result_set);
+        bd_result_set_publish(trace, thread, result_set);
 
         // call all callbacks registered to flowend events
         for (; cbs != NULL; cbs = cbs->next) {

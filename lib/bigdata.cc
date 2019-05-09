@@ -155,11 +155,10 @@ static void per_tick(libtrace_t *trace, libtrace_thread_t *thread, void *global,
     bd_cb_set *cbs = g_data->callbacks;
     for (; cbs != NULL; cbs = cbs->next) {
         if (cbs->tick_cb != NULL) {
-            // check if the callback tick is due NOT WORKING, NEED TO CONSIDER DIFF THREADS
+            // Check if the current callback is due for a tick
             cbs->c_tickrate = cbs->c_tickrate - BIGDATA_TICKRATE;
             if (cbs->c_tickrate < BIGDATA_TICKRATE) {
-
-                cbs->tick_cb(tls, l_data->mls[cb_counter], tick);
+                cbs->tick_cb(trace, thread, tls, l_data->mls[cb_counter], tick);
                 cbs->c_tickrate = cbs->tickrate;
             }
         }
@@ -365,7 +364,20 @@ int bd_result_set_set_timestamp(bd_result_set_t *result_set, double timestamp) {
     result_set->timestamp = timestamp;
     return 0;
 }
-int bd_result_set_output(libtrace_t *trace, libtrace_thread_t *thread,
+int bd_result_set_insert_tag(bd_result_set_t *result_set, const char *tag,
+    const char *value) {
+
+    union bd_record_value val;
+    val.data_string = strdup(value);
+    if (val.data_string == NULL) {
+        fprintf(stderr, "Unable to allocate memory. func. bd_result_set_insert_string()\n");
+        exit(BD_OUTOFMEMORY);
+    }
+    bd_result_set_insert(result_set, tag, BD_TYPE_TAG, val);
+
+    return 0;
+}
+int bd_result_set_publish(libtrace_t *trace, libtrace_thread_t *thread,
     bd_result_set_t *result) {
 
     if (result == NULL) {
@@ -395,7 +407,9 @@ int bd_result_set_free(bd_result_set_t *result_set) {
     if (result_set->results != NULL) {
         // iterate over each clearing any strings
         for (i=0; i<result_set->num_results; i++) {
-            if (result_set->results[i].type == BD_TYPE_STRING) {
+            if (result_set->results[i].type == BD_TYPE_STRING ||
+                result_set->results[i].type == BD_TYPE_TAG) {
+
                 if (result_set->results[i].value.data_string != NULL) {
                     free(result_set->results[i].value.data_string);
                 }

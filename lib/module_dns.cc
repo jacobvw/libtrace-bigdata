@@ -78,7 +78,6 @@ int module_dns_packet(libtrace_t *trace, libtrace_thread_t *thread,
         return 1;
     }
 
-
     // get the identifier for this packet
     uint16_t identifier = (uint16_t)*bufresult;
 
@@ -103,17 +102,21 @@ int module_dns_packet(libtrace_t *trace, libtrace_thread_t *thread,
 
             // insert request into the map
             map->insert({identifier, req_stor});
+        } else {
+
         }
 
     } else {
 
         // retrieve the original request
         struct module_dns_req *req = (struct module_dns_req *)search->second;
-        // retrieve the response
-        dns_query_t *resp = (dns_query_t *)bufresult;
 
         // finish populating the result structure
         req->end_ts = trace_get_seconds(packet);
+
+        // retrieve the response
+        dns_query_t *resp = (dns_query_t *)bufresult;
+
         req->src_ip = (char *)malloc(sizeof(INET6_ADDRSTRLEN));
         req->dst_ip = (char *)malloc(sizeof(INET6_ADDRSTRLEN));
         if (req->src_ip == NULL || req->dst_ip == NULL) {
@@ -122,7 +125,6 @@ int module_dns_packet(libtrace_t *trace, libtrace_thread_t *thread,
         }
         req->src_ip = trace_get_source_address_string(packet, req->src_ip, INET6_ADDRSTRLEN);
         req->dst_ip = trace_get_destination_address_string(packet, req->dst_ip, INET6_ADDRSTRLEN);
-
 
         // create the result set
         bd_result_set_t *result_set = bd_result_set_create("dns");
@@ -134,12 +136,20 @@ int module_dns_packet(libtrace_t *trace, libtrace_thread_t *thread,
         bd_result_set_insert_uint(result_set, "additional_count", (uint64_t)resp->arcount);
         bd_result_set_insert_double(result_set, "rtt", req->end_ts - req->start_ts);
 
+        // add tags
+        bd_result_set_insert_tag(result_set, "authoritive_result", resp->aa ? "true" : "false");
+        bd_result_set_insert_tag(result_set, "truncated_result", resp->tc ? "true" : "false");
+        bd_result_set_insert_tag(result_set, "recursion_desired", resp->rd ? "true" : "false");
+        bd_result_set_insert_tag(result_set, "recursion_available", resp->ra ? "true" : "false");
+
         // for each question
         for (i=0; i<resp->qdcount; i++) {
             bd_result_set_insert_string(result_set, "question_name", resp->questions[i].name);
             //bd_result_set_insert_string(result_set, "question_class",
             //    dns_class_text(question[i].class));
-            bd_result_set_insert_string(result_set, "question_type",
+            //bd_result_set_insert_string(result_set, "question_type",
+            //    dns_type_text(resp->questions[i].type));
+            bd_result_set_insert_tag(result_set, "question_type",
                 dns_type_text(resp->questions[i].type));
         }
         // for each answer
@@ -155,9 +165,8 @@ int module_dns_packet(libtrace_t *trace, libtrace_thread_t *thread,
             module_dns_answer_to_result_set(result_set, &resp->additional[i]);
         }
 
-
         // send resultset to reporter thread
-        bd_result_set_output(trace, thread, result_set);
+        bd_result_set_publish(trace, thread, result_set);
 
         // remove request from map and free memory for request and response
         map->erase(identifier);

@@ -28,7 +28,8 @@ enum bd_record_type {
     BD_TYPE_DOUBLE,
     BD_TYPE_INT,
     BD_TYPE_BOOL,
-    BD_TYPE_UINT
+    BD_TYPE_UINT,
+    BD_TYPE_TAG
 };
 union bd_record_value {
     char *data_string;
@@ -60,7 +61,8 @@ typedef int (*cb_reporter_output) (void *tls, void *mls, bd_result_set *result);
 typedef int (*cb_reporter_stop) (void *tls, void *mls);
 typedef int (*cb_flowend) ();
 typedef int (*cb_flowstart) ();
-typedef int (*cb_tick) (void *tls, void *mls, uint64_t tick);
+typedef int (*cb_tick) (libtrace_t *trace, libtrace_thread_t *thread,
+    void *tls, void *mls, uint64_t tick);
 typedef int (*cb_combiner) ();
 
 typedef struct bigdata_callback_set bd_cb_set;
@@ -147,7 +149,9 @@ int bd_result_set_insert_uint(bd_result_set_t *result_set, const char *key,
 int bd_result_set_insert_bool(bd_result_set_t *result_set, const char *key,
     bool value);
 int bd_result_set_set_timestamp(bd_result_set_t *result_set, double ts);
-int bd_result_set_output(libtrace_t *trace, libtrace_thread_t *thread,
+int bd_result_set_insert_tag(bd_result_set_t *result_set, const char *tag,
+    const char *value);
+int bd_result_set_publish(libtrace_t *trace, libtrace_thread_t *thread,
     bd_result_set_t *result);
 int bd_result_set_free(bd_result_set_t *result_set);
 

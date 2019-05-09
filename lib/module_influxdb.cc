@@ -43,7 +43,19 @@ int module_influxdb_post(void *tls, void *mls, bd_result_set *result) {
     strcat(str, ",");
 
     // add tag sets. This is meta data that doesnt change
-    strcat(str, "capture_application=\"libtrace-bigdata\" ");
+    strcat(str, "capture_application=libtrace-bigdata");
+    for (i=0; i<result->num_results; i++) {
+        if (result->results[i].type == BD_TYPE_TAG) {
+            strcat(str, ",");
+            strcat(str, result->results[i].key);
+            strcat(str, "=");
+            strcat(str, result->results[i].value.data_string);
+            //strcat(str, "\"");
+        }
+    }
+
+    // a space is required between tags and values
+    strcat(str, " ");
 
     // add data as field sets. This is data that does change
     for (i=0; i<result->num_results; i++) {
@@ -75,7 +87,8 @@ int module_influxdb_post(void *tls, void *mls, bd_result_set *result) {
             strcat(str, result->results[i].key);
             strcat(str, "=");
             strcat(str, buf);
-            // influx expects "u" at the end of a uint64
+            // influx expects "u" at the end of a uint64, however most version dont
+            // support it yet unless compiled with a specific flag
             strcat(str, "i");
         } else if (result->results[i].type == BD_TYPE_BOOL) {
             strcat(str, result->results[i].key);
@@ -87,7 +100,7 @@ int module_influxdb_post(void *tls, void *mls, bd_result_set *result) {
             }
         }
 
-        if (i != result->num_results - 1) {
+        if (i != result->num_results -1 && result->results[i].type != BD_TYPE_TAG) {
             strcat(str, ",");
         }
     }

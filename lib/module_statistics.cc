@@ -11,30 +11,81 @@ typedef struct module_statistics {
     uint64_t c_out_bytes;           // number of outbound bytes
 } mod_stats_t;
 
+void module_statistics_init_stor(mod_stats_t *stats) {
+    stats->start_ts = 0;
+    stats->end_ts = 0;
+    stats->u_tcp_ops = 0;
+    stats->c_in_packets = 0;
+    stats->c_out_packets = 0;
+    stats->c_in_bytes = 0;
+    stats->c_out_bytes = 0;
+}
+
 void *module_statistics_starting(void *tls) {
     mod_stats_t *stats = (mod_stats_t *)malloc(sizeof(mod_stats_t));
     if (stats == NULL) {
         fprintf(stderr, "Unable to allocate memory. func. "
             "module_statistics_starting()\n");
-        return NULL;
+        exit(BD_OUTOFMEMORY);
     }
+
+    // initialise storage
+    module_statistics_init_stor(stats);
+
+    return stats;
 }
 
 int module_statistics_packet(libtrace_t *trace, libtrace_thread_t *thread,
     Flow *flow, libtrace_packet_t *packet, void *tls, void *mls) {
 
-    
+    // get the module local storage
+    mod_stats_t *stats = (mod_stats_t *)mls;
+
+    uint64_t tcp_ops = 0;
+
+    // update all the counters
+    if (bd_get_packet_direction(packet)) {
+        stats->c_in_packets += 1;
+        stats->c_in_bytes += trace_get_payload_length(packet);
+    } else {
+        stats->c_out_packets += 1;
+        stats->c_out_bytes += trace_get_payload_length(packet);
+    }
+
+    // update timestamps
+    if (stats->start_ts = 0) { trace_get_seconds(packet); }
+    stats->end_ts = trace_get_seconds(packet);
 }
 
 int module_statistics_stopping(void *tls, void *mls) {
-
+    mod_stats_t *stats = (mod_stats_t *)mls;
+    free(stats);
 }
 
-int module_statistics_tick() {
-    fprintf(stderr, "tick stats\n");
+int module_statistics_tick(libtrace_t *trace, libtrace_thread_t *thread,
+    void *tls, void *mls, uint64_t tick) {
+
+    // gain access to the stats
+    mod_stats_t *stats = (mod_stats_t *)mls;
+
+    // create result set
+    bd_result_set_t *result_set = bd_result_set_create("stats");
+    bd_result_set_insert_uint(result_set, "start_ts", stats->start_ts);
+    bd_result_set_insert_uint(result_set, "end_ts" , stats->end_ts);
+    bd_result_set_insert_uint(result_set, "unique_tcp_ops", stats->u_tcp_ops);
+    bd_result_set_insert_uint(result_set, "in_packets", stats->c_in_packets);
+    bd_result_set_insert_uint(result_set, "out_packets", stats->c_out_packets);
+    bd_result_set_insert_uint(result_set, "in_bytes", stats->c_in_bytes);
+    bd_result_set_insert_uint(result_set, "out_bytes", stats->c_out_bytes);
+
+    // clear stats counters
+    module_statistics_init_stor(stats);
+
+    // publish the result
+    bd_result_set_publish(trace, thread, result_set);
 }
 
-int module_statistics_combiner() {
+int module_statistics_combiner(bd_result_t *result) {
 
 }
 
@@ -45,9 +96,9 @@ int module_statistics_init() {
     callbacks->packet_cb = (cb_packet)module_statistics_packet;
     callbacks->stop_cb = (cb_stop)module_statistics_stopping;
     callbacks->tick_cb = (cb_tick)module_statistics_tick;
-    callbacks->combiner_cb = (cb_combiner)module_statistics_combiner;
 
-    bd_add_tickrate_to_cb_set(callbacks, 5000);
+    // output results every minute
+    bd_add_tickrate_to_cb_set(callbacks, 60000);
     bd_register_cb_set(callbacks);
 
     return 0;
