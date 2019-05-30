@@ -164,6 +164,11 @@ static void per_tick(libtrace_t *trace, libtrace_thread_t *thread, void *global,
         }
         cb_counter += 1;
     }
+    libtrace_stat_t *stats = trace_create_statistics();
+    trace_get_statistics(trace, stats);
+    fprintf(stderr, "Accepted %lu packets\nDropped %lu packets\n\n",
+        stats->accepted, stats->dropped);
+    free(stats);
 }
 
 
@@ -391,7 +396,6 @@ int bd_result_set_publish(libtrace_t *trace, libtrace_thread_t *thread,
 
     // send the result to the reporter thread
     trace_publish_result(trace, thread, ts, resultset, RESULT_USER);
-    fprintf(stderr, "published result\n");
 
     return 0;
 }
