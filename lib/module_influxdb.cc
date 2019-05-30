@@ -13,7 +13,7 @@ void *module_influxdb_starting(void *tls) {
     influx_client_t *client = (influx_client_t *)malloc(sizeof(influx_client_t));
 
     // setup influx connection structure
-    client->host = strdup("127.0.0.1");
+    client->host = strdup("192.168.20.47");
     client->port = 8086;
     client->db = strdup("libtrace");
     client->usr = strdup("admin");
@@ -113,7 +113,6 @@ int module_influxdb_post(void *tls, void *mls, bd_result_set *result) {
     }
 
     ret = post_http_send_line(client, str, strlen(str));
-    fprintf(stdout, "Send %s event to influxdb code %d\n", result->module, ret);
 
     return ret;
 }
