@@ -44,7 +44,12 @@ Flow *flow_per_packet(libtrace_t *trace, libtrace_thread_t *thread,
     if (ip == NULL) { return NULL; }
 
     /* Get the direction of the trace, this could be improved */
-    dir = trace_get_direction(packet);
+    //dir = trace_get_direction(packet);
+    if (ip->ip_src.s_addr < ip->ip_dst.s_addr) {
+        dir = 0;
+    } else {
+        dir = 1;
+    }
 
     /* Ignore packets where the IP addresses are the same - something is
      * probably screwy and it's REALLY hard to determine direction */
