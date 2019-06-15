@@ -1,5 +1,6 @@
 The use of hasher_bidirectional does not correctly assign ipv6 packets of the same
 flow to the same thread
 
+result sets should be sent to storage appliances in batches
 
 

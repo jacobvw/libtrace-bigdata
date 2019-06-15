@@ -15,8 +15,8 @@ bd_global_t *global_data;
 
 void init_modules() {
     module_statistics_init();
-    module_dns_init();
-    module_influxdb_init();
+    //module_dns_init();
+    //module_influxdb_init();
 }
 
 void libtrace_cleanup(libtrace_t *trace, libtrace_callback_set_t *processing,
@@ -99,6 +99,7 @@ libtrace_packet_t *per_packet(libtrace_t *trace, libtrace_thread_t *thread,
     // pass packet into the flow manager
     flow = flow_per_packet(trace, thread, packet, global, tls);
 
+    if (flow) {
     bd_cb_set *cbs = g_data->callbacks;
     for (; cbs != NULL; cbs = cbs->next) {
         if (cbs->packet_cb != NULL) {
@@ -111,6 +112,7 @@ libtrace_packet_t *per_packet(libtrace_t *trace, libtrace_thread_t *thread,
             }
         }
         cb_counter += 1;
+    }
     }
 
     /* Expire all suitably idle flows. Note: this will export expired flow metrics */
@@ -164,11 +166,11 @@ static void per_tick(libtrace_t *trace, libtrace_thread_t *thread, void *global,
         }
         cb_counter += 1;
     }
-    libtrace_stat_t *stats = trace_create_statistics();
-    trace_get_statistics(trace, stats);
-    fprintf(stderr, "Accepted %lu packets\nDropped %lu packets\n\n",
-        stats->accepted, stats->dropped);
-    free(stats);
+    //libtrace_stat_t *stats = trace_create_statistics();
+    //trace_get_statistics(trace, stats);
+    //fprintf(stderr, "Accepted %lu packets\nDropped %lu packets\n\n",
+    //    stats->accepted, stats->dropped);
+    //free(stats);
 }
 
 

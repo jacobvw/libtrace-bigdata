@@ -5,6 +5,8 @@
 #include "module_dns_spcdns.h"
 #include "module_dns_spcdns_mappings.h"
 
+#define DEBUG 1
+
 struct module_dns_req {
     double start_ts;
     double end_ts;
@@ -100,10 +102,19 @@ int module_dns_packet(libtrace_t *trace, libtrace_thread_t *thread,
             }
             req_stor->start_ts = trace_get_seconds(packet);
 
+            if (DEBUG) {
+                fprintf(stderr, "got query %s thread id %lu\n",
+                    dns_type_text(req->questions[0].type), pthread_self());
+            }
+
             // insert request into the map
             map->insert({identifier, req_stor});
         } else {
-
+            if (DEBUG) {
+                // is a result without query
+                fprintf(stderr, "Got response with no corresponding query type %s thread %lu\n",
+                dns_type_text(req->questions[0].type), pthread_self());
+            }
         }
 
     } else {
@@ -151,6 +162,11 @@ int module_dns_packet(libtrace_t *trace, libtrace_thread_t *thread,
             //    dns_type_text(resp->questions[i].type));
             bd_result_set_insert_tag(result_set, "question_type",
                 dns_type_text(resp->questions[i].type));
+
+            if (DEBUG) {
+                fprintf(stderr, "got response %s thread %lu\n",
+                    dns_type_text(resp->questions[i].type), pthread_self());
+            }
         }
         // for each answer
         for (i=0; i<resp->ancount; i++) {
@@ -191,31 +207,42 @@ int module_dns_ending(void *tls, void *mls) {
 
 int module_dns_answer_to_result_set(bd_result_set_t *result_set, dns_answer_t *ans) {
 
-    char ipaddr[INET6_ADDRSTRLEN];
+    char buf[100];
 
     switch(ans->generic.type) {
         case RR_NS:
-            bd_result_set_insert_string(result_set, "answer_ns", ans->ns.nsdname);
+            bd_result_set_insert_string(result_set, "answer", ans->ns.nsdname);
             break;
         case RR_A:
-            inet_ntop(AF_INET, &ans->a.address, ipaddr, sizeof(ipaddr));
-            bd_result_set_insert_string(result_set, "answer_a", ipaddr);
+            inet_ntop(AF_INET, &ans->a.address, buf, sizeof(buf));
+            bd_result_set_insert_string(result_set, "answer", buf);
             break;
         case RR_AAAA:
-            inet_ntop(AF_INET6, &ans->aaaa.address, ipaddr, sizeof(ipaddr));
-            bd_result_set_insert_string(result_set, "answer_aaaa", ipaddr);
+            inet_ntop(AF_INET6, &ans->aaaa.address, buf, sizeof(buf));
+            bd_result_set_insert_string(result_set, "answer", buf);
             break;
         case RR_CNAME:
-            bd_result_set_insert_string(result_set, "answer_cname", ans->cname.cname);
+            bd_result_set_insert_string(result_set, "answer", ans->cname.cname);
             break;
         case RR_MX:
-            //strcat(buf, pans[i].mx.preference);
-            //strcat(buf, " ");
-            //strcat(buf, pans[i].mx.exchange);
-            //bd_result_set_insert_string(result_set, "answer_mx", buf);
+            snprintf(buf, sizeof(buf), "%d %s", ans->mx.preference, ans->mx.exchange);
+            bd_result_set_insert_string(result_set, "answer", buf);
             break;
         case RR_PTR:
-            bd_result_set_insert_string(result_set, "answer_ptr", ans->ptr.ptr);
+            bd_result_set_insert_string(result_set, "answer", ans->ptr.ptr);
+            break;
+        case RR_SPF:
+        case RR_TXT:
+            bd_result_set_insert_string(result_set, "answer", ans->txt.text);
+            break;
+        case RR_SOA:
+            snprintf(buf, sizeof(buf), "%u %u %u %u %u",
+                ans->soa.serial,
+                ans->soa.refresh,
+                ans->soa.retry,
+                ans->soa.expire,
+                ans->soa.minimum);
+            bd_result_set_insert_string(result_set, "answer", buf);
             break;
         default:
             break;

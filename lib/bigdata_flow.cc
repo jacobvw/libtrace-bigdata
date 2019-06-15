@@ -2,22 +2,6 @@
 #include "bigdata.h"
 #include <netinet/in.h>
 
-typedef struct bigdata_flow_record {
-    double start_ts;
-    double end_ts;
-    char *proto;
-    char *src_ip;
-    char *dst_ip;
-    uint16_t src_port;
-    uint16_t dst_port;
-    uint64_t in_packets;
-    uint64_t out_packets;
-    uint64_t in_bytes;
-    uint64_t out_bytes;
-    uint8_t init_dir;
-    lpi_data_t lpi;
-} bd_flow_record_t;
-
 /* private prototypes */
 int flow_init_metrics(libtrace_packet_t *packet, Flow *flow, uint8_t dir, double ts);
 int flow_process_metrics(libtrace_packet_t *packet, Flow *flow, double dir, double ts);
@@ -112,6 +96,7 @@ int flow_init_metrics(libtrace_packet_t *packet, Flow *flow, uint8_t dir, double
     flow_record->in_bytes = 0;
     flow_record->out_bytes = 0;
     lpi_init_data(&flow_record->lpi);
+    flow_record->lpi_module = NULL;
 
     // link flow record to the flow
     flow->extension = flow_record;
@@ -134,6 +119,11 @@ int flow_process_metrics(libtrace_packet_t *packet, Flow *flow, double dir, doub
 
     /* update libprotoident */
     lpi_update_data(packet, &flow_record->lpi, flow_record->init_dir);
+    /* guess the protocol if its not known */
+    /* TODO perform this check until a packet with a payload has been seen in both directions */
+    if (flow_record->lpi_module == NULL || flow_record->lpi_module->protocol >= LPI_PROTO_INVALID) {
+        flow_record->lpi_module = lpi_guess_protocol(&flow_record->lpi);
+    }
 
     return 0;
 }
@@ -152,9 +142,8 @@ int flow_expire(libtrace_t *trace, libtrace_thread_t *thread,
         /* Gain access to the flow metrics */
         bd_flow_record_t *flow_record = (bd_flow_record_t *)expired_flow->extension;
 
-        /* Guess the protocol */
-        lpi_module_t *proto = lpi_guess_protocol(&flow_record->lpi);
-        flow_record->proto = strdup(proto->name);
+        /* Get the protocol name */
+        flow_record->proto = strdup(flow_record->lpi_module->name);
 
         // create resultset for flow record and output
         bd_result_set_t *result_set = bd_result_set_create("flow");

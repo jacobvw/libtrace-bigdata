@@ -60,21 +60,25 @@ int module_influxdb_post(void *tls, void *mls, bd_result_set *result) {
     // add data as field sets. This is data that does change
     for (i=0; i<result->num_results; i++) {
         if (result->results[i].type == BD_TYPE_STRING) {
+            if (i != 0) strcat(str, ",");
             strcat(str, result->results[i].key);
             strcat(str, "=\"");
             strcat(str, result->results[i].value.data_string);
             strcat(str, "\"");
         } else if (result->results[i].type == BD_TYPE_FLOAT) {
+            if (i != 0) strcat(str, ",");
             snprintf(buf, INFLUX_BUF_LEN, "%f", result->results[i].value.data_float);
             strcat(str, result->results[i].key);
             strcat(str, "=");
             strcat(str, buf);
         } else if (result->results[i].type == BD_TYPE_DOUBLE) {
+            if (i != 0) strcat(str, ",");
             snprintf(buf, INFLUX_BUF_LEN, "%lf", result->results[i].value.data_double);
             strcat(str, result->results[i].key);
             strcat(str, "=");
             strcat(str, buf);
         } else if (result->results[i].type == BD_TYPE_INT) {
+            if (i != 0) strcat(str, ",");
             snprintf(buf, INFLUX_BUF_LEN, "%" PRId64, result->results[i].value.data_int);
             strcat(str, result->results[i].key);
             strcat(str, "=");
@@ -83,6 +87,7 @@ int module_influxdb_post(void *tls, void *mls, bd_result_set *result) {
             strcat(str, "i");
         // influxdb needs to be compiled with uint64 support. NOTE i at end
         } else if (result->results[i].type == BD_TYPE_UINT) {
+            if (i != 0) strcat(str, ",");
             snprintf(buf, INFLUX_BUF_LEN, "%" PRIu64, result->results[i].value.data_uint);
             strcat(str, result->results[i].key);
             strcat(str, "=");
@@ -91,6 +96,7 @@ int module_influxdb_post(void *tls, void *mls, bd_result_set *result) {
             // support it yet unless compiled with a specific flag
             strcat(str, "i");
         } else if (result->results[i].type == BD_TYPE_BOOL) {
+            if (i != 0) strcat(str, ",");
             strcat(str, result->results[i].key);
             strcat(str, "=");
             if (result->results[i].value.data_bool) {
@@ -98,10 +104,6 @@ int module_influxdb_post(void *tls, void *mls, bd_result_set *result) {
             } else {
                 strcat(str, "f");
             }
-        }
-
-        if (i != result->num_results -1 && result->results[i].type != BD_TYPE_TAG) {
-            strcat(str, ",");
         }
     }
 
