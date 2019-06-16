@@ -16,7 +16,7 @@ bd_global_t *global_data;
 void init_modules() {
     module_statistics_init();
     //module_dns_init();
-    //module_influxdb_init();
+    module_influxdb_init();
 }
 
 void libtrace_cleanup(libtrace_t *trace, libtrace_callback_set_t *processing,
@@ -99,20 +99,21 @@ libtrace_packet_t *per_packet(libtrace_t *trace, libtrace_thread_t *thread,
     // pass packet into the flow manager
     flow = flow_per_packet(trace, thread, packet, global, tls);
 
+    /* if a flow was not found something has gone wrong */
     if (flow) {
-    bd_cb_set *cbs = g_data->callbacks;
-    for (; cbs != NULL; cbs = cbs->next) {
-        if (cbs->packet_cb != NULL) {
-            if (cbs->filter != NULL) {
-                if (trace_apply_filter(cbs->filter, packet)) {
+        bd_cb_set *cbs = g_data->callbacks;
+        for (; cbs != NULL; cbs = cbs->next) {
+            if (cbs->packet_cb != NULL) {
+                if (cbs->filter != NULL) {
+                    if (trace_apply_filter(cbs->filter, packet)) {
+                        cbs->packet_cb(trace, thread, flow, packet, tls, l_data->mls[cb_counter]);
+                    }
+                } else {
                     cbs->packet_cb(trace, thread, flow, packet, tls, l_data->mls[cb_counter]);
                 }
-            } else {
-                cbs->packet_cb(trace, thread, flow, packet, tls, l_data->mls[cb_counter]);
             }
+            cb_counter += 1;
         }
-        cb_counter += 1;
-    }
     }
 
     /* Expire all suitably idle flows. Note: this will export expired flow metrics */
@@ -530,7 +531,7 @@ int main(int argc, char *argv[]) {
 
     trace_set_combiner(trace, &combiner_unordered, (libtrace_generic_t){0});
     // Setup number of processing threads
-    trace_set_perpkt_threads(trace, 4);
+    trace_set_perpkt_threads(trace, 1);
     // Using this hasher will keep all packets related to a flow on the same thread
     trace_set_hasher(trace, HASHER_BIDIRECTIONAL, NULL, NULL);
 
