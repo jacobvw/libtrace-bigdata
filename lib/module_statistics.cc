@@ -2,6 +2,9 @@
 #include "bigdata.h"
 #include <unordered_map>
 #include <set>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 typedef struct module_statistics_proto mod_stats_proto_t;
 
@@ -27,8 +30,8 @@ typedef struct module_statistics_proto {
     uint64_t in_packets;
     uint64_t out_packets;
 
-    std::set<uint32_t> local_ips;
-    std::set<uint32_t> remote_ips;
+    std::set<uint32_t> *src_ips;
+    std::set<uint32_t> *dst_ips;
 
     // posibly have a list of flows? could help count number of unique ones
     
@@ -72,9 +75,12 @@ int module_statistics_packet(libtrace_t *trace, libtrace_thread_t *thread,
     bd_flow_record_t *flow_rec = (bd_flow_record_t *)flow->extension;
 
     uint64_t tcp_ops = 0;
+    int dir = bd_get_packet_direction(packet);
+    struct sockaddr_storage src_addr, dst_addr;
+    struct sockaddr *src_ip, *dst_ip;
 
     // update all the counters
-    if (bd_get_packet_direction(packet)) {
+    if (dir) {
         stats->c_in_packets += 1;
         stats->c_in_bytes += trace_get_payload_length(packet);
     } else {
@@ -85,6 +91,7 @@ int module_statistics_packet(libtrace_t *trace, libtrace_thread_t *thread,
     // update timestamps
     if (stats->start_ts = 0) { trace_get_seconds(packet); }
     stats->end_ts = trace_get_seconds(packet);
+
 
 
 
@@ -108,25 +115,61 @@ int module_statistics_packet(libtrace_t *trace, libtrace_thread_t *thread,
         proto->in_packets = 0;
         proto->out_packets = 0;
 
+        proto->src_ips = new std::set<uint32_t>;
+        proto->dst_ips = new std::set<uint32_t>;
+
         stats->proto_stats->insert({flow_rec->lpi_module->protocol, proto});
     } else {
         proto = (mod_stats_proto_t *)search->second;
     }
 
+    // if the protocol has changed for this flow
+    if (proto->module != flow_rec->lpi_module) {
+        // find a way to move recorded stats over to correct proto??
+        proto->module = flow_rec->lpi_module;
+    }
     // update counters for the protocol
-    if (bd_get_packet_direction(packet)) {
+    if (dir) {
         proto->in_bytes += trace_get_payload_length(packet);
         proto->in_packets += 1;
     } else {
         proto->out_bytes += trace_get_payload_length(packet);
         proto->out_packets += 1;
     }
+
+    src_ip = trace_get_source_address(packet, (struct sockaddr *)&src_addr);
+    dst_ip = trace_get_destination_address(packet, (struct sockaddr *)&dst_addr);
+    if (src_ip != NULL && dst_ip != NULL) {
+        // IPv4
+        if (src_ip->sa_family == AF_INET && dst_ip->sa_family == AF_INET) {
+            struct sockaddr_in *v4 = (struct sockaddr_in *)src_ip;
+            struct in_addr ipv4 = (struct in_addr)v4->sin_addr;
+            uint32_t address = htonl(ipv4.s_addr);
+
+            proto->src_ips->insert(address);
+
+            v4 = (struct sockaddr_in *)dst_ip;
+            ipv4 = (struct in_addr)v4->sin_addr;
+            address = htonl(ipv4.s_addr);
+
+            proto->dst_ips->insert(address);
+        }
+        // IPv6. TODO
+    }
 }
 
 int module_statistics_stopping(void *tls, void *mls) {
     mod_stats_t *stats = (mod_stats_t *)mls;
 
-    /* delete protocol stats list. Need to empty the list first */
+    // free allocated structures within the map
+    for (std::unordered_map<lpi_protocol_t, mod_stats_proto_t *>::iterator
+        it=stats->proto_stats->begin(); it!=stats->proto_stats->end(); ++it) {
+
+        mod_stats_proto_t *proto = (mod_stats_proto_t *)it->second;
+        free(proto);
+    }
+
+    // delete the map
     delete(stats->proto_stats);
 
     /* release stats memory */
@@ -140,20 +183,20 @@ int module_statistics_tick(libtrace_t *trace, libtrace_thread_t *thread,
     mod_stats_t *stats = (mod_stats_t *)mls;
 
     // create result set
-    bd_result_set_t *result_set = bd_result_set_create("stats");
-    bd_result_set_insert_uint(result_set, "start_ts", stats->start_ts);
-    bd_result_set_insert_uint(result_set, "end_ts" , stats->end_ts);
-    bd_result_set_insert_uint(result_set, "unique_tcp_ops", stats->u_tcp_ops);
-    bd_result_set_insert_uint(result_set, "in_packets", stats->c_in_packets);
-    bd_result_set_insert_uint(result_set, "out_packets", stats->c_out_packets);
-    bd_result_set_insert_uint(result_set, "in_bytes", stats->c_in_bytes);
-    bd_result_set_insert_uint(result_set, "out_bytes", stats->c_out_bytes);
+    //bd_result_set_t *result_set = bd_result_set_create("stats");
+    //bd_result_set_insert_uint(result_set, "start_ts", stats->start_ts);
+    //bd_result_set_insert_uint(result_set, "end_ts" , stats->end_ts);
+    //bd_result_set_insert_uint(result_set, "unique_tcp_ops", stats->u_tcp_ops);
+    //bd_result_set_insert_uint(result_set, "in_packets", stats->c_in_packets);
+    //bd_result_set_insert_uint(result_set, "out_packets", stats->c_out_packets);
+    //bd_result_set_insert_uint(result_set, "in_bytes", stats->c_in_bytes);
+    //bd_result_set_insert_uint(result_set, "out_bytes", stats->c_out_bytes);
 
     // clear stats counters
-    module_statistics_init_stor(stats);
+    //module_statistics_init_stor(stats);
 
     // publish the result
-    bd_result_set_publish(trace, thread, result_set);
+    //bd_result_set_publish(trace, thread, result_set);
 
     // output protocol counters
     for (std::unordered_map<lpi_protocol_t, mod_stats_proto_t *>::iterator
@@ -161,10 +204,35 @@ int module_statistics_tick(libtrace_t *trace, libtrace_thread_t *thread,
 
         mod_stats_proto_t *proto = (mod_stats_proto_t *)it->second;
 
-        fprintf(stderr, "Protocol: %s\n", proto->module->name);
-        fprintf(stderr, "\tIn packets: %lu\n", proto->in_packets);
-        fprintf(stderr, "\tOut packets: %lu\n", proto->out_packets);
+        bd_result_set_t *result_set = bd_result_set_create("stats");
+        bd_result_set_insert_tag(result_set, "protocol", proto->module->name);
+        bd_result_set_insert_uint(result_set, "in_packets", proto->in_packets);
+        bd_result_set_insert_uint(result_set, "out_packets", proto->out_packets);
+        bd_result_set_insert_uint(result_set, "in_bytes", proto->in_bytes);
+        bd_result_set_insert_uint(result_set, "out_bytes", proto->out_bytes);
+
+        /*std::set<uint32_t>::iterator ite;
+        for (ite=proto->src_ips->begin(); ite != proto->src_ips->end(); ++ite) {
+            fprintf(stderr, "\tsrc ip: %d.%d.%d.%d\n", (*ite & 0xff000000) >> 24,
+                                                       (*ite & 0x00ff0000) >> 16,
+                                                       (*ite & 0x0000ff00) >> 8,
+                                                       (*ite & 0x000000ff));
+        }
+        for (ite=proto->dst_ips->begin(); ite != proto->dst_ips->end(); ++ite) {
+            fprintf(stderr, "\tdst ip: %d.%d.%d.%d\n", (*ite & 0xff000000) >> 24,
+                                                       (*ite & 0x00ff0000) >> 16,
+                                                       (*ite & 0x0000ff00) >> 8,
+                                                       (*ite & 0x000000ff));
+        }*/
+
+        bd_result_set_publish(trace, thread, result_set);
+
+        free(proto);
     }
+
+    // clear the protocol list
+    stats->proto_stats->clear();
+    fprintf(stderr, "\n");
 }
 
 int module_statistics_combiner(bd_result_t *result) {
