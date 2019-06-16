@@ -108,6 +108,7 @@ int flow_process_metrics(libtrace_packet_t *packet, Flow *flow, double dir, doub
     bd_flow_record_t *flow_record = (bd_flow_record_t *)flow->extension;
 
     flow_record->end_ts = ts;
+    int lpi_updated;
 
     if (dir == 0) {
         flow_record->out_packets += 1;
@@ -118,10 +119,9 @@ int flow_process_metrics(libtrace_packet_t *packet, Flow *flow, double dir, doub
     }
 
     /* update libprotoident */
-    lpi_update_data(packet, &flow_record->lpi, flow_record->init_dir);
-    /* guess the protocol if its not known */
-    /* TODO perform this check until a packet with a payload has been seen in both directions */
-    if (flow_record->lpi_module == NULL || flow_record->lpi_module->protocol >= LPI_PROTO_INVALID) {
+    lpi_updated = lpi_update_data(packet, &flow_record->lpi, flow_record->init_dir);
+    /* guess the protocol if its not known or was updated */
+    if (flow_record->lpi_module == NULL || lpi_updated) {
         flow_record->lpi_module = lpi_guess_protocol(&flow_record->lpi);
     }
 
