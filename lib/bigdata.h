@@ -19,6 +19,7 @@
 #include "module_influxdb.h"
 #include "module_port.h"
 #include "module_statistics.h"
+#include "module_flow_statistics.h"
 
 #define BD_OUTOFMEMORY 1
 

@@ -15,7 +15,8 @@ bd_global_t *global_data;
 
 void init_modules() {
     module_statistics_init();
-    //module_dns_init();
+    module_flow_statistics_init();
+    module_dns_init();
     module_influxdb_init();
 }
 
