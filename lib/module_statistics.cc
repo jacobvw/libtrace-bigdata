@@ -33,8 +33,11 @@ typedef struct module_statistics_proto {
     std::set<uint32_t> *src_ips;
     std::set<uint32_t> *dst_ips;
 
-    // posibly have a list of flows? could help count number of unique ones
-    
+    std::set<uint32_t> *local_ips;
+    std::set<uint32_t> *remote_ips;
+
+    // keep track of all the flow ids - used as a way to count number of flows
+    std::set<uint64_t> *flow_ids;
 } mod_stats_proto_t;
 
 void module_statistics_init_stor(mod_stats_t *stats) {
@@ -46,6 +49,11 @@ void module_statistics_init_stor(mod_stats_t *stats) {
     stats->c_out_packets = 0;
     stats->c_in_bytes = 0;
     stats->c_out_bytes = 0;
+}
+
+int mod_statistics_is_local_ip(uint32_t address) {
+    //bd_get_local_ips();
+    return 0;
 }
 
 void *module_statistics_starting(void *tls) {
@@ -118,6 +126,11 @@ int module_statistics_packet(libtrace_t *trace, libtrace_thread_t *thread,
         proto->src_ips = new std::set<uint32_t>;
         proto->dst_ips = new std::set<uint32_t>;
 
+        proto->local_ips = new std::set<uint32_t>;
+        proto->remote_ips = new std::set<uint32_t>;
+
+        proto->flow_ids = new std::set<uint64_t>;
+
         stats->proto_stats->insert({flow_rec->lpi_module->protocol, proto});
     } else {
         proto = (mod_stats_proto_t *)search->second;
@@ -142,20 +155,50 @@ int module_statistics_packet(libtrace_t *trace, libtrace_thread_t *thread,
     if (src_ip != NULL && dst_ip != NULL) {
         // IPv4
         if (src_ip->sa_family == AF_INET && dst_ip->sa_family == AF_INET) {
+            // get source ip address
             struct sockaddr_in *v4 = (struct sockaddr_in *)src_ip;
             struct in_addr ipv4 = (struct in_addr)v4->sin_addr;
             uint32_t address = htonl(ipv4.s_addr);
-
+            // insert into source ip set
             proto->src_ips->insert(address);
+            // check if the ip is local or remote
+            if (mod_statistics_is_local_ip(address)) {
+                proto->local_ips->insert(address);
+            } else {
+                proto->remote_ips->insert(address);
+            }
 
+            // get destination ip address
             v4 = (struct sockaddr_in *)dst_ip;
             ipv4 = (struct in_addr)v4->sin_addr;
             address = htonl(ipv4.s_addr);
-
+            // insert into destination ip list
             proto->dst_ips->insert(address);
+            // check if the ip is local or remote
+            if (mod_statistics_is_local_ip(address)) {
+                proto->local_ips->insert(address);
+            } else {
+                proto->remote_ips->insert(address);
+            }
         }
         // IPv6. TODO
+        if (src_ip->sa_family == AF_INET6 && dst_ip->sa_family == AF_INET6) {
+            struct sockaddr_in6 *v6 = (struct sockaddr_in6 *)src_ip;
+            struct in6_addr ipv6 = (struct in6_addr)v6->sin6_addr;
+            //unsigned char address[16] = ipv6.s6_addr;
+
+            // insert into set
+
+            v6 = (struct sockaddr_in6 *)dst_ip;
+            ipv6 = (struct in6_addr)v6->sin6_addr;
+            //address[16] = ipv6.s6_addr;
+
+            // insert into set
+        }
     }
+
+    // insert the flow id
+    proto->flow_ids->insert(flow->id.get_id_num());
 }
 
 int module_statistics_stopping(void *tls, void *mls) {
@@ -166,6 +209,12 @@ int module_statistics_stopping(void *tls, void *mls) {
         it=stats->proto_stats->begin(); it!=stats->proto_stats->end(); ++it) {
 
         mod_stats_proto_t *proto = (mod_stats_proto_t *)it->second;
+
+        delete(proto->src_ips);
+        delete(proto->dst_ips);
+        delete(proto->local_ips);
+        delete(proto->remote_ips);
+        delete(proto->flow_ids);
         free(proto);
     }
 
@@ -210,7 +259,8 @@ int module_statistics_tick(libtrace_t *trace, libtrace_thread_t *thread,
         bd_result_set_insert_uint(result_set, "out_packets", proto->out_packets);
         bd_result_set_insert_uint(result_set, "in_bytes", proto->in_bytes);
         bd_result_set_insert_uint(result_set, "out_bytes", proto->out_bytes);
-
+        bd_result_set_insert_uint(result_set, "unique_src_ips", proto->src_ips->size());
+        bd_result_set_insert_uint(result_set, "unique_dst_ips", proto->dst_ips->size());
         /*std::set<uint32_t>::iterator ite;
         for (ite=proto->src_ips->begin(); ite != proto->src_ips->end(); ++ite) {
             fprintf(stderr, "\tsrc ip: %d.%d.%d.%d\n", (*ite & 0xff000000) >> 24,
@@ -224,9 +274,15 @@ int module_statistics_tick(libtrace_t *trace, libtrace_thread_t *thread,
                                                        (*ite & 0x0000ff00) >> 8,
                                                        (*ite & 0x000000ff));
         }*/
+        bd_result_set_insert_uint(result_set, "unique_flows", proto->flow_ids->size());
 
         bd_result_set_publish(trace, thread, result_set);
 
+        delete(proto->src_ips);
+        delete(proto->dst_ips);
+        delete(proto->local_ips);
+        delete(proto->remote_ips);
+        delete(proto->flow_ids);
         free(proto);
     }
 
