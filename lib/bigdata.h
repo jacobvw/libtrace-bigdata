@@ -53,6 +53,7 @@ typedef struct bd_result_set {
     double timestamp;
 } bd_result_set_t;
 
+// events
 typedef void* (*cb_start) (void *tls);
 typedef int (*cb_packet) (libtrace_t *trace, libtrace_thread_t *thread,
     Flow *flow, libtrace_packet_t *packet, void *tls, void *mls);
@@ -65,9 +66,11 @@ typedef int (*cb_flowstart) ();
 typedef int (*cb_tick) (libtrace_t *trace, libtrace_thread_t *thread,
     void *tls, void *mls, uint64_t tick);
 typedef int (*cb_combiner) ();
+typedef int (*cb_config) (yaml_parser_t *parser, yaml_event_t *event);
 
 typedef struct bigdata_callback_set bd_cb_set;
 typedef struct bigdata_callback_set {
+    char *name;
     // processing thread callbacks
     cb_start start_cb;
     cb_packet packet_cb;
@@ -85,7 +88,10 @@ typedef struct bigdata_callback_set {
     size_t c_tickrate;             // countdown for tickrate
     // combiner callback
     cb_combiner combiner_cb;
+    // filter for the module
     libtrace_filter_t *filter;
+    // config callback
+    cb_config config_cb;
     bd_cb_set *next;
 } bd_cb_set;
 
@@ -93,9 +99,6 @@ typedef struct bigdata_global {
     pthread_mutex_t lock;
     bd_cb_set *callbacks;
     int callback_count;
-    char *filters[];
-    char *metrics[];
-    char *where[];
 } bd_global_t;
 
 // thread local storage for processing threads
@@ -109,26 +112,13 @@ typedef struct bigdata_thread_reporter_local {
     void **mls;                 // array of pointers for module storage
 } bd_rthread_local_t;
 
+// configuration structure for application core
 typedef struct bigdata_config {
-    const char **foreach;
-    unsigned n_foreach;
-
-    const char **metrics;
-    unsigned n_metrics;
-
-    //bd_conf_out_t **where;
+    char *interface;
 } bd_conf_t;
 
-typedef struct bigdata_config_output {
-    char *module;
-    char *host;
-    uint16_t port;
-    char *username;
-    char *password;
-} bd_conf_out_t;
-
 /* event prototypes */
-bd_cb_set *bd_create_cb_set();
+bd_cb_set *bd_create_cb_set(const char *module_name);
 int bd_register_cb_set(bd_cb_set *cbset);
 int bd_add_filter_to_cb_set(bd_cb_set *cbset, const char *filter);
 int bd_add_tickrate_to_cb_set(bd_cb_set *cbset, size_t tickrate);
@@ -163,5 +153,8 @@ Flow *flow_per_packet(libtrace_t *trace, libtrace_packet_t *packet, void *global
 int flow_init_metrics(libtrace_packet_t *packet, Flow *flow, uint8_t dir, double ts);
 int flow_process_metrics(libtrace_packet_t *packet, Flow *flow, double dir, double ts);
 int flow_expire(libtrace_t *trace, libtrace_packet_t *packet, void *global, void *tls);
+
+/* API functions */
+void consume_event(yaml_parser_t *parser, yaml_event_t *event);
 
 #endif

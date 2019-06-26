@@ -12,7 +12,7 @@ int module_http_packet(libtrace_t *trace, libtrace_packet_t *packet, Flow *flow,
 }
 
 int module_http_init() {
-    bd_cb_set *callbacks = bd_create_cb_set();
+    bd_cb_set *callbacks = bd_create_cb_set("http");
 
     callbacks->packet_cb = (cb_packet)module_http_packet;
 

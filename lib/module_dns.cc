@@ -251,7 +251,7 @@ int module_dns_answer_to_result_set(bd_result_set_t *result_set, dns_answer_t *a
 
 int module_dns_init() {
 
-    bd_cb_set *callbacks = bd_create_cb_set();
+    bd_cb_set *callbacks = bd_create_cb_set("dns");
 
     callbacks->start_cb = (cb_start)module_dns_starting;
     callbacks->packet_cb = (cb_packet)module_dns_packet;

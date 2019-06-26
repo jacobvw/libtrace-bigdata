@@ -241,7 +241,7 @@ int module_flow_statistics_combiner(bd_result_t *result) {
 }
 
 int module_flow_statistics_init() {
-    bd_cb_set *callbacks = bd_create_cb_set();
+    bd_cb_set *callbacks = bd_create_cb_set("flow_statistics");
 
     callbacks->start_cb = (cb_start)module_flow_statistics_starting;
     callbacks->packet_cb = (cb_packet)module_flow_statistics_packet;

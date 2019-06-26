@@ -96,7 +96,7 @@ int module_statistics_combiner(bd_result_t *result) {
 }
 
 int module_statistics_init() {
-    bd_cb_set *callbacks = bd_create_cb_set();
+    bd_cb_set *callbacks = bd_create_cb_set("statistics");
 
     callbacks->start_cb = (cb_start)module_statistics_starting;
     callbacks->packet_cb = (cb_packet)module_statistics_packet;

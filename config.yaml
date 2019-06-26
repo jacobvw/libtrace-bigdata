@@ -1,5 +1,5 @@
 # network interface to capture data on. 
-interfaces: ens18
+interface: ens18
 
 # capture modules
 foreach:
@@ -13,13 +13,18 @@ foreach:
       - byte_count
       - protocol
 
-  #dns module
+  # dns module
   dns:
     metrics:
       - question
       - question_type
       - answer
       - rtt
+
+  # flow stats module
+  flow_stats:
+    local_ips:
+      - 192.168.1.0/24
 
 # output modules
 where:

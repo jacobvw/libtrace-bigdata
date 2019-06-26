@@ -5,6 +5,15 @@
 #define INFLUX_BUF_LEN 2000
 #define INFLUX_LINE_LEN 4000
 
+struct module_influxdb_conf {
+    char *host;
+    int port;
+    char *db;
+    char *usr;
+    char *pwd;
+};
+struct module_influxdb_conf *config;
+
 void *module_influxdb_starting(void *tls);
 int module_influxdb_post(void *tls, void *mls, bd_result_set *result);
 void *module_influxdb_stopping(void *tls, void *mls);
@@ -13,11 +22,13 @@ void *module_influxdb_starting(void *tls) {
     influx_client_t *client = (influx_client_t *)malloc(sizeof(influx_client_t));
 
     // setup influx connection structure
-    client->host = strdup("192.168.20.47");
-    client->port = 8086;
-    client->db = strdup("libtrace");
-    client->usr = strdup("admin");
-    client->pwd = strdup("admin");
+    client->host = config->host;
+    client->port = config->port;
+    client->db = config->db;
+    client->usr = config->usr;
+    client->pwd = config->pwd;
+
+    fprintf(stderr, "%d %s %s\n", config->port, config->host, config->db);
 
     return client;
 }
@@ -136,12 +147,53 @@ void *module_influxdb_stopping(void *tls, void *mls) {
     }
 }
 
+int module_influxdb_config(yaml_parser_t *parser, yaml_event_t *event) {
+    config = (struct module_influxdb_conf *)malloc(sizeof(
+        struct module_influxdb_conf));
+
+    while (event->type != YAML_SCALAR_EVENT) {
+        consume_event(parser, event);
+    }
+
+    if (strcmp((char *)event->data.scalar.value, "host") == 0) {
+        consume_event(parser, event);
+        config->host = strdup((char *)event->data.scalar.value);
+        consume_event(parser, event);
+    }
+
+    if (strcmp((char *)event->data.scalar.value, "port") == 0) {
+        char *end;
+        consume_event(parser, event);
+        config->port = strtol((char *)event->data.scalar.value, &end, 10);
+        consume_event(parser, event);
+    }
+
+    if (strcmp((char *)event->data.scalar.value, "database") == 0) {
+        consume_event(parser, event);
+        config->db = strdup((char *)event->data.scalar.value);
+        consume_event(parser, event);
+    }
+
+    if (strcmp((char *)event->data.scalar.value, "username") == 0) {
+        consume_event(parser, event);
+        config->usr = strdup((char *)event->data.scalar.value);;
+        consume_event(parser, event);
+    }
+
+    if (strcmp((char *)event->data.scalar.value, "password") == 0) {
+        consume_event(parser, event);
+        config->pwd = strdup((char *)event->data.scalar.value);
+        consume_event(parser, event);
+    }
+}
+
 int module_influxdb_init() {
 
-    bd_cb_set *callbacks = bd_create_cb_set();
+    bd_cb_set *callbacks = bd_create_cb_set("influxdb");
 
     // Because this is a output only module we register callbacks against
     // the reporter thread.
+    callbacks->config_cb = (cb_config)module_influxdb_config;
     callbacks->reporter_start_cb =(cb_reporter_start)module_influxdb_starting;
     callbacks->reporter_output_cb = (cb_reporter_output)module_influxdb_post;
     callbacks->reporter_stop_cb = (cb_reporter_stop)module_influxdb_stopping;
