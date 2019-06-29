@@ -1,6 +1,14 @@
 # network interface to capture data on. 
 interface: ens18
 
+# Use local_networks to determine is packet is inbound or outbound.
+# If packet has a source and destination matching a local network will
+# fallback to trace_get_direction.
+local_networks_as_direction: 0
+local_networks:
+  - 192.168.20.0/24
+  - 192.168.1.0/24
+
 # capture modules
 foreach:
 
@@ -23,9 +31,6 @@ foreach:
 
   # flow stats module
   flow_stats:
-    local_ips:
-      - 192.168.1.0/24
-
 # output modules
 where:
 

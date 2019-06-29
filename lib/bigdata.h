@@ -1,6 +1,11 @@
 #ifndef BIGDATA_H
 #define BIGDATA_H
 
+typedef struct bigdata_config bd_conf_t;
+typedef struct bigdata_global bd_global_t;
+typedef struct bigdata_network bd_network_t;
+
+// external libraries
 #include <libtrace_parallel.h>
 #include <libprotoident.h>
 #include <libflowmanager.h>
@@ -10,7 +15,8 @@
 #include <stdlib.h>
 #include <errno.h>
 
-// internal modules
+// internal libraries
+#include "bigdata_parser.h"
 #include "bigdata_flow.h"
 
 // Capture modules
@@ -22,6 +28,19 @@
 #include "module_flow_statistics.h"
 
 #define BD_OUTOFMEMORY 1
+
+// configuration structure for application core
+typedef struct bigdata_config {
+    char *interface;
+    bool local_networks_as_direction;
+
+    bd_network_t **local_subnets;
+    int local_subnets_count;
+} bd_conf_t;
+typedef struct bigdata_network {
+    uint32_t network;
+    uint32_t mask;
+} bd_network_t;
 
 enum bd_record_type {
     BD_TYPE_STRING,
@@ -99,6 +118,7 @@ typedef struct bigdata_global {
     pthread_mutex_t lock;
     bd_cb_set *callbacks;
     int callback_count;
+    bd_conf_t *config;
 } bd_global_t;
 
 // thread local storage for processing threads
@@ -111,11 +131,6 @@ typedef struct bigdata_thread_processing_local {
 typedef struct bigdata_thread_reporter_local {
     void **mls;                 // array of pointers for module storage
 } bd_rthread_local_t;
-
-// configuration structure for application core
-typedef struct bigdata_config {
-    char *interface;
-} bd_conf_t;
 
 /* event prototypes */
 bd_cb_set *bd_create_cb_set(const char *module_name);

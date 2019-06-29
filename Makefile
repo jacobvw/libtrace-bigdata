@@ -1,7 +1,7 @@
 CC=gcc
 
 # LINK EVERYTHING TOGETHER
-main: module_dns_spcdns_codec.o module_dns_spcdns_mappings.o module_dns.o bigdata_flow.o module_http.o module_influxdb.o bigdata.o module_statistics.o module_flow_statistics.o
+main: module_dns_spcdns_codec.o module_dns_spcdns_mappings.o module_dns.o bigdata_flow.o module_http.o module_influxdb.o bigdata.o module_statistics.o module_flow_statistics.o bigdata_parser.o
 	$(CC) lib/module_dns_spcdns_codec.o lib/module_dns_spcdns_mappings.o \
 		lib/module_dns.o \
 		lib/bigdata_flow.o \
@@ -10,6 +10,7 @@ main: module_dns_spcdns_codec.o module_dns_spcdns_mappings.o module_dns.o bigdat
 		lib/bigdata.o \
 		lib/module_statistics.o \
 		lib/module_flow_statistics.o \
+                lib/bigdata_parser.o \
 		-ltrace -lflowmanager -lyaml -lprotoident -lm -lstdc++ \
 		-o bigdata -g
 
@@ -44,10 +45,12 @@ module_statistics.o: lib/module_statistics.cc lib/module_statistics.h
 module_flow_statistics.o: lib/module_flow_statistics.cc lib/module_flow_statistics.h
 	$(CC) lib/module_flow_statistics.cc -c -o lib/module_flow_statistics.o -g
 
+bigdata_parser.o: lib/bigdata_parser.cc lib/bigdata_parser.h
+	$(CC) lib/bigdata_parser.cc -c -o lib/bigdata_parser.o -g
+
 # MAIN APPLICATION
 bigdata.o: lib/bigdata.cc lib/bigdata.h
 	$(CC) lib/bigdata.cc -c -o lib/bigdata.o -g
-
 
 clean:
 	rm -rf lib/*.o
