@@ -28,7 +28,7 @@ foreach:
 
   # flow stats module
   flow_statistics:
-    enabled: 0
+    enabled: 1
     # how often to output results in millseconds
     output_interval: 60000
     metrics:
@@ -38,8 +38,8 @@ foreach:
       - ip_count
 
   # statistics module
-  stats:
-    enabled: 0
+  statistics:
+    enabled: 1
     output_interval: 60000
     metrics:
       - byte_count
