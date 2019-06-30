@@ -1,6 +1,16 @@
 #include "module_statistics.h"
 #include "bigdata.h"
 
+struct module_statistics_conf {
+    bd_cb_set *callbacks;
+    bool enabled;
+    int output_interval;
+    bool byte_count;
+    bool packet_count;
+    bool duration;
+};
+static struct module_statistics_conf *config;
+
 typedef struct module_statistics {
     double start_ts;                          // start time for the statistics
     double end_ts;                            // end time for the statistics
@@ -42,24 +52,23 @@ int module_statistics_packet(libtrace_t *trace, libtrace_thread_t *thread,
 
     // get the module local storage
     mod_stats_t *stats = (mod_stats_t *)mls;
-    // get the flow record
-    bd_flow_record_t *flow_rec = (bd_flow_record_t *)flow->extension;
-
-    uint64_t tcp_ops = 0;
+    // get the packet direction
     int dir = bd_get_packet_direction(packet);
 
     // update all the counters
     if (dir) {
-        stats->c_in_packets += 1;
-        stats->c_in_bytes += trace_get_payload_length(packet);
+        if (config->packet_count) { stats->c_in_packets += 1; }
+        if (config->byte_count) { stats->c_in_bytes += trace_get_payload_length(packet); }
     } else {
-        stats->c_out_packets += 1;
-        stats->c_out_bytes += trace_get_payload_length(packet);
+        if (config->packet_count) { stats->c_out_packets += 1; }
+        if (config->byte_count) { stats->c_out_bytes += trace_get_payload_length(packet); }
     }
 
     // update timestamps
-    if (stats->start_ts = 0) { trace_get_seconds(packet); }
-    stats->end_ts = trace_get_seconds(packet);
+    if (config->duration) {
+        if (stats->start_ts = 0) { trace_get_seconds(packet); }
+        stats->end_ts = trace_get_seconds(packet);
+    }
 }
 
 int module_statistics_stopping(void *tls, void *mls) {
@@ -77,13 +86,20 @@ int module_statistics_tick(libtrace_t *trace, libtrace_thread_t *thread,
 
     // create result set
     bd_result_set_t *result_set = bd_result_set_create("stats");
-    bd_result_set_insert_uint(result_set, "start_ts", stats->start_ts);
-    bd_result_set_insert_uint(result_set, "end_ts" , stats->end_ts);
-    bd_result_set_insert_uint(result_set, "unique_tcp_ops", stats->u_tcp_ops);
-    bd_result_set_insert_uint(result_set, "in_packets", stats->c_in_packets);
-    bd_result_set_insert_uint(result_set, "out_packets", stats->c_out_packets);
-    bd_result_set_insert_uint(result_set, "in_bytes", stats->c_in_bytes);
-    bd_result_set_insert_uint(result_set, "out_bytes", stats->c_out_bytes);
+    if (config->duration) {
+        bd_result_set_insert_uint(result_set, "start_ts", stats->start_ts);
+        bd_result_set_insert_uint(result_set, "end_ts" , stats->end_ts);
+        bd_result_set_insert_uint(result_set, "duration", stats->end_ts - stats->start_ts);
+    }
+    //bd_result_set_insert_uint(result_set, "unique_tcp_ops", stats->u_tcp_ops);
+    if (config->packet_count) {
+        bd_result_set_insert_uint(result_set, "in_packets", stats->c_in_packets);
+        bd_result_set_insert_uint(result_set, "out_packets", stats->c_out_packets);
+    }
+    if (config->byte_count) {
+        bd_result_set_insert_uint(result_set, "in_bytes", stats->c_in_bytes);
+        bd_result_set_insert_uint(result_set, "out_bytes", stats->c_out_bytes);
+    }
     bd_result_set_publish(trace, thread, result_set);
 
     // clear stats counters
@@ -95,17 +111,91 @@ int module_statistics_combiner(bd_result_t *result) {
 
 }
 
+int module_statistics_config(yaml_parser_t *parser, yaml_event_t *event, int *level) {
+    int enter_level = *level;
+    bool first_pass = 1;
+
+    while (enter_level != *level || first_pass) {
+        first_pass = 0;
+        switch(event->type) {
+            case YAML_SCALAR_EVENT:
+                if (strcmp((char *)event->data.scalar.value, "enabled") == 0) {
+                    consume_event(parser, event, level);
+                    if (strcmp((char *)event->data.scalar.value, "1") == 0 ||
+                        strcmp((char *)event->data.scalar.value, "yes") == 0 ||
+                        strcmp((char *)event->data.scalar.value, "true") == 0 ||
+                        strcmp((char *)event->data.scalar.value, "t") == 0) {
+
+                        config->enabled = 1;
+                    }
+                    break;
+                }
+                if (strcmp((char *)event->data.scalar.value, "output_interval") == 0) {
+                    consume_event(parser, event, level);
+                    config->output_interval = atoi((char *)event->data.scalar.value);
+                    // atoi returns 0 on error so ensure return value was not 0
+                    if (config->output_interval != 0 &&
+                            (config->output_interval % BIGDATA_TICKRATE) == 0) {
+
+                        bd_add_tickrate_to_cb_set(config->callbacks, config->output_interval);
+                    } else {
+                        fprintf(stderr, "Invalid output_interval, must be devisible by 1000. "
+                            "module flow_statistics\n");
+                    }
+                    break;
+                }
+                if (strcmp((char *)event->data.scalar.value, "byte_count") == 0) {
+                    consume_event(parser, event, level);
+                    config->byte_count = 1;
+                    break;
+                }
+                if (strcmp((char *)event->data.scalar.value, "packet_count") == 0) {
+                    consume_event(parser, event, level);
+                    config->packet_count = 1;
+                    break;
+                }
+                if (strcmp((char *)event->data.scalar.value, "duration") == 0) {
+                    consume_event(parser, event, level);
+                    config->duration = 1;
+                    break;
+                }
+            default:
+                consume_event(parser, event, level);
+                break;
+        }
+    }
+
+    if (config->enabled) {
+        config->callbacks->start_cb = (cb_start)module_statistics_starting;
+        config->callbacks->packet_cb = (cb_packet)module_statistics_packet;
+        config->callbacks->stop_cb = (cb_stop)module_statistics_stopping;
+        config->callbacks->tick_cb = (cb_tick)module_statistics_tick;
+
+    }
+
+    return 0;
+}
+
 int module_statistics_init() {
-    bd_cb_set *callbacks = bd_create_cb_set("statistics");
+    // allocate memory for config structure
+    config = (struct module_statistics_conf *)malloc(
+        sizeof(struct module_statistics_conf));
+    if (config == NULL) {
+        fprintf(stderr, "Unable to allocate memory. func. "
+            "module_statistics_init()\n");
+        exit(BD_OUTOFMEMORY);
+    }
 
-    callbacks->start_cb = (cb_start)module_statistics_starting;
-    callbacks->packet_cb = (cb_packet)module_statistics_packet;
-    callbacks->stop_cb = (cb_stop)module_statistics_stopping;
-    callbacks->tick_cb = (cb_tick)module_statistics_tick;
+    // initialise the config structure
+    config->enabled = 0;
+    config->output_interval = 10000;
+    config->byte_count = 0;
+    config->packet_count = 0;
+    config->duration = 0;
 
-    // output results every minute
-    bd_add_tickrate_to_cb_set(callbacks, 5000);
-    bd_register_cb_set(callbacks);
+    config->callbacks = bd_create_cb_set("statistics");
+    config->callbacks->config_cb = (cb_config)module_statistics_config;
+    bd_register_cb_set(config->callbacks);
 
     return 0;
 }

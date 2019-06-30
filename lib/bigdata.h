@@ -1,6 +1,9 @@
 #ifndef BIGDATA_H
 #define BIGDATA_H
 
+// base tickrate
+#define BIGDATA_TICKRATE 1000 // milliseconds
+
 typedef struct bigdata_config bd_conf_t;
 typedef struct bigdata_global bd_global_t;
 typedef struct bigdata_network bd_network_t;
@@ -31,9 +34,10 @@ typedef struct bigdata_network bd_network_t;
 
 // configuration structure for application core
 typedef struct bigdata_config {
+    char *hostname;
     char *interface;
+    int processing_threads;
     bool local_networks_as_direction;
-
     bd_network_t **local_subnets;
     int local_subnets_count;
 } bd_conf_t;
@@ -85,7 +89,7 @@ typedef int (*cb_flowstart) ();
 typedef int (*cb_tick) (libtrace_t *trace, libtrace_thread_t *thread,
     void *tls, void *mls, uint64_t tick);
 typedef int (*cb_combiner) ();
-typedef int (*cb_config) (yaml_parser_t *parser, yaml_event_t *event);
+typedef int (*cb_config) (yaml_parser_t *parser, yaml_event_t *event, int *level);
 
 typedef struct bigdata_callback_set bd_cb_set;
 typedef struct bigdata_callback_set {
@@ -170,6 +174,6 @@ int flow_process_metrics(libtrace_packet_t *packet, Flow *flow, double dir, doub
 int flow_expire(libtrace_t *trace, libtrace_packet_t *packet, void *global, void *tls);
 
 /* API functions */
-void consume_event(yaml_parser_t *parser, yaml_event_t *event);
+void consume_event(yaml_parser_t *parser, yaml_event_t *event, int *level);
 
 #endif

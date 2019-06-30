@@ -7,6 +7,12 @@
 
 #define DEBUG 1
 
+struct module_dns_conf {
+    bd_cb_set *callbacks;
+    bool enabled;
+};
+static struct module_dns_conf *config;
+
 struct module_dns_req {
     double start_ts;
     double end_ts;
@@ -249,17 +255,56 @@ int module_dns_answer_to_result_set(bd_result_set_t *result_set, dns_answer_t *a
     }
 }
 
+int module_dns_config(yaml_parser_t *parser, yaml_event_t *event, int *level) {
+    int enter_level = *level;
+    bool first_pass = 1;
+
+    while (enter_level != *level || first_pass) {
+        first_pass = 0;
+        switch(event->type) {
+            case YAML_SCALAR_EVENT:
+                if (strcmp((char *)event->data.scalar.value, "enabled") == 0) {
+                    consume_event(parser, event, level);
+                    if (strcmp((char *)event->data.scalar.value, "1") == 0 ||
+                        strcmp((char *)event->data.scalar.value, "yes") == 0 ||
+                        strcmp((char *)event->data.scalar.value, "true") == 0 ||
+                        strcmp((char *)event->data.scalar.value, "t") == 0) {
+
+                        config->enabled = 1;
+                    }
+                    break;
+                }
+            default:
+                consume_event(parser, event, level);
+                break;
+        }
+    }
+
+    if (config->enabled) {
+        config->callbacks->config_cb = (cb_config)module_dns_config;
+        config->callbacks->start_cb = (cb_start)module_dns_starting;
+        config->callbacks->packet_cb = (cb_packet)module_dns_packet;
+        config->callbacks->stop_cb = (cb_stop)module_dns_ending;
+        bd_add_filter_to_cb_set(config->callbacks, "port 53");
+    }
+}
+
 int module_dns_init() {
+    // allocate memory for config structure
+    config = (struct module_dns_conf *)malloc(
+        sizeof(struct module_dns_conf));
+    if (config == NULL) {
+        fprintf(stderr, "Unable to allocate memory. func. "
+            "module_dns_init()\n");
+        exit(BD_OUTOFMEMORY);
+    }
 
-    bd_cb_set *callbacks = bd_create_cb_set("dns");
+    // initialise the config structure
+    config->enabled = 0;
 
-    callbacks->start_cb = (cb_start)module_dns_starting;
-    callbacks->packet_cb = (cb_packet)module_dns_packet;
-    callbacks->stop_cb = (cb_stop)module_dns_ending;
-
-    bd_add_filter_to_cb_set(callbacks, "port 53");
-
-    bd_register_cb_set(callbacks);
+    config->callbacks = bd_create_cb_set("dns");
+    config->callbacks->config_cb = (cb_config)module_dns_config;
+    bd_register_cb_set(config->callbacks);
 
     return 0;
 }

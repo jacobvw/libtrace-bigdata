@@ -325,12 +325,13 @@ int module_flow_statistics_config(yaml_parser_t *parser, yaml_event_t *event, in
     }
 
     if (config->enabled) {
-        fprintf(stderr, "enabling\n");
         config->callbacks->start_cb = (cb_start)module_flow_statistics_starting;
         config->callbacks->packet_cb = (cb_packet)module_flow_statistics_packet;
         config->callbacks->stop_cb = (cb_stop)module_flow_statistics_stopping;
         config->callbacks->tick_cb = (cb_tick)module_flow_statistics_tick;
     }
+
+    return 0;
 }
 
 int module_flow_statistics_init() {
@@ -351,9 +352,7 @@ int module_flow_statistics_init() {
     config->flow_count = 0;
 
     config->callbacks = bd_create_cb_set("flow_statistics");
-
     config->callbacks->config_cb = (cb_config)module_flow_statistics_config;
-
     bd_register_cb_set(config->callbacks);
 
     return 0;

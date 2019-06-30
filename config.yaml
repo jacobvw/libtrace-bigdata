@@ -17,28 +17,18 @@ local_networks:
 # capture modules
 foreach:
 
-  # flow module
-  flow:
-    enabled: 0
-    metrics:
-      - src_ip
-      - dst_ip
-      - packet_count
-      - byte_count
-      - protocol
-
   # dns module
   dns:
-    enabled: 0
-    metrics:
-      - question
-      - question_type
-      - answer
-      - rtt
+    enabled: 1
+    #metrics:
+    #  - question
+    #  - question_type
+    #  - answer
+    #  - rtt
 
   # flow stats module
   flow_statistics:
-    enabled: 1
+    enabled: 0
     # how often to output results in millseconds
     output_interval: 60000
     metrics:
@@ -46,6 +36,14 @@ foreach:
       - packet_count
       - flow_count
       - ip_count
+
+  # statistics module
+  stats:
+    enabled: 0
+    output_interval: 60000
+    metrics:
+      - byte_count
+      - packet_count
 
 # output modules
 where:
