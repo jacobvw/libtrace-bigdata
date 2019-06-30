@@ -474,7 +474,7 @@ int main(int argc, char *argv[]) {
 
     trace_set_combiner(trace, &combiner_unordered, (libtrace_generic_t){0});
     // Setup number of processing threads
-    trace_set_perpkt_threads(trace, 1);
+    trace_set_perpkt_threads(trace, global_data->config->processing_threads);
     // Using this hasher will keep all packets related to a flow on the same thread
     trace_set_hasher(trace, HASHER_BIDIRECTIONAL, NULL, NULL);
 

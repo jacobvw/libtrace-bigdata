@@ -39,12 +39,28 @@ bd_network_t *get_local_network(char *network_string) {
 	return local;
 }
 
-void consume_event(yaml_parser_t *parser, yaml_event_t *event) {
+void update_level(yaml_event_t *event, int *level) {
+    switch(event->type) {
+        case YAML_STREAM_START_EVENT: *level += 1; break;
+        case YAML_STREAM_END_EVENT: *level -= 1; break;
+        case YAML_DOCUMENT_START_EVENT: *level += 1; break;
+        case YAML_DOCUMENT_END_EVENT: *level -= 1; break;
+        case YAML_SEQUENCE_START_EVENT: *level += 1; break;
+        case YAML_SEQUENCE_END_EVENT: *level -= 1; break;
+        case YAML_MAPPING_START_EVENT: *level += 1; break;
+        case YAML_MAPPING_END_EVENT: *level -= 1; break;
+        case YAML_SCALAR_EVENT: break;
+        case YAML_ALIAS_EVENT: break;
+    }
+}
+
+void consume_event(yaml_parser_t *parser, yaml_event_t *event, int *level) {
     yaml_event_delete(event);
     if (!yaml_parser_parse(parser, event)) {
         printf("Parser error %d\n", parser->error);
         exit(EXIT_FAILURE);
     }
+    update_level(event, level);
 }
 
 bd_conf_t *parse_config(char *filename, bd_global_t *g_data) {
@@ -54,6 +70,7 @@ bd_conf_t *parse_config(char *filename, bd_global_t *g_data) {
 
     bd_conf_t *conf = (bd_conf_t *)malloc(sizeof(bd_conf_t));
     conf->interface = NULL;
+    conf->processing_threads = 0;
     conf->local_networks_as_direction = 0;
     conf->local_subnets = NULL;
     conf->local_subnets_count = 0;
@@ -75,36 +92,44 @@ bd_conf_t *parse_config(char *filename, bd_global_t *g_data) {
     /* Set input file */
     yaml_parser_set_input_file(&parser, fd);
 
+    // get the first event
+    consume_event(&parser, &event, &level);
+
     /* START new code */
     do {
-        if (!yaml_parser_parse(&parser, &event)) {
-            printf("Parser error %d\n", parser.error);
-            exit(EXIT_FAILURE);
-        }
 
         switch(event.type) {
-            case YAML_NO_EVENT: puts("No event!"); break;
 
             /* Stream start/end */
-            case YAML_STREAM_START_EVENT:   puts("STREAM START");          break;
-            case YAML_STREAM_END_EVENT:     puts("STREAM END");            break;
+            case YAML_STREAM_START_EVENT: consume_event(&parser, &event, &level); break;
+            case YAML_STREAM_END_EVENT: break;
 
             /* Block delimeters */
-            case YAML_DOCUMENT_START_EVENT: puts("<b>Start Document</b>"); break;
-            case YAML_DOCUMENT_END_EVENT:   puts("<b>End Document</b>");   break;
-            case YAML_SEQUENCE_START_EVENT: puts("<b>Start Sequence</b>"); break;
-            case YAML_SEQUENCE_END_EVENT:   puts("<b>End Sequence</b>");   break;
-            case YAML_MAPPING_START_EVENT:  puts("<b>Start Mapping</b>");  break;
-            case YAML_MAPPING_END_EVENT:    puts("<b>End Mapping</b>");    break;
+            case YAML_DOCUMENT_START_EVENT: consume_event(&parser, &event, &level); break;
+            case YAML_DOCUMENT_END_EVENT: consume_event(&parser, &event, &level); break;
+            case YAML_SEQUENCE_START_EVENT: consume_event(&parser, &event, &level); break;
+            case YAML_SEQUENCE_END_EVENT: consume_event(&parser, &event, &level); break;
+            case YAML_MAPPING_START_EVENT: consume_event(&parser, &event, &level); break;
+            case YAML_MAPPING_END_EVENT: consume_event(&parser, &event, &level); break;
 
             /* Data */
-            case YAML_ALIAS_EVENT:
-                printf("Got alias (anchor %s)\n", event.data.alias.anchor);
-                break;
+            case YAML_ALIAS_EVENT: consume_event(&parser, &event, &level); break;
             case YAML_SCALAR_EVENT:
+                if (strcmp((char *)event.data.scalar.value, "hostname") == 0) {
+                    consume_event(&parser, &event, &level);
+                    // should now be a YAML_SCALAR_EVENT containing a hostname,
+                    //  if not config is incorrect.
+                    if (event.type != YAML_SCALAR_EVENT) {
+                        return NULL;
+                    }
+                    conf->hostname = strdup((char *)event.data.scalar.value);
+                    // consume the event
+                    consume_event(&parser, &event, &level);
+                    break;
+                }
                 if (strcmp((char *)event.data.scalar.value, "interface") == 0) {
                     // consume the first event which contains the value interfaces
-                    consume_event(&parser, &event);
+                    consume_event(&parser, &event, &level);
                     // should now be a YAML_SCALAR_EVENT containing a interface name,
                     //  if not config is incorrect.
                     if (event.type != YAML_SCALAR_EVENT) {
@@ -112,13 +137,27 @@ bd_conf_t *parse_config(char *filename, bd_global_t *g_data) {
                     }
                     conf->interface = strdup((char *)event.data.scalar.value);
                     // consume the event
-                    consume_event(&parser, &event);
+                    consume_event(&parser, &event, &level);
+                    break;
+                }
+
+                if (strcmp((char *)event.data.scalar.value, "threads") == 0) {
+                    // consume the first event which contains the value interfaces
+                    consume_event(&parser, &event, &level);
+                    // should now be a YAML_SCALAR_EVENT containing a interface name,
+                    //  if not config is incorrect.
+                    if (event.type != YAML_SCALAR_EVENT) {
+                        return NULL;
+                    }
+                    conf->processing_threads = atoi((char *)event.data.scalar.value);
+                    // consume the event
+                    consume_event(&parser, &event, &level);
                     break;
                 }
 
                 if (strcmp((char *)event.data.scalar.value, "local_networks_as_direction") == 0) {
                     // consume the first event which contains the key
-                    consume_event(&parser, &event);
+                    consume_event(&parser, &event, &level);
                     if (event.type != YAML_SCALAR_EVENT) {
                         return NULL;
                     }
@@ -134,25 +173,25 @@ bd_conf_t *parse_config(char *filename, bd_global_t *g_data) {
                 }
 
                 if (strcmp((char *)event.data.scalar.value, "local_networks") == 0) {
-                    consume_event(&parser, &event);
+                    consume_event(&parser, &event, &level);
                     if (event.type != YAML_SEQUENCE_START_EVENT) {
                         return NULL;
                     }
-                    consume_event(&parser, &event);
+                    consume_event(&parser, &event, &level);
                     while (event.type == YAML_SCALAR_EVENT) {
                         if (conf->local_subnets_count == 0) {
                             conf->local_subnets =
                                 (bd_network_t **)malloc(sizeof(bd_network_t *));
                         } else {
                             conf->local_subnets =
-                                (bd_network_t **)calloc(conf->local_subnets_count,
-                                    sizeof(bd_network_t *));
+                                (bd_network_t **)realloc(conf->local_subnets,
+                                    conf->local_subnets_count * sizeof(bd_network_t *));
                         }
                         conf->local_subnets[conf->local_subnets_count] =
                             get_local_network((char *)event.data.scalar.value);
 
                         conf->local_subnets_count++;
-                        consume_event(&parser, &event);
+                        consume_event(&parser, &event, &level);
                     }
                     break;
                 }
@@ -161,40 +200,54 @@ bd_conf_t *parse_config(char *filename, bd_global_t *g_data) {
                 if (strcmp((char *)event.data.scalar.value, "foreach") == 0 ||
                     strcmp((char *)event.data.scalar.value, "where") == 0) {
 
+                    int enter_level = level;
+                    bool first_pass = 1;
                     // consume event, will be either foreach or where
-                    consume_event(&parser, &event);
+                    consume_event(&parser, &event, &level);
 
-                    // if the next event is not a mapping event something is wrong
-                    if (event.type != YAML_MAPPING_START_EVENT) { return NULL; }
-                    // consume the mapping event
-                    consume_event(&parser, &event);
+                    while (level != enter_level || first_pass) {
+                        first_pass = 0;
+                        bool found_module = 0;
 
-                    // should now be a YAML_SCALAR_EVENT containing a module name,
-                    // if not something is wrong.
-                    if (event.type != YAML_SCALAR_EVENT) { return NULL; }
 
-                    // iterate over callbacks triggering config events
-                    bd_cb_set *cbs = g_data->callbacks;
-                    for (; cbs != NULL; cbs = cbs->next) {
-                        if (cbs->config_cb != NULL) {
-                            if (strcmp((char *)event.data.scalar.value, cbs->name) == 0) {
-                                // consume the first event which is the module name
-                                consume_event(&parser, &event);
+                        if (event.type == YAML_SCALAR_EVENT) {
+                            // iterate over callbacks triggering config events
+                            bd_cb_set *cbs = g_data->callbacks;
+                            for (; cbs != NULL; cbs = cbs->next) {
+                                if (cbs->config_cb != NULL) {
+                                    if (strcmp((char *)event.data.scalar.value, cbs->name) == 0) {
+                                        found_module = 1;
 
-                                // hand the parser and event to required module.
-                                // the module must ensure it only consumes its own events.
-                                cbs->config_cb(&parser, &event);
+                                        // hand the parser and event to required module.
+                                        // the module must ensure it only consumes its own events.
+                                        int mod_enter_level = level;
+                                        cbs->config_cb(&parser, &event, &level);
+                                        if (mod_enter_level != level) {
+                                            fprintf(stderr, "Module %s did not consume all its "
+                                                "events\n", cbs->name);
+                                            exit(0);
+                                        }
+
+                                        // module has been found so break out of the for loop
+                                        break;
+                                    }
+                                }
                             }
                         }
+
+                        if (!found_module) {
+                            consume_event(&parser, &event, &level);
+                        }
                     }
+
                     break;
                 }
 
-                printf("Got scalar (value %s)\n", event.data.scalar.value);
+                // consume the event if it does not match anything defined
+                consume_event(&parser, &event, &level);
                 break;
-        }
+            }
 
-        if (event.type != YAML_STREAM_END_EVENT) { yaml_event_delete(&event); }
     } while(event.type != YAML_STREAM_END_EVENT);
 
     /* Cleanup */

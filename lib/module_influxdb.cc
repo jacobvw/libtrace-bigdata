@@ -28,8 +28,6 @@ void *module_influxdb_starting(void *tls) {
     client->usr = config->usr;
     client->pwd = config->pwd;
 
-    fprintf(stderr, "%d %s %s\n", config->port, config->host, config->db);
-
     return client;
 }
 
@@ -147,44 +145,52 @@ void *module_influxdb_stopping(void *tls, void *mls) {
     }
 }
 
-int module_influxdb_config(yaml_parser_t *parser, yaml_event_t *event) {
+int module_influxdb_config(yaml_parser_t *parser, yaml_event_t *event, int *level) {
     config = (struct module_influxdb_conf *)malloc(sizeof(
         struct module_influxdb_conf));
 
-    while (event->type != YAML_SCALAR_EVENT) {
-        consume_event(parser, event);
+    int enter_level = *level;
+    bool first_pass = 1;
+
+    while (enter_level != *level || first_pass) {
+        first_pass = 0;
+        switch(event->type) {
+            case YAML_SCALAR_EVENT:
+                if (strcmp((char *)event->data.scalar.value, "host") == 0) {
+                    consume_event(parser, event, level);
+                    config->host = strdup((char *)event->data.scalar.value);
+                    break;
+                }
+                if (strcmp((char *)event->data.scalar.value, "port") == 0) {
+                    consume_event(parser, event, level);
+                    config->port = atoi((char *)event->data.scalar.value);
+                    break;
+                }
+                if (strcmp((char *)event->data.scalar.value, "database") == 0) {
+                    consume_event(parser, event, level);
+                    config->db = strdup((char *)event->data.scalar.value);
+                    break;
+                }
+                if (strcmp((char *)event->data.scalar.value, "username") == 0) {
+                    consume_event(parser, event, level);
+                    config->usr = strdup((char *)event->data.scalar.value);;
+                    break;
+                }
+                if (strcmp((char *)event->data.scalar.value, "password") == 0) {
+                    consume_event(parser, event, level);
+                    config->pwd = strdup((char *)event->data.scalar.value);;
+                    break;
+                }
+
+            default:
+                consume_event(parser, event, level);
+                break;
+
+        }
     }
 
-    if (strcmp((char *)event->data.scalar.value, "host") == 0) {
-        consume_event(parser, event);
-        config->host = strdup((char *)event->data.scalar.value);
-        consume_event(parser, event);
-    }
-
-    if (strcmp((char *)event->data.scalar.value, "port") == 0) {
-        char *end;
-        consume_event(parser, event);
-        config->port = strtol((char *)event->data.scalar.value, &end, 10);
-        consume_event(parser, event);
-    }
-
-    if (strcmp((char *)event->data.scalar.value, "database") == 0) {
-        consume_event(parser, event);
-        config->db = strdup((char *)event->data.scalar.value);
-        consume_event(parser, event);
-    }
-
-    if (strcmp((char *)event->data.scalar.value, "username") == 0) {
-        consume_event(parser, event);
-        config->usr = strdup((char *)event->data.scalar.value);;
-        consume_event(parser, event);
-    }
-
-    if (strcmp((char *)event->data.scalar.value, "password") == 0) {
-        consume_event(parser, event);
-        config->pwd = strdup((char *)event->data.scalar.value);
-        consume_event(parser, event);
-    }
+    fprintf(stderr, "%d %s %s %s %s\n", config->port, config->host, config->db, config->usr,
+        config->pwd);
 }
 
 int module_influxdb_init() {

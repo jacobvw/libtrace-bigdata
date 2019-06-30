@@ -6,6 +6,17 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+struct module_flow_statistics_conf {
+    bd_cb_set *callbacks;
+    bool enabled;
+    int output_interval;
+    bool byte_count;
+    bool packet_count;
+    bool flow_count;
+    bool ip_count;
+};
+static struct module_flow_statistics_conf *config;
+
 typedef struct module_flow_statistics_proto mod_flow_stats_proto_t;
 
 typedef struct module_flow_statistics {
@@ -16,9 +27,11 @@ typedef struct module_flow_statistics {
 typedef struct module_flow_statistics_proto {
     lpi_module *module;
 
+    // byte_counters
     uint64_t in_bytes;
     uint64_t out_bytes;
 
+    // packet_counters
     uint64_t in_packets;
     uint64_t out_packets;
 
@@ -78,18 +91,16 @@ int module_flow_statistics_packet(libtrace_t *trace, libtrace_thread_t *thread,
             exit(BD_OUTOFMEMORY);
         }
 
+        // initialise the new module
         proto->module = flow_rec->lpi_module;
         proto->in_bytes = 0;
         proto->out_bytes = 0;
         proto->in_packets = 0;
         proto->out_packets = 0;
-
         proto->src_ips = new std::set<uint32_t>;
         proto->dst_ips = new std::set<uint32_t>;
-
         proto->local_ips = new std::set<uint32_t>;
         proto->remote_ips = new std::set<uint32_t>;
-
         proto->flow_ids = new std::set<uint64_t>;
 
         stats->proto_stats->insert({flow_rec->lpi_module->protocol, proto});
@@ -105,62 +116,64 @@ int module_flow_statistics_packet(libtrace_t *trace, libtrace_thread_t *thread,
 
     // update counters for the protocol
     if (dir) {
-        proto->in_bytes += trace_get_payload_length(packet);
-        proto->in_packets += 1;
+        if (config->byte_count) { proto->in_bytes += trace_get_payload_length(packet); }
+        if (config->packet_count) { proto->in_packets += 1; }
     } else {
-        proto->out_bytes += trace_get_payload_length(packet);
-        proto->out_packets += 1;
+        if (config->byte_count) { proto->out_bytes += trace_get_payload_length(packet); }
+        if (config->packet_count) { proto->out_packets += 1; }
     }
 
-    src_ip = trace_get_source_address(packet, (struct sockaddr *)&src_addr);
-    dst_ip = trace_get_destination_address(packet, (struct sockaddr *)&dst_addr);
-    if (src_ip != NULL && dst_ip != NULL) {
-        // IPv4
-        if (src_ip->sa_family == AF_INET && dst_ip->sa_family == AF_INET) {
-            // get source ip address
-            struct sockaddr_in *v4 = (struct sockaddr_in *)src_ip;
-            struct in_addr ipv4 = (struct in_addr)v4->sin_addr;
-            uint32_t address = htonl(ipv4.s_addr);
-            // insert into source ip set
-            proto->src_ips->insert(address);
-            // check if the ip is local or remote
-            if (mod_statistics_is_local_ip(address)) {
-                proto->local_ips->insert(address);
-            } else {
-                proto->remote_ips->insert(address);
+    if (config->ip_count) {
+        src_ip = trace_get_source_address(packet, (struct sockaddr *)&src_addr);
+        dst_ip = trace_get_destination_address(packet, (struct sockaddr *)&dst_addr);
+        if (src_ip != NULL && dst_ip != NULL) {
+            // IPv4
+            if (src_ip->sa_family == AF_INET && dst_ip->sa_family == AF_INET) {
+                // get source ip address
+                struct sockaddr_in *v4 = (struct sockaddr_in *)src_ip;
+                struct in_addr ipv4 = (struct in_addr)v4->sin_addr;
+                uint32_t address = htonl(ipv4.s_addr);
+                // insert into source ip set
+                proto->src_ips->insert(address);
+                // check if the ip is local or remote
+                if (mod_statistics_is_local_ip(address)) {
+                    proto->local_ips->insert(address);
+                } else {
+                    proto->remote_ips->insert(address);
+                }
+
+                // get destination ip address
+                v4 = (struct sockaddr_in *)dst_ip;
+                ipv4 = (struct in_addr)v4->sin_addr;
+                address = htonl(ipv4.s_addr);
+                // insert into destination ip list
+                proto->dst_ips->insert(address);
+                // check if the ip is local or remote
+                if (mod_statistics_is_local_ip(address)) {
+                    proto->local_ips->insert(address);
+                } else {
+                    proto->remote_ips->insert(address);
+                }
             }
+            // IPv6. TODO
+            if (src_ip->sa_family == AF_INET6 && dst_ip->sa_family == AF_INET6) {
+                struct sockaddr_in6 *v6 = (struct sockaddr_in6 *)src_ip;
+                struct in6_addr ipv6 = (struct in6_addr)v6->sin6_addr;
+                //unsigned char address[16] = ipv6.s6_addr;
 
-            // get destination ip address
-            v4 = (struct sockaddr_in *)dst_ip;
-            ipv4 = (struct in_addr)v4->sin_addr;
-            address = htonl(ipv4.s_addr);
-            // insert into destination ip list
-            proto->dst_ips->insert(address);
-            // check if the ip is local or remote
-            if (mod_statistics_is_local_ip(address)) {
-                proto->local_ips->insert(address);
-            } else {
-                proto->remote_ips->insert(address);
+                // insert into set
+
+                v6 = (struct sockaddr_in6 *)dst_ip;
+                ipv6 = (struct in6_addr)v6->sin6_addr;
+                //address[16] = ipv6.s6_addr;
+
+                // insert into set
             }
-        }
-        // IPv6. TODO
-        if (src_ip->sa_family == AF_INET6 && dst_ip->sa_family == AF_INET6) {
-            struct sockaddr_in6 *v6 = (struct sockaddr_in6 *)src_ip;
-            struct in6_addr ipv6 = (struct in6_addr)v6->sin6_addr;
-            //unsigned char address[16] = ipv6.s6_addr;
-
-            // insert into set
-
-            v6 = (struct sockaddr_in6 *)dst_ip;
-            ipv6 = (struct in6_addr)v6->sin6_addr;
-            //address[16] = ipv6.s6_addr;
-
-            // insert into set
         }
     }
 
     // insert the flow id
-    proto->flow_ids->insert(flow->id.get_id_num());
+    if (config->flow_count) { proto->flow_ids->insert(flow->id.get_id_num()); }
 }
 
 int module_flow_statistics_stopping(void *tls, void *mls) {
@@ -201,12 +214,20 @@ int module_flow_statistics_tick(libtrace_t *trace, libtrace_thread_t *thread,
 
         bd_result_set_t *result_set = bd_result_set_create("flow_stats");
         bd_result_set_insert_tag(result_set, "protocol", proto->module->name);
-        bd_result_set_insert_uint(result_set, "in_packets", proto->in_packets);
-        bd_result_set_insert_uint(result_set, "out_packets", proto->out_packets);
-        bd_result_set_insert_uint(result_set, "in_bytes", proto->in_bytes);
-        bd_result_set_insert_uint(result_set, "out_bytes", proto->out_bytes);
-        bd_result_set_insert_uint(result_set, "unique_src_ips", proto->src_ips->size());
-        bd_result_set_insert_uint(result_set, "unique_dst_ips", proto->dst_ips->size());
+
+        if (config->packet_count) {
+            bd_result_set_insert_uint(result_set, "in_packets", proto->in_packets);
+            bd_result_set_insert_uint(result_set, "out_packets", proto->out_packets);
+        }
+
+        if (config->byte_count) {
+            bd_result_set_insert_uint(result_set, "in_bytes", proto->in_bytes);
+            bd_result_set_insert_uint(result_set, "out_bytes", proto->out_bytes);
+        }
+        if (config->ip_count) {
+            bd_result_set_insert_uint(result_set, "unique_src_ips", proto->src_ips->size());
+            bd_result_set_insert_uint(result_set, "unique_dst_ips", proto->dst_ips->size());
+        }
         /*std::set<uint32_t>::iterator ite;
         for (ite=proto->src_ips->begin(); ite != proto->src_ips->end(); ++ite) {
             fprintf(stderr, "\tsrc ip: %d.%d.%d.%d\n", (*ite & 0xff000000) >> 24,
@@ -220,8 +241,11 @@ int module_flow_statistics_tick(libtrace_t *trace, libtrace_thread_t *thread,
                                                        (*ite & 0x0000ff00) >> 8,
                                                        (*ite & 0x000000ff));
         }*/
-        bd_result_set_insert_uint(result_set, "unique_flows", proto->flow_ids->size());
+        if (config->flow_count) {
+            bd_result_set_insert_uint(result_set, "unique_flows", proto->flow_ids->size());
+        }
 
+        // publish the result
         bd_result_set_publish(trace, thread, result_set);
 
         delete(proto->src_ips);
@@ -240,17 +264,97 @@ int module_flow_statistics_combiner(bd_result_t *result) {
 
 }
 
+int module_flow_statistics_config(yaml_parser_t *parser, yaml_event_t *event, int *level) {
+    int enter_level = *level;
+    bool first_pass = 1;
+
+    while (enter_level != *level || first_pass) {
+        first_pass = 0;
+        switch(event->type) {
+            case YAML_SCALAR_EVENT:
+                if (strcmp((char *)event->data.scalar.value, "enabled") == 0) {
+                    consume_event(parser, event, level);
+                    if (strcmp((char *)event->data.scalar.value, "1") == 0 ||
+                        strcmp((char *)event->data.scalar.value, "yes") == 0 ||
+                        strcmp((char *)event->data.scalar.value, "true") == 0 ||
+                        strcmp((char *)event->data.scalar.value, "t") == 0) {
+
+                        config->enabled = 1;
+                    }
+                    break;
+                }
+                if (strcmp((char *)event->data.scalar.value, "output_interval") == 0) {
+                    consume_event(parser, event, level);
+                    config->output_interval = atoi((char *)event->data.scalar.value);
+                    // atoi returns 0 on error so ensure return value was not 0
+                    if (config->output_interval != 0 &&
+                            (config->output_interval % BIGDATA_TICKRATE) == 0) {
+
+                        bd_add_tickrate_to_cb_set(config->callbacks, config->output_interval);
+                    } else {
+                        fprintf(stderr, "Invalid output_interval, must be devisible by 1000. "
+                            "module flow_statistics\n");
+                    }
+                    break;
+                }
+                if (strcmp((char *)event->data.scalar.value, "byte_count") == 0) {
+                    consume_event(parser, event, level);
+                    config->byte_count = 1;
+                    break;
+                }
+                if (strcmp((char *)event->data.scalar.value, "packet_count") == 0) {
+                    consume_event(parser, event, level);
+                    config->packet_count = 1;
+                    break;
+                }
+                if (strcmp((char *)event->data.scalar.value, "flow_count") == 0) {
+                    consume_event(parser, event, level);
+                    config->flow_count = 1;
+                    break;
+                }
+                if (strcmp((char *)event->data.scalar.value, "ip_count") == 0) {
+                    consume_event(parser, event, level);
+                    config->ip_count = 1;
+                    break;
+                }
+            default:
+                consume_event(parser, event, level);
+                break;
+
+        }
+    }
+
+    if (config->enabled) {
+        fprintf(stderr, "enabling\n");
+        config->callbacks->start_cb = (cb_start)module_flow_statistics_starting;
+        config->callbacks->packet_cb = (cb_packet)module_flow_statistics_packet;
+        config->callbacks->stop_cb = (cb_stop)module_flow_statistics_stopping;
+        config->callbacks->tick_cb = (cb_tick)module_flow_statistics_tick;
+    }
+}
+
 int module_flow_statistics_init() {
-    bd_cb_set *callbacks = bd_create_cb_set("flow_statistics");
+    // allocate memory for config structure
+    config = (struct module_flow_statistics_conf *)malloc(
+        sizeof(struct module_flow_statistics_conf));
+    if (config == NULL) {
+        fprintf(stderr, "Unable to allocate memory. func. "
+            "module_flow_statistics_init()\n");
+        exit(BD_OUTOFMEMORY);
+    }
 
-    callbacks->start_cb = (cb_start)module_flow_statistics_starting;
-    callbacks->packet_cb = (cb_packet)module_flow_statistics_packet;
-    callbacks->stop_cb = (cb_stop)module_flow_statistics_stopping;
-    callbacks->tick_cb = (cb_tick)module_flow_statistics_tick;
+    // initialise the config structure
+    config->enabled = 0;
+    config->output_interval = 10000;
+    config->byte_count = 0;
+    config->packet_count = 0;
+    config->flow_count = 0;
 
-    // output results every minute
-    bd_add_tickrate_to_cb_set(callbacks, 5000);
-    bd_register_cb_set(callbacks);
+    config->callbacks = bd_create_cb_set("flow_statistics");
+
+    config->callbacks->config_cb = (cb_config)module_flow_statistics_config;
+
+    bd_register_cb_set(config->callbacks);
 
     return 0;
 }

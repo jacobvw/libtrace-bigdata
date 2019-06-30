@@ -10,7 +10,7 @@ main: module_dns_spcdns_codec.o module_dns_spcdns_mappings.o module_dns.o bigdat
 		lib/bigdata.o \
 		lib/module_statistics.o \
 		lib/module_flow_statistics.o \
-                lib/bigdata_parser.o \
+		lib/bigdata_parser.o \
 		-ltrace -lflowmanager -lyaml -lprotoident -lm -lstdc++ \
 		-o bigdata -g
 
