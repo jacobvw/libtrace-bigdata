@@ -14,6 +14,11 @@ local_networks:
   - 192.168.20.0/24
   - 192.168.1.0/24
 
+# Disable libtrace HASHER_BIDIRECTIONAL hasher.
+# Only disable this option if you have another mechanism for assigning packets
+# of the same flow to the same thread.
+enable_bidirectional_hasher: 1
+
 # capture modules
 foreach:
 

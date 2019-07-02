@@ -37,6 +37,7 @@ typedef struct bigdata_config {
     char *hostname;
     char *interface;
     int processing_threads;
+    bool enable_bidirectional_hasher;
     bool local_networks_as_direction;
     bd_network_t **local_subnets;
     int local_subnets_count;
