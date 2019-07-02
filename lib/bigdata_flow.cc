@@ -139,11 +139,11 @@ int flow_expire(libtrace_t *trace, libtrace_thread_t *thread,
     Flow *expired_flow;
 
     while ((expired_flow = fm->expireNextFlow(trace_get_seconds(packet), false)) != NULL) {
-        /* Gain access to the flow metrics */
+        // Gain access to the flow metrics
         bd_flow_record_t *flow_record = (bd_flow_record_t *)expired_flow->extension;
 
-        /* Get the protocol name */
-        flow_record->proto = strdup(flow_record->lpi_module->name);
+        // Get the protocol name
+        /*flow_record->proto = strdup(flow_record->lpi_module->name);
 
         // create resultset for flow record and output
         bd_result_set_t *result_set = bd_result_set_create("flow");
@@ -159,7 +159,7 @@ int flow_expire(libtrace_t *trace, libtrace_thread_t *thread,
         bd_result_set_insert_uint(result_set, "in_bytes", flow_record->in_bytes);
         bd_result_set_insert_uint(result_set, "out_bytes", flow_record->out_bytes);
         // output the result set
-        bd_result_set_publish(trace, thread, result_set);
+        bd_result_set_publish(trace, thread, result_set); */
 
         // call all callbacks registered to flowend events
         for (; cbs != NULL; cbs = cbs->next) {
@@ -168,10 +168,10 @@ int flow_expire(libtrace_t *trace, libtrace_thread_t *thread,
             }
         }
 
-        /* Free the metrics structure and release the flow to libflowmanager */
+        // Free the metrics structure and release the flow to libflowmanager
         free(flow_record->src_ip);
         free(flow_record->dst_ip);
-        free(flow_record->proto);
+        //free(flow_record->proto);
         free(flow_record);
         fm->releaseFlow(expired_flow);
     }
