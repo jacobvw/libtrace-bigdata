@@ -19,12 +19,15 @@ local_networks:
 # of the same flow to the same thread.
 enable_bidirectional_hasher: 1
 
+# Enable debug output to stderr
+debug: 0
+
 # capture modules
 foreach:
 
   # dns module
   dns:
-    enabled: 1
+    enabled: 0
     #metrics:
     #  - question
     #  - question_type
@@ -35,7 +38,7 @@ foreach:
   flow_statistics:
     enabled: 1
     # how often to output results in millseconds
-    output_interval: 60000
+    output_interval: 6000
     metrics:
       - byte_count
       - packet_count
@@ -44,7 +47,7 @@ foreach:
 
   # statistics module
   statistics:
-    enabled: 1
+    enabled: 0
     output_interval: 60000
     metrics:
       - byte_count

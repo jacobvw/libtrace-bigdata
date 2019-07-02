@@ -64,7 +64,7 @@ void consume_event(yaml_parser_t *parser, yaml_event_t *event, int *level) {
 }
 
 bd_conf_t *parse_config(char *filename, bd_global_t *g_data) {
-    FILE *fd;
+    FILE *fd = NULL;
     yaml_parser_t parser;
     yaml_event_t event;
 
@@ -75,6 +75,7 @@ bd_conf_t *parse_config(char *filename, bd_global_t *g_data) {
     conf->local_subnets = NULL;
     conf->local_subnets_count = 0;
     conf->enable_bidirectional_hasher = 1;
+    conf->debug = 0;
 
     int level = 0;
 
@@ -186,7 +187,7 @@ bd_conf_t *parse_config(char *filename, bd_global_t *g_data) {
                         } else {
                             conf->local_subnets =
                                 (bd_network_t **)realloc(conf->local_subnets,
-                                    conf->local_subnets_count * sizeof(bd_network_t *));
+                                    (conf->local_subnets_count + 1) * sizeof(bd_network_t *));
                         }
                         conf->local_subnets[conf->local_subnets_count] =
                             get_local_network((char *)event.data.scalar.value);
@@ -212,6 +213,27 @@ bd_conf_t *parse_config(char *filename, bd_global_t *g_data) {
                         conf->enable_bidirectional_hasher = 1;
                     } else {
                         conf->enable_bidirectional_hasher = 0;
+                    }
+                    // consume the event
+                    consume_event(&parser, &event, &level);
+                    break;
+                }
+
+                if (strcmp((char *)event.data.scalar.value, "debug") == 0) {
+                    // consume the first event which contains the value debug
+                    consume_event(&parser, &event, &level);
+                    // should now be a YAML_SCALAR_EVENT,
+                    //  if not config is incorrect.
+                    if (event.type != YAML_SCALAR_EVENT) {
+                        return NULL;
+                    }
+                    if (strcmp((char *)event.data.scalar.value, "1") == 0 ||
+                        strcmp((char *)event.data.scalar.value, "true") == 0 ||
+                        strcmp((char *)event.data.scalar.value, "yes") == 0) {
+
+                        conf->debug = 1;
+                    } else {
+                        conf->debug = 0;
                     }
                     // consume the event
                     consume_event(&parser, &event, &level);

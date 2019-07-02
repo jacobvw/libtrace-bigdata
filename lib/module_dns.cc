@@ -5,7 +5,48 @@
 #include "module_dns_spcdns.h"
 #include "module_dns_spcdns_mappings.h"
 
-#define DEBUG 1
+static const char MODULE_DNS_SCHEMA[] =
+  "{\"type\": \"record\",\
+    \"namespace\": \"libtrace-bigdata\",\
+    \"name\": \"module.dns\",\
+    \"fields\": [\
+      {\"name\": \"start_timestamp\", \"type\": \"long\"}, \
+      {\"name\": \"end_timestamp\", \"type\": \"long\"}, \
+      {\"name\": \"src_ip\", \"type\": \"long\"}, \
+      {\"name\": \"dst_ip\", \"type\": \"long\"}, \
+      {\"name\": \"question_count\", \"type\": \"long\"}, \
+      {\"name\": \"answer_count\", \"type\": \"long\"}, \
+      {\"name\": \"nameserver_count\", \"type\": \"long\"}, \
+      {\"name\": \"additional_count\", \"type\": \"long\"}, \
+      {\"name\": \"round_trip_time\", \"type\": \"long\"}, \
+      {\"name\": \"authoritive_result\", \"type\": \"boolean\"}, \
+      {\"name\": \"trucated_result\", \"type\": \"boolean\"}, \
+      {\"name\": \"recursion_desired\", \"type\": \"boolean\"}, \
+      {\"name\": \"recursion_available\", \"type\": \"boolean\"}, \
+      {\"name\": \"questions\", \"type\": {\
+        \"type\": \"array\",\
+        \"items\": {\
+          \"name\": \"question\", \"type\": \"record\", \
+          \"fields\": [\
+            {\"name\": \"question_name\", \"type\": \"string\"}, \
+            {\"name\": \"question_class\", \"type\": \"string\"}, \
+            {\"name\": \"question_type\", \"type\": \"string\"} \
+          ]\
+        }\
+      }}, \
+      {\"name\": \"answers\", \"type\": {\
+        \"type\": \"array\",\
+        \"items\": {\
+          \"name\": \"answer\", \"type\": \"record\", \
+          \"fields\": [\
+            {\"name\": \"answer_name\", \"type\": \"string\"}, \
+            {\"name\": \"answer_class\", \"type\": \"string\"}, \
+            {\"name\": \"answer_type\", \"type\": \"string\"} \
+          ]\
+        }\
+      }}, \
+    ]\
+  }";
 
 struct module_dns_conf {
     bd_cb_set *callbacks;
@@ -108,19 +149,19 @@ int module_dns_packet(libtrace_t *trace, libtrace_thread_t *thread,
             }
             req_stor->start_ts = trace_get_seconds(packet);
 
-            if (DEBUG) {
+            /*if (DEBUG) {
                 fprintf(stderr, "got query %s thread id %lu\n",
                     dns_type_text(req->questions[0].type), pthread_self());
-            }
+            }*/
 
             // insert request into the map
             map->insert({identifier, req_stor});
         } else {
-            if (DEBUG) {
+            /*if (DEBUG) {
                 // is a result without query
                 fprintf(stderr, "Got response with no corresponding query type %s thread %lu\n",
                 dns_type_text(req->questions[0].type), pthread_self());
-            }
+            }*/
         }
 
     } else {
@@ -169,10 +210,10 @@ int module_dns_packet(libtrace_t *trace, libtrace_thread_t *thread,
             bd_result_set_insert_tag(result_set, "question_type",
                 dns_type_text(resp->questions[i].type));
 
-            if (DEBUG) {
+            /*if (DEBUG) {
                 fprintf(stderr, "got response %s thread %lu\n",
                     dns_type_text(resp->questions[i].type), pthread_self());
-            }
+            }*/
         }
         // for each answer
         for (i=0; i<resp->ancount; i++) {

@@ -130,7 +130,7 @@ int module_influxdb_post(void *tls, void *mls, bd_result_set *result) {
     }
 
     ret = post_http_send_line(client, str, strlen(str));
-    fprintf(stderr, "return code: %d\n", ret);
+
     return ret;
 }
 
@@ -188,9 +188,6 @@ int module_influxdb_config(yaml_parser_t *parser, yaml_event_t *event, int *leve
 
         }
     }
-
-    fprintf(stderr, "%d %s %s %s %s\n", config->port, config->host, config->db, config->usr,
-        config->pwd);
 }
 
 int module_influxdb_init() {

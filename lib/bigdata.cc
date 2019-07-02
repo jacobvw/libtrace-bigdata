@@ -215,6 +215,7 @@ static void reporter_result(libtrace_t *trace, libtrace_thread_t *thread,
 
     int ret;
     int cb_counter = 0;
+
     // get the generic structure holding the result
     libtrace_generic_t gen = res->value;
     // cast back to a result set
@@ -229,6 +230,11 @@ static void reporter_result(libtrace_t *trace, libtrace_thread_t *thread,
         if (cbs->reporter_output_cb != NULL) {
             ret = cbs->reporter_output_cb(tls, l_data->mls[cb_counter], result);
             // if ret isnt 0 output failed so store and output and try again later??
+            if (ret != 0) {
+                fprintf(stderr, "Failed posting result to %s\n", cbs->name);
+            } else if (g_data->config->debug) {
+                fprintf(stderr, "DEBUG: Result posted to %s\n", cbs->name);
+            }
         }
         cb_counter += 1;
     }

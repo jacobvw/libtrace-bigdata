@@ -91,8 +91,8 @@ int post_http_send_line(influx_client_t *c, char *buf, int len)
             break;
     }
 
-	fprintf(stderr, "influxdb-c::post_http: iv[0] = '%s'\n", (char *)iv[0].iov_base);
-	fprintf(stderr, "influxdb-c::post_http: iv[1] = '%s'\n", (char *)iv[1].iov_base);
+	//fprintf(stderr, "influxdb-c::post_http: iv[0] = '%s'\n", (char *)iv[0].iov_base);
+	//fprintf(stderr, "influxdb-c::post_http: iv[1] = '%s'\n", (char *)iv[1].iov_base);
 
     addr.sin_family = AF_INET;
     addr.sin_port = htons(c->port);
