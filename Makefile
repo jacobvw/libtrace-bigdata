@@ -11,7 +11,7 @@ main: module_dns_spcdns_codec.o module_dns_spcdns_mappings.o module_dns.o bigdat
 		lib/module_statistics.o \
 		lib/module_flow_statistics.o \
 		lib/bigdata_parser.o \
-		-ltrace -lflowmanager -lyaml -lprotoident -lm -lstdc++ \
+		-ltrace -lflowmanager -lyaml -lprotoident -lm -lstdc++ -lcurl\
 		-o bigdata -g
 
 
@@ -34,7 +34,7 @@ module_http.o: lib/module_http.cc lib/module_http.h
 	$(CC) lib/module_http.cc -c -o lib/module_http.o -g
 
 # INFLUXDB MODULE
-module_influxdb.o: lib/module_influxdb.cc lib/module_influxdb.h lib/module_influxdb_core.h
+module_influxdb.o: lib/module_influxdb.cc lib/module_influxdb.h
 	$(CC) lib/module_influxdb.cc -c -o lib/module_influxdb.o -g
 
 # STATISTICS MODULE

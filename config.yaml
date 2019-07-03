@@ -27,7 +27,7 @@ foreach:
 
   # dns module
   dns:
-    enabled: 0
+    enabled: 1
     #metrics:
     #  - question
     #  - question_type
@@ -57,7 +57,9 @@ foreach:
 where:
 
   influxdb:
-    host: 127.0.0.1 
+    # Disable certificate verification
+    ssl_verify_peer: 1
+    host: http://127.0.0.1 
     port: 8086
     database: libtrace
     username: admin

@@ -11,6 +11,7 @@ struct module_influxdb_conf {
     char *db;
     char *usr;
     char *pwd;
+    bool ssl_verifypeer;
 };
 struct module_influxdb_conf *config;
 
@@ -38,6 +39,11 @@ void *module_influxdb_starting(void *tls) {
         curl_easy_setopt(opts->curl, CURLOPT_URL, buff);
         curl_easy_setopt(opts->curl, CURLOPT_PORT, config->port);
 
+        if (config->ssl_verifypeer) {
+            curl_easy_setopt(opts->curl, CURLOPT_SSL_VERIFYPEER, 1);
+        } else {
+            curl_easy_setopt(opts->curl, CURLOPT_SSL_VERIFYPEER, 0);
+        }
     }
 
     return opts;
@@ -169,6 +175,13 @@ int module_influxdb_config(yaml_parser_t *parser, yaml_event_t *event, int *leve
     config = (struct module_influxdb_conf *)malloc(sizeof(
         struct module_influxdb_conf));
 
+    config->host = NULL;
+    config->port = 8086;
+    config->db = NULL;
+    config->usr = NULL;
+    config->pwd = NULL;
+    config->ssl_verifypeer = 1;
+
     int enter_level = *level;
     bool first_pass = 1;
 
@@ -201,7 +214,18 @@ int module_influxdb_config(yaml_parser_t *parser, yaml_event_t *event, int *leve
                     config->pwd = strdup((char *)event->data.scalar.value);;
                     break;
                 }
+                if (strcmp((char *)event->data.scalar.value, "ssl_verify_peer") == 0) {
+                    consume_event(parser, event, level);
+                    if (strcmp((char *)event->data.scalar.value, "1") == 0 ||
+                        strcmp((char *)event->data.scalar.value, "true") == 0 ||
+                        strcmp((char *)event->data.scalar.value, "yes") == 0) {
 
+                        config->ssl_verifypeer = 1;
+                    } else {
+                        config->ssl_verifypeer = 0;
+                    }
+                    break;
+                }
             default:
                 consume_event(parser, event, level);
                 break;
