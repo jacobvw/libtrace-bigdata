@@ -95,7 +95,12 @@ bd_conf_t *parse_config(char *filename, bd_global_t *g_data) {
     yaml_parser_set_input_file(&parser, fd);
 
     // get the first event
-    consume_event(&parser, &event, &level);
+    if (!yaml_parser_parse(&parser, &event)) {
+        printf("Parser error %d\n", parser.error);
+        exit(EXIT_FAILURE);
+    }
+    // update conf depth level
+    update_level(&event, &level);
 
     /* START new code */
     do {
