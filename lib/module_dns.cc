@@ -181,8 +181,10 @@ int module_dns_packet(libtrace_t *trace, libtrace_thread_t *thread,
             fprintf(stderr, "Unable to allocate memory. func. module_dns_packet()\n");
             return 1;
         }
-        req->src_ip = trace_get_source_address_string(packet, req->src_ip, INET6_ADDRSTRLEN);
-        req->dst_ip = trace_get_destination_address_string(packet, req->dst_ip, INET6_ADDRSTRLEN);
+        req->src_ip = trace_get_source_address_string(packet, req->src_ip,
+            sizeof(INET6_ADDRSTRLEN));
+        req->dst_ip = trace_get_destination_address_string(packet, req->dst_ip,
+            sizeof(INET6_ADDRSTRLEN));
 
         // create the result set
         bd_result_set_t *result_set = bd_result_set_create("dns");
