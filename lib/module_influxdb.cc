@@ -1,6 +1,6 @@
 #include "module_influxdb.h"
-#include "module_influxdb_core.h"
 #include "bigdata.h"
+#include <curl/curl.h>
 
 #define INFLUX_BUF_LEN 2000
 #define INFLUX_LINE_LEN 4000
@@ -14,26 +14,38 @@ struct module_influxdb_conf {
 };
 struct module_influxdb_conf *config;
 
+typedef struct module_influxdb_options {
+    CURL *curl;
+} mod_influxdb_opts_t;
+
 void *module_influxdb_starting(void *tls);
 int module_influxdb_post(void *tls, void *mls, bd_result_set *result);
 void *module_influxdb_stopping(void *tls, void *mls);
 
 void *module_influxdb_starting(void *tls) {
-    influx_client_t *client = (influx_client_t *)malloc(sizeof(influx_client_t));
+    mod_influxdb_opts_t *opts = (mod_influxdb_opts_t *)malloc(sizeof(mod_influxdb_opts_t));
 
-    // setup influx connection structure
-    client->host = config->host;
-    client->port = config->port;
-    client->db = config->db;
-    client->usr = config->usr;
-    client->pwd = config->pwd;
+    // Initialise curl
+    curl_global_init(CURL_GLOBAL_ALL);
 
-    return client;
+    // get a curl handle
+    opts->curl = curl_easy_init();
+    if (opts->curl) {
+        char buff[200];
+        snprintf(buff, sizeof(buff), "%s%s%s%s%s%s%s", config->host, "/write?db=", config->db,
+            "&u=", config->usr, "&p=", config->pwd);
+
+        curl_easy_setopt(opts->curl, CURLOPT_URL, buff);
+        curl_easy_setopt(opts->curl, CURLOPT_PORT, config->port);
+
+    }
+
+    return opts;
 }
 
 int module_influxdb_post(void *tls, void *mls, bd_result_set *result) {
 
-    influx_client_t *client = (influx_client_t *)mls;
+    mod_influxdb_opts_t *opts = (mod_influxdb_opts_t *)mls;
 
     int i;
     int ret;
@@ -129,20 +141,28 @@ int module_influxdb_post(void *tls, void *mls, bd_result_set *result) {
         strcat(str, buf);
     }
 
-    ret = post_http_send_line(client, str, strlen(str));
+    /* Now specify the POST data */
+    curl_easy_setopt(opts->curl, CURLOPT_POSTFIELDS, str);
 
-    return ret;
+    /* Perform the request, res will get the return code */
+    CURLcode res = curl_easy_perform(opts->curl);
+    /* Check for errors */
+    if(res != CURLE_OK) {
+      fprintf(stderr, "failed to post to influxDB: %s\n", curl_easy_strerror(res));
+    }
+
+    return res;
 }
 
 void *module_influxdb_stopping(void *tls, void *mls) {
-    influx_client_t *client = (influx_client_t *)mls;
+    mod_influxdb_opts_t *opts = (mod_influxdb_opts_t *)mls;
 
-    if (client != NULL) {
-        if (client->host != NULL) { free(client->host); }
-        if (client->db != NULL) { free(client->db); }
-        if (client->pwd != NULL) { free(client->pwd); }
-        free(client);
-    }
+    /* always cleanup */
+    curl_easy_cleanup(opts->curl);
+
+    curl_global_cleanup();
+
+    free(opts);
 }
 
 int module_influxdb_config(yaml_parser_t *parser, yaml_event_t *event, int *level) {

@@ -4,3 +4,6 @@
 [submodule "libyaml"]
 	path = libyaml
 	url = https://github.com/yaml/libyaml
+[submodule "influxdb-cxx"]
+	path = influxdb-cxx
+	url = https://github.com/awegrzyn/influxdb-cxx.git
