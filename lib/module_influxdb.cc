@@ -157,6 +157,8 @@ int module_influxdb_post(void *tls, void *mls, bd_result_set *result) {
       fprintf(stderr, "failed to post to influxDB: %s\n", curl_easy_strerror(res));
     }
 
+    free(str);
+
     return res;
 }
 
