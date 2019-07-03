@@ -57,7 +57,7 @@ foreach:
 where:
 
   influxdb:
-    # Disable certificate verification
+    # Enable certificate verification
     ssl_verify_peer: 1
     host: http://127.0.0.1 
     port: 8086
