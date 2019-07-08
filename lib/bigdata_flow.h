@@ -26,4 +26,8 @@ Flow *flow_per_packet(libtrace_t *trace, libtrace_thread_t *thread,
 int flow_expire(libtrace_t *trace, libtrace_thread_t *thread,libtrace_packet_t *packet,
     void *global, void *tls);
 
+uint64_t bd_flow_get_in_packets(Flow *flow);
+uint64_t bd_flow_get_out_packets(Flow *flow);
+uint64_t bd_flow_get_in_bytes(Flow *flow);
+uint64_t bd_flow_get_out_bytes(Flow *flow);
 #endif

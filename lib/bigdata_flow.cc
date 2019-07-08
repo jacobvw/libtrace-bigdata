@@ -27,13 +27,8 @@ Flow *flow_per_packet(libtrace_t *trace, libtrace_thread_t *thread,
     if (l3_type != 0x0800) { return NULL; }
     if (ip == NULL) { return NULL; }
 
-    /* Get the direction of the trace, this could be improved */
-    //dir = trace_get_direction(packet);
-    if (ip->ip_src.s_addr < ip->ip_dst.s_addr) {
-        dir = 0;
-    } else {
-        dir = 1;
-    }
+    /* Get the direction of the packet */
+    dir = bd_get_packet_direction(packet);
 
     /* Ignore packets where the IP addresses are the same - something is
      * probably screwy and it's REALLY hard to determine direction */
@@ -179,3 +174,26 @@ int flow_expire(libtrace_t *trace, libtrace_thread_t *thread,
     return 0;
 }
 
+uint64_t bd_flow_get_in_packets(Flow *flow) {
+    // gain access to flow metrics
+    bd_flow_record_t *flow_record = (bd_flow_record_t *)flow->extension;
+    return flow_record->in_packets;
+}
+
+uint64_t bd_flow_get_out_packets(Flow *flow) {
+    // gain access to flow metrics
+    bd_flow_record_t *flow_record = (bd_flow_record_t *)flow->extension;
+    return flow_record->out_packets;
+}
+
+uint64_t bd_flow_get_in_bytes(Flow *flow) {
+    // gain access to flow metrics
+    bd_flow_record_t *flow_record = (bd_flow_record_t *)flow->extension;
+    return flow_record->in_bytes;
+}
+
+uint64_t bd_flow_get_out_bytes(Flow *flow) {
+    // gain access to flow metrics
+    bd_flow_record_t *flow_record = (bd_flow_record_t *)flow->extension;
+    return flow_record->out_bytes;
+}
