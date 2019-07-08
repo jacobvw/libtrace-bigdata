@@ -399,12 +399,12 @@ int bd_result_set_publish(libtrace_t *trace, libtrace_thread_t *thread,
         exit(BD_OUTOFMEMORY);
     }
 
-    libtrace_generic_t resultset;
-    resultset.ptr = (void *)result;
+    libtrace_generic_t gen;
+    gen.ptr = (void *)result;
     uint64_t ts = (uint64_t)result->timestamp;
 
     // send the result to the reporter thread
-    trace_publish_result(trace, thread, ts, resultset, RESULT_USER);
+    trace_publish_result(trace, thread, ts, gen, RESULT_USER);
 
     return 0;
 }

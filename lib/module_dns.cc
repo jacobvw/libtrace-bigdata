@@ -175,16 +175,16 @@ int module_dns_packet(libtrace_t *trace, libtrace_thread_t *thread,
         // retrieve the response
         dns_query_t *resp = (dns_query_t *)bufresult;
 
-        req->src_ip = (char *)malloc(sizeof(INET6_ADDRSTRLEN));
-        req->dst_ip = (char *)malloc(sizeof(INET6_ADDRSTRLEN));
+        req->src_ip = (char *)malloc(INET6_ADDRSTRLEN);
+        req->dst_ip = (char *)malloc(INET6_ADDRSTRLEN);
         if (req->src_ip == NULL || req->dst_ip == NULL) {
             fprintf(stderr, "Unable to allocate memory. func. module_dns_packet()\n");
             return 1;
         }
         req->src_ip = trace_get_source_address_string(packet, req->src_ip,
-            sizeof(INET6_ADDRSTRLEN));
+            INET6_ADDRSTRLEN);
         req->dst_ip = trace_get_destination_address_string(packet, req->dst_ip,
-            sizeof(INET6_ADDRSTRLEN));
+            INET6_ADDRSTRLEN);
 
         // create the result set
         bd_result_set_t *result_set = bd_result_set_create("dns");

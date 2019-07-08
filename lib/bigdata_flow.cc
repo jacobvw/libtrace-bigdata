@@ -76,16 +76,16 @@ int flow_init_metrics(libtrace_packet_t *packet, Flow *flow, uint8_t dir, double
     bd_flow_record_t *flow_record = (bd_flow_record_t *)malloc(sizeof(bd_flow_record_t));
 
 
-    flow_record->src_ip = (char *)malloc(sizeof(INET6_ADDRSTRLEN));
-    flow_record->dst_ip = (char *)malloc(sizeof(INET6_ADDRSTRLEN));
+    flow_record->src_ip = (char *)malloc(INET6_ADDRSTRLEN);
+    flow_record->dst_ip = (char *)malloc(INET6_ADDRSTRLEN);
     if (flow_record->src_ip == NULL || flow_record->dst_ip == NULL) {
         fprintf(stderr, "Unable to allocate memory. func. flow_init_metrics()\n");
         return 1;
     }
     flow_record->src_ip = trace_get_source_address_string(packet, flow_record->src_ip,
-        sizeof(INET6_ADDRSTRLEN));
+        INET6_ADDRSTRLEN);
     flow_record->dst_ip = trace_get_destination_address_string(packet, flow_record->dst_ip,
-        sizeof(INET6_ADDRSTRLEN));
+        INET6_ADDRSTRLEN);
     flow_record->src_port = trace_get_source_port(packet);
     flow_record->dst_port = trace_get_destination_port(packet);
     flow_record->start_ts = ts;
