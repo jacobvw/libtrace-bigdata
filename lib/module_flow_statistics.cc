@@ -109,12 +109,34 @@ int module_flow_statistics_packet(libtrace_t *trace, libtrace_thread_t *thread,
     }
 
     // if the protocol has changed for this flow
-    if (proto->module != flow_rec->lpi_module) {
-        // find a way to move recorded stats over to correct proto??
+    if (proto->module->protocol != flow_rec->lpi_module->protocol) {
+        // search for the old protocol
+        auto search_old = stats->proto_stats->find(proto->module->protocol);
+        if (search_old == stats->proto_stats->end()) {
+            // protocol not found. this should not happen
+        } else {
+            // get the old protocol
+            mod_flow_stats_proto_t *proto_old = (mod_flow_stats_proto_t *)
+                search_old->second;;
+            // remove counters from the previous protocol
+            proto_old->in_bytes -= bd_flow_get_in_bytes(flow);
+            proto_old->out_bytes -= bd_flow_get_out_bytes(flow);
+            proto_old->in_packets -= bd_flow_get_in_packets(flow);
+            proto_old->out_packets -= bd_flow_get_out_packets(flow);
+            // need a way to remove ip sets from old protocol but only if it only
+            // occurred for a single flow. Could iterate over flow_ids somehow?
+        }
+
+        // add counters to the newly identified protocol
+        proto->in_bytes += bd_flow_get_in_bytes(flow);
+        proto->out_bytes += bd_flow_get_out_bytes(flow);
+        proto->in_packets += bd_flow_get_in_packets(flow);
+        proto->out_packets += bd_flow_get_out_packets(flow);
+        // note: this iteration should add src/dst ips to the set
         proto->module = flow_rec->lpi_module;
     }
 
-    // update counters for the protocol
+    // dir = 1 is inbound packets
     if (dir) {
         if (config->byte_count) { proto->in_bytes += trace_get_payload_length(packet); }
         if (config->packet_count) { proto->in_packets += 1; }
