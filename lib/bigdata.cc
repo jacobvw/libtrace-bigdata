@@ -116,7 +116,7 @@ libtrace_packet_t *per_packet(libtrace_t *trace, libtrace_thread_t *thread,
         }
     }
 
-    /* Expire all suitably idle flows. Note: this will export expired flow metrics */
+    /* Expire all suitably idle flows. */
     flow_expire(trace, thread, packet, global, tls);
 
     return packet;
@@ -153,6 +153,9 @@ static void per_tick(libtrace_t *trace, libtrace_thread_t *thread, void *global,
     int cb_counter = 0;
     // get the global data
     bd_global_t *g_data = (bd_global_t *)global;
+    // get global configuration
+    bd_conf_t *config = g_data->config;
+    // get the thread local data
     bd_thread_local_t *l_data = (bd_thread_local_t *)tls;
 
     bd_cb_set *cbs = g_data->callbacks;
@@ -167,11 +170,15 @@ static void per_tick(libtrace_t *trace, libtrace_thread_t *thread, void *global,
         }
         cb_counter += 1;
     }
-    //libtrace_stat_t *stats = trace_create_statistics();
-    //trace_get_statistics(trace, stats);
-    //fprintf(stderr, "Accepted %lu packets\nDropped %lu packets\n\n",
-    //    stats->accepted, stats->dropped);
-    //free(stats);
+
+
+    if (config->debug) {
+        libtrace_stat_t *stats = trace_create_statistics();
+        trace_get_statistics(trace, stats);
+        fprintf(stderr, "Accepted %lu packets\nDropped %lu packets\n\n",
+            stats->accepted, stats->dropped);
+        free(stats);
+    }
 }
 
 
