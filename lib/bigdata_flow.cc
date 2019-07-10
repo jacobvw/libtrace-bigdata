@@ -32,8 +32,9 @@ Flow *flow_per_packet(libtrace_t *trace, libtrace_thread_t *thread,
 
     /* Ignore packets where the IP addresses are the same - something is
      * probably screwy and it's REALLY hard to determine direction */
-    if (ip->ip_src.s_addr == ip->ip_dst.s_addr)
+    if (ip->ip_src.s_addr == ip->ip_dst.s_addr) {
         return NULL;
+    }
 
     /* Match the packet to a Flow - this will create a new flow if
      * there is no matching flow already in the Flow map and set the
@@ -42,8 +43,9 @@ Flow *flow_per_packet(libtrace_t *trace, libtrace_thread_t *thread,
 
     /* Libflowmanager did not like something about that packet - best to
      * just ignore it and carry on */
-    if (flow == NULL)
+    if (flow == NULL) {
         return NULL;
+    }
 
     /* If this is a new flow, metrics need to be allocated for it */
     if (is_new) {

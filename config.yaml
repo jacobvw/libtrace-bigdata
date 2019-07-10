@@ -2,7 +2,7 @@
 hostname: host1
 
 # network interface to capture data on. 
-interface: ens18
+interface: eno4
 
 # number of packet processing threads
 threads: 4
@@ -12,7 +12,6 @@ local_networks_as_direction: 0
 
 local_networks:
   - 192.168.20.0/24
-  - 192.168.1.0/24
 
 # Disable libtrace HASHER_BIDIRECTIONAL hasher.
 # Only disable this option if you have another mechanism for assigning packets
@@ -27,7 +26,7 @@ foreach:
 
   # dns module
   dns:
-    enabled: 1
+    enabled: 0
     #metrics:
     #  - question
     #  - question_type
@@ -37,8 +36,8 @@ foreach:
   # flow stats module
   flow_statistics:
     enabled: 1
-    # how often to output results in millseconds
-    output_interval: 6000
+    # how often to output results in seconds
+    output_interval: 30
     metrics:
       - byte_count
       - packet_count
@@ -48,10 +47,25 @@ foreach:
   # statistics module
   statistics:
     enabled: 0
-    output_interval: 60000
+    output_interval: 60
     metrics:
       - byte_count
       - packet_count
+
+  # cdn statistics
+  cdn_statistics:
+    enabled: 0
+    output_interval: 60
+    cdns:
+      facebook:
+        - fbcdn-sphotos-b-a.akamaihd.net
+        - fbcdn-sphotos-c-a.akamaihd.net
+      youtube:
+        - youtube.com
+        - m.youtube.com
+      netflix:
+        - netflix.com
+        - cdn.netflix.com
 
 # output modules
 where:
@@ -59,7 +73,7 @@ where:
   influxdb:
     # Enable certificate verification
     ssl_verify_peer: 1
-    host: http://127.0.0.1 
+    host: http://192.168.20.40 
     port: 8086
     database: libtrace
     username: admin

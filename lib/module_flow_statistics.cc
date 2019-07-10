@@ -230,7 +230,7 @@ int module_flow_statistics_tick(libtrace_t *trace, libtrace_thread_t *thread,
 
     // output protocol counters
     for (std::unordered_map<lpi_protocol_t, mod_flow_stats_proto_t *>::iterator
-        it=stats->proto_stats->begin(); it!=stats->proto_stats->end(); ++it) {
+        it=stats->proto_stats->begin(); it != stats->proto_stats->end(); ++it) {
 
         mod_flow_stats_proto_t *proto = (mod_flow_stats_proto_t *)it->second;
 
@@ -266,6 +266,11 @@ int module_flow_statistics_tick(libtrace_t *trace, libtrace_thread_t *thread,
         if (config->flow_count) {
             bd_result_set_insert_uint(result_set, "unique_flows", proto->flow_ids->size());
         }
+
+        // set the timestamp for the result
+        bd_result_set_insert_timestamp(result_set, tick);
+        // add interval
+        bd_result_set_insert_int(result_set, "interval", config->output_interval);
 
         // publish the result
         bd_result_set_publish(trace, thread, result_set);
@@ -308,14 +313,12 @@ int module_flow_statistics_config(yaml_parser_t *parser, yaml_event_t *event, in
                 if (strcmp((char *)event->data.scalar.value, "output_interval") == 0) {
                     consume_event(parser, event, level);
                     config->output_interval = atoi((char *)event->data.scalar.value);
-                    // atoi returns 0 on error so ensure return value was not 0
-                    if (config->output_interval != 0 &&
-                            (config->output_interval % BIGDATA_TICKRATE) == 0) {
-
+                    if (config->output_interval != 0) {
                         bd_add_tickrate_to_cb_set(config->callbacks, config->output_interval);
                     } else {
-                        fprintf(stderr, "Invalid output_interval, must be devisible by 1000. "
-                            "module flow_statistics\n");
+                        fprintf(stderr, "Invalid output_interval value. "
+                            "module_flow_statistics. Disabling module\n");
+                        config->enabled = 0;
                     }
                     break;
                 }
@@ -368,7 +371,7 @@ int module_flow_statistics_init() {
 
     // initialise the config structure
     config->enabled = 0;
-    config->output_interval = 10000;
+    config->output_interval = 60;
     config->byte_count = 0;
     config->packet_count = 0;
     config->flow_count = 0;

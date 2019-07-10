@@ -75,7 +75,7 @@ typedef struct bd_result_set {
     bd_result_t *results;
     int num_results;
     int allocated_results;
-    double timestamp;
+    uint64_t timestamp;
 } bd_result_set_t;
 
 // events
@@ -110,7 +110,7 @@ typedef struct bigdata_callback_set {
     // tick timer callbacks
     cb_tick tick_cb;
     size_t tickrate;               // base tickrate
-    size_t c_tickrate;             // countdown for tickrate
+    uint64_t c_tickrate;           // tickrate for next report
     // combiner callback
     cb_combiner combiner_cb;
     // filter for the module
@@ -160,7 +160,7 @@ int bd_result_set_insert_uint(bd_result_set_t *result_set, const char *key,
     uint64_t value);
 int bd_result_set_insert_bool(bd_result_set_t *result_set, const char *key,
     bool value);
-int bd_result_set_set_timestamp(bd_result_set_t *result_set, double ts);
+int bd_result_set_insert_timestamp(bd_result_set_t *result_set, uint64_t timestamp);
 int bd_result_set_insert_tag(bd_result_set_t *result_set, const char *tag,
     const char *value);
 int bd_result_set_publish(libtrace_t *trace, libtrace_thread_t *thread,

@@ -6,7 +6,6 @@
 
 #define RESULT_SET_INIT_SIZE 20
 #define RESULT_SET_INC_SIZE 10
-#define BIGDATA_TICKRATE 1000 // milliseconds
 
 // this is only here for register_event. Can i remove it somehow??
 bd_global_t *global_data;
@@ -99,7 +98,7 @@ libtrace_packet_t *per_packet(libtrace_t *trace, libtrace_thread_t *thread,
     // pass packet into the flow manager
     flow = flow_per_packet(trace, thread, packet, global, tls);
 
-    /* if a flow was not found something has gone wrong */
+    // if a flow was not found something has gone wrong
     if (flow) {
         bd_cb_set *cbs = g_data->callbacks;
         for (; cbs != NULL; cbs = cbs->next) {
@@ -116,7 +115,7 @@ libtrace_packet_t *per_packet(libtrace_t *trace, libtrace_thread_t *thread,
         }
     }
 
-    /* Expire all suitably idle flows. */
+    // Expire all suitably idle flows.
     flow_expire(trace, thread, packet, global, tls);
 
     return packet;
@@ -158,14 +157,23 @@ static void per_tick(libtrace_t *trace, libtrace_thread_t *thread, void *global,
     // get the thread local data
     bd_thread_local_t *l_data = (bd_thread_local_t *)tls;
 
+    // convert ERF timestamp to seconds
+    uint64_t timestamp_seconds = tick >> 32;
+
     bd_cb_set *cbs = g_data->callbacks;
     for (; cbs != NULL; cbs = cbs->next) {
         if (cbs->tick_cb != NULL) {
-            // Check if the current callback is due for a tick
-            cbs->c_tickrate = cbs->c_tickrate - BIGDATA_TICKRATE;
-            if (cbs->c_tickrate < BIGDATA_TICKRATE) {
-                cbs->tick_cb(trace, thread, tls, l_data->mls[cb_counter], tick);
-                cbs->c_tickrate = cbs->tickrate;
+            // c_tickrate will be 0 on the first pass.
+            // TODO. We can use this to align the tick output
+            if (cbs->c_tickrate == 0) {
+                cbs->c_tickrate = timestamp_seconds + cbs->tickrate;
+            }
+            // if c_tickrate has passed call the modules tick function
+            // note: modules receive tick time in seconds
+            if (cbs->c_tickrate <= timestamp_seconds) {
+                cbs->tick_cb(trace, thread, tls, l_data->mls[cb_counter], timestamp_seconds);
+                // increase c_tickrate by the interval
+                cbs->c_tickrate = timestamp_seconds + cbs->tickrate;
             }
         }
         cb_counter += 1;
@@ -381,7 +389,7 @@ int bd_result_set_insert_bool(bd_result_set_t *result_set, const char *key,
 
     return 0;
 }
-int bd_result_set_set_timestamp(bd_result_set_t *result_set, double timestamp) {
+int bd_result_set_insert_timestamp(bd_result_set_t *result_set, uint64_t timestamp) {
     result_set->timestamp = timestamp;
     return 0;
 }
@@ -483,7 +491,7 @@ int main(int argc, char *argv[]) {
 
     trace_set_reporter_thold(trace, 1);
     // Send tick message once per second
-    trace_set_tick_interval(trace, BIGDATA_TICKRATE);
+    trace_set_tick_interval(trace, 1000);
 
     trace_set_combiner(trace, &combiner_unordered, (libtrace_generic_t){0});
     // Setup number of processing threads
@@ -493,6 +501,7 @@ int main(int argc, char *argv[]) {
     if (global_data->config->enable_bidirectional_hasher) {
         // Using this hasher will keep all packets related to a flow on the same thread
         trace_set_hasher(trace, HASHER_BIDIRECTIONAL, NULL, NULL);
+        fprintf(stdout, "Bidirectional hasher enabled\n");
     }
 
     // setup processing callbacks
@@ -572,13 +581,8 @@ int bd_add_filter_to_cb_set(bd_cb_set *cbset, const char *filter) {
     return 0;
 }
 int bd_add_tickrate_to_cb_set(bd_cb_set *cbset, size_t tickrate) {
-    if ((tickrate % BIGDATA_TICKRATE) != 0) {
-        fprintf(stderr, "Tickrate must be a multiple of %d\n",
-            BIGDATA_TICKRATE);
-        return 1;
-    }
     cbset->tickrate = tickrate;
-    cbset->c_tickrate = tickrate;
+    cbset->c_tickrate = 0;
     return 0;
 }
 

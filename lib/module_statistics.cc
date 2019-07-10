@@ -133,14 +133,12 @@ int module_statistics_config(yaml_parser_t *parser, yaml_event_t *event, int *le
                 if (strcmp((char *)event->data.scalar.value, "output_interval") == 0) {
                     consume_event(parser, event, level);
                     config->output_interval = atoi((char *)event->data.scalar.value);
-                    // atoi returns 0 on error so ensure return value was not 0
-                    if (config->output_interval != 0 &&
-                            (config->output_interval % BIGDATA_TICKRATE) == 0) {
-
+                    if (config->output_interval != 0) {
                         bd_add_tickrate_to_cb_set(config->callbacks, config->output_interval);
                     } else {
-                        fprintf(stderr, "Invalid output_interval, must be devisible by 1000. "
-                            "module flow_statistics\n");
+                        fprintf(stderr, "Invalid output_interval value. "
+                            "module_statistics. Disabling module\n");
+                        config->enabled = 0;
                     }
                     break;
                 }

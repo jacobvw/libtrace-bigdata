@@ -143,7 +143,8 @@ int module_influxdb_post(void *tls, void *mls, bd_result_set *result) {
     // add the timestamp if it was set
     if (result->timestamp != 0) {
         strcat(str, " ");
-        snprintf(buf, INFLUX_BUF_LEN, "%lf", result->timestamp);
+        // influx expects timestamp in nanoseconds
+        snprintf(buf, INFLUX_BUF_LEN, "%lu", (result->timestamp*1000000)*1000);
         strcat(str, buf);
     }
 

@@ -230,6 +230,10 @@ int module_dns_packet(libtrace_t *trace, libtrace_thread_t *thread,
             module_dns_answer_to_result_set(result_set, &resp->additional[i]);
         }
 
+        // set the timestamp for the result
+        struct timeval tv = trace_get_timeval(packet);
+        bd_result_set_insert_timestamp(result_set, tv.tv_sec);
+
         // send resultset to reporter thread
         bd_result_set_publish(trace, thread, result_set);
 
