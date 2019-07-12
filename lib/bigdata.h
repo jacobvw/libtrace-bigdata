@@ -131,6 +131,9 @@ typedef struct bigdata_global {
 typedef struct bigdata_thread_processing_local {
     FlowManager *flow_manager;
     void **mls;                 // array of pointer for module storage
+
+    uint64_t *c_tickrate;       // Each thread must have its own countdown tickrate
+                                // for every module.
 } bd_thread_local_t;
 
 // thread local storage for reporter thread

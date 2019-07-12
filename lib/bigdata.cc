@@ -51,6 +51,7 @@ static void *start_processing(libtrace_t *trace, libtrace_thread_t *thread,
         fprintf(stderr, "Unable to allocate memory. func start_processing()\n");
         exit(BD_OUTOFMEMORY);
     }
+
     // create module local storage pointer space
     local->mls = (void **)malloc(sizeof(void *) * g_data->callback_count);
     if (local->mls == NULL) {
@@ -80,6 +81,12 @@ static void *start_processing(libtrace_t *trace, libtrace_thread_t *thread,
         cb_counter += 1;
     }
 
+    // create storage space for each modules countdown tickrate
+    local->c_tickrate = (uint64_t *)calloc(1, sizeof(uint64_t) * g_data->callback_count);
+    if (local->c_tickrate == NULL) {
+        fprintf(stderr, "Unable to allocate memory. func. start_processing()\n");
+        exit(BD_OUTOFMEMORY);
+    }
 
     return local;
 }
@@ -138,9 +145,9 @@ static void stop_processing(libtrace_t *trace, libtrace_thread_t *thread, void *
     }
 
     // cleanup thread local storage, flow managers, etc.
-    free(l_data->mls);
-    delete(l_data->flow_manager);
-    free(l_data);
+    if (l_data->mls != NULL) { free(l_data->mls); }
+    if (l_data->flow_manager != NULL) { delete(l_data->flow_manager); }
+    if (l_data != NULL) { free(l_data); }
 }
 
 
@@ -165,25 +172,25 @@ static void per_tick(libtrace_t *trace, libtrace_thread_t *thread, void *global,
         if (cbs->tick_cb != NULL) {
             // c_tickrate will be 0 on the first pass.
             // TODO. We can use this to align the tick output
-            if (cbs->c_tickrate == 0) {
-                cbs->c_tickrate = timestamp_seconds + cbs->tickrate;
+            if (l_data->c_tickrate[cb_counter] == 0) {
+                l_data->c_tickrate[cb_counter] = timestamp_seconds + cbs->tickrate;
             }
-            // if c_tickrate has passed call the modules tick function
+
+            // if the current module is due a tick
             // note: modules receive tick time in seconds
-            if (cbs->c_tickrate <= timestamp_seconds) {
+            if (l_data->c_tickrate[cb_counter] <= timestamp_seconds) {
                 cbs->tick_cb(trace, thread, tls, l_data->mls[cb_counter], timestamp_seconds);
-                // increase c_tickrate by the interval
-                cbs->c_tickrate = timestamp_seconds + cbs->tickrate;
+                l_data->c_tickrate[cb_counter] = timestamp_seconds + cbs->tickrate;
             }
         }
         cb_counter += 1;
     }
 
-
+    // output some libtrace stats if debug is enabled
     if (config->debug) {
         libtrace_stat_t *stats = trace_create_statistics();
         trace_get_statistics(trace, stats);
-        fprintf(stderr, "Accepted %lu packets\nDropped %lu packets\n\n",
+        fprintf(stderr, "Accepted %lu packets, Dropped %lu packets\n",
             stats->accepted, stats->dropped);
         free(stats);
     }
@@ -277,8 +284,8 @@ static void reporter_stopping(libtrace_t *trace, libtrace_thread_t *thread,
     }
 
     // cleanup thread local storage, flow managers, etc.
-    free(l_data->mls);
-    free(l_data);
+    if (l_data->mls != NULL) { free(l_data->mls); }
+    if (l_data != NULL) { free(l_data); }
 }
 
 
