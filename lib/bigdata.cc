@@ -1,9 +1,5 @@
 #include "bigdata.h"
 
-//#include <iostream>
-//#include <list>
-//#include <iterator>
-
 #define RESULT_SET_INIT_SIZE 20
 #define RESULT_SET_INC_SIZE 10
 
@@ -33,8 +29,6 @@ void libtrace_cleanup(libtrace_t *trace, libtrace_callback_set_t *processing,
         trace_destroy_callback_set(reporter);
     }
 }
-
-
 
 /* Called when a processing thread is started before any packets are read
  * return a pointer to the threads local storage */
@@ -170,10 +164,15 @@ static void per_tick(libtrace_t *trace, libtrace_thread_t *thread, void *global,
     bd_cb_set *cbs = g_data->callbacks;
     for (; cbs != NULL; cbs = cbs->next) {
         if (cbs->tick_cb != NULL) {
+
             // c_tickrate will be 0 on the first pass.
-            // TODO. We can use this to align the tick output
             if (l_data->c_tickrate[cb_counter] == 0) {
-                l_data->c_tickrate[cb_counter] = timestamp_seconds + cbs->tickrate;
+                // Align the output to nearest boundary.
+                // E.G. output interval of 60 seconds will be on the minute boundary:
+                // 12:00, 12:01, 12:02 etc.
+                if ((timestamp_seconds % cbs->tickrate) == 0) {
+                    l_data->c_tickrate[cb_counter] = timestamp_seconds + cbs->tickrate;
+                }
             }
 
             // if the current module is due a tick
