@@ -1,5 +1,9 @@
 #include "bigdata.h"
 
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
 #define RESULT_SET_INIT_SIZE 20
 #define RESULT_SET_INC_SIZE 10
 
@@ -600,38 +604,59 @@ int bd_get_packet_direction(libtrace_packet_t *packet) {
     }
 
     if (global_data->config->local_networks_as_direction) {
-        struct sockaddr *src_ip, *dst_ip;
         struct sockaddr_storage src_addr, dst_addr;
-        uint32_t src_address, dst_address;
-        int i;
+        struct sockaddr *src_ip, *dst_ip;
 
         src_ip = trace_get_source_address(packet, (struct sockaddr *)&src_addr);
         dst_ip = trace_get_destination_address(packet, (struct sockaddr *)&dst_addr);
 
-        if (src_ip->sa_family == AF_INET) {
-            // get source ip
-            struct sockaddr_in *v4 = (struct sockaddr_in *)src_ip;
-            struct in_addr ipv4 = (struct in_addr)v4->sin_addr;
-            src_address = htonl(ipv4.s_addr);
-
-            // get destination address
-            v4 = (struct sockaddr_in *)dst_ip;
-            ipv4 = (struct in_addr)v4->sin_addr;
-            dst_address = htonl(ipv4.s_addr);
-        } else if (src_ip->sa_family == AF_INET6) {
-
-        }
-
-        for (i=0; i<global_data->config->local_subnets_count; i++) {
+        for (int i=0; i<global_data->config->local_subnets_count; i++) {
             bd_network_t *network = global_data->config->local_subnets[i];
 
-            // source address is a local network
-            if ((network->mask & src_address) == network->network) {
-                return 0;
-            }
-            // destination address is a local network
-            if ((network->mask & dst_address) == network->network) {
-                return 1;
+            struct sockaddr *address = (struct sockaddr *)&(network->address);
+            struct sockaddr *mask = (struct sockaddr *)&(network->mask);
+
+            // ensure both addresses are of the same family
+            if (address->sa_family == src_ip->sa_family) {
+
+                if (src_ip->sa_family == AF_INET) {
+                    // IPv4
+                    struct sockaddr_in *packet_in = (struct sockaddr_in *)src_ip;
+                    struct sockaddr_in *network_in = (struct sockaddr_in *)address;
+                    struct sockaddr_in *mask_in = (struct sockaddr_in *)mask;
+
+                    struct in_addr *packet_addr = (struct in_addr *)&(packet_in->sin_addr);
+                    struct in_addr *network_addr = (struct in_addr *)&(network_in->sin_addr);
+                    struct in_addr *mask_addr = (struct in_addr *)&(mask_in->sin_addr);
+
+                    // check source
+                    if ((packet_addr->s_addr & mask_addr->s_addr) == network_addr->s_addr) {
+                        return 0;
+                    }
+
+                    packet_in = (struct sockaddr_in *)dst_ip;
+                    packet_addr = (struct in_addr *)&(packet_in->sin_addr);
+
+                    // check destination
+                    if ((packet_addr->s_addr & mask_addr->s_addr) == network_addr->s_addr) {
+                        return 1;
+                    }
+                }
+
+                if (src_ip->sa_family == AF_INET6) {
+                    // IPv6
+                    struct sockaddr_in6 *src_in6 = (struct sockaddr_in6 *)src_ip;
+                    struct sockaddr_in6 *dst_in6 = (struct sockaddr_in6 *)dst_ip;
+                    struct in6_addr *src_addr = &src_in6->sin6_addr;
+                    struct in6_addr *dst_addr = &dst_in6->sin6_addr;
+
+                    struct sockaddr_in6 *mask_in6 = (struct sockaddr_in6 *)mask;
+                    struct sockaddr_in6 *network_in6 = (struct sockaddr_in6 *)address;
+                    struct in6_addr *mask_addr = &mask_in6->sin6_addr;
+                    struct in6_addr *network_addr = &network_in6->sin6_addr;
+
+                    fprintf(stderr, "got ipv6 direction packet\n");
+                }
             }
         }
     }

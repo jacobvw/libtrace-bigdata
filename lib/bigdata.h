@@ -43,9 +43,10 @@ typedef struct bigdata_config {
     bd_network_t **local_subnets;
     int local_subnets_count;
 } bd_conf_t;
+
 typedef struct bigdata_network {
-    uint32_t network;
-    uint32_t mask;
+    struct sockaddr_storage address;
+    struct sockaddr_storage mask;
 } bd_network_t;
 
 enum bd_record_type {

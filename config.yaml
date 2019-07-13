@@ -8,10 +8,11 @@ interface: eno4
 threads: 4
 
 # Use local_networks to determine if a packet is inbound or outbound.
-local_networks_as_direction: 0
+local_networks_as_direction: 1
 
 local_networks:
   - 192.168.20.0/24
+  - 2406:1E00:B910:2600::/56
 
 # Disable libtrace HASHER_BIDIRECTIONAL hasher.
 # Only disable this option if you have another mechanism for assigning packets
@@ -26,7 +27,7 @@ foreach:
 
   # dns module
   dns:
-    enabled: 0
+    enabled: 1
     #metrics:
     #  - question
     #  - question_type

@@ -8,35 +8,102 @@
 bd_network_t *get_local_network(char *network_string) {
 
 	char delim[] = "/";
+        char buf[INET6_ADDRSTRLEN];
+
 	/* Split the network address and mask portion of the string */
-	char *network = strtok(network_string, delim);
+	char *address = strtok(network_string, delim);
 	char *mask = strtok(NULL, delim);
 
-	/* Check the subnet mask is valid */
-	if(atoi(mask) == 0 || atoi(mask) > 32 || atoi(mask) < 0) {
-		return NULL;
-        }
-
         // create result structure
-        bd_network_t *local = (bd_network_t *)malloc(sizeof(bd_network_t));
-        if (local == NULL) {
+        bd_network_t *network = (bd_network_t *)malloc(sizeof(bd_network_t));
+        if (network == NULL) {
             fprintf(stderr, "Unable to allocate memory. func get_local_network()\n");
             exit(BD_OUTOFMEMORY);
         }
 
-        /* right shift so netmask is in network byte order */
-        local->mask = 0xffffffff << (32 - atoi(mask));
+        // try to determine if the address supplied is ipv4 or ipv6
+        if (inet_pton(AF_INET, address, buf)) {
+            // IPv4
+            /* Check the subnet mask is valid */
+            if(atoi(mask) == 0 || atoi(mask) > 32 || atoi(mask) < 0) {
+                fprintf(stderr, "Invalid mask %s for network address %s\n",
+                    mask, address);
+                free(network);
+                return NULL;
+            }
 
-        struct in_addr addr;
-        /* Convert address string into uint32_t and check its valid */
-        if(inet_aton(network, &addr) == 0) {
-                free(local);
-        	return NULL;
+            struct sockaddr_in *addr = (struct sockaddr_in *)&(network->address);
+            struct sockaddr_in *msk = (struct sockaddr_in *)&(network->mask);
+
+            // convert ip4 string to sockaddr
+            inet_pton(AF_INET, address, &(addr->sin_addr));
+            addr->sin_family = AF_INET;
+
+            // convert ip4 mask to sockaddr
+            uint32_t subnet_mask = 0xffffffff << (32 - atoi(mask));
+            snprintf(buf, INET_ADDRSTRLEN, "%d.%d.%d.%d",
+                (subnet_mask & 0xff000000) >> 24,
+                (subnet_mask & 0x00ff0000) >> 16,
+                (subnet_mask & 0x0000ff00) >> 8,
+                (subnet_mask & 0x000000ff));
+            inet_pton(AF_INET, buf, &(msk->sin_addr));
+            msk->sin_family = AF_INET;
+
+            //char addr_str[INET_ADDRSTRLEN];
+            //inet_ntop(AF_INET, &(addr->sin_addr), addr_str, INET_ADDRSTRLEN);
+            //char msk_str[INET_ADDRSTRLEN];
+            //inet_ntop(AF_INET, &(msk->sin_addr), msk_str, INET_ADDRSTRLEN);
+            //fprintf(stderr, "ip address %s mask %s\n", addr_str, msk_str);
+
+        } else if (inet_pton(AF_INET6, address, buf)) {
+            // IPv6
+            /* Check the subnet mask is valid */
+            if(atoi(mask) == 0 || atoi(mask) > 128 || atoi(mask) < 0) {
+                fprintf(stderr, "Invalid mask %s for network address %s\n",
+                    mask, address);
+                free(network);
+                return NULL;
+            }
+
+            struct sockaddr_in6 *addr = (struct sockaddr_in6 *)&(network->address);
+            struct sockaddr_in6 *msk = (struct sockaddr_in6 *)&(network->mask);
+
+            // convert ipv6 string to sockaddr
+            inet_pton(AF_INET6, address, &(addr->sin6_addr));
+            addr->sin6_family = AF_INET6;
+
+            // convert ip6 mask to sockaddr
+            uint8_t mask_size = atoi(mask);
+            uint8_t subnet_mask[16];
+            for (int i = 0; i < 16; i++) {
+                subnet_mask[i] = 0;
+                if (mask_size >= 8) {
+                    subnet_mask[i] = 0xff;
+                    mask_size -= 8;
+                } else if (mask_size > 0) {
+                    subnet_mask[i] = 0xff << (8 - mask_size);
+                    mask_size = 0;
+                }
+            }
+            snprintf(buf, INET6_ADDRSTRLEN, "%02x%02x:%02x%02x:%02x%02x:%02x%02x"
+                ":%02x%02x:%02x%02x:%02x%02x:%02x%02x",
+                subnet_mask[0], subnet_mask[1], subnet_mask[2], subnet_mask[3],
+                subnet_mask[4], subnet_mask[5], subnet_mask[6], subnet_mask[7],
+                subnet_mask[8], subnet_mask[9], subnet_mask[10], subnet_mask[11],
+                subnet_mask[12], subnet_mask[13], subnet_mask[14], subnet_mask[15]);
+            inet_pton(AF_INET6, buf, &(msk->sin6_addr));
+            msk->sin6_family = AF_INET6;
+
+            //char addr_str[INET6_ADDRSTRLEN];
+            //inet_ntop(AF_INET6, &(addr->sin6_addr), addr_str, INET6_ADDRSTRLEN);
+            //char msk_str[INET6_ADDRSTRLEN];
+            //inet_ntop(AF_INET6, &(msk->sin6_addr), msk_str, INET6_ADDRSTRLEN);
+            //fprintf(stderr, "ip address %s mask %s\n", addr_str, msk_str);
+        } else {
+            fprintf(stderr, "Address %s is not a valid IPv4 or IPv6 address\n", address);
         }
-        /* Ensure its saved in network byte order */
-        local->network = htonl(addr.s_addr);
 
-	return local;
+	return network;
 }
 
 void update_level(yaml_event_t *event, int *level) {
