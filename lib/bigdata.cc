@@ -645,17 +645,39 @@ int bd_get_packet_direction(libtrace_packet_t *packet) {
 
                 if (src_ip->sa_family == AF_INET6) {
                     // IPv6
-                    struct sockaddr_in6 *src_in6 = (struct sockaddr_in6 *)src_ip;
-                    struct sockaddr_in6 *dst_in6 = (struct sockaddr_in6 *)dst_ip;
-                    struct in6_addr *src_addr = &src_in6->sin6_addr;
-                    struct in6_addr *dst_addr = &dst_in6->sin6_addr;
+                    struct sockaddr_in6 *packet_in = (struct sockaddr_in6 *)src_ip;
+                    struct sockaddr_in6 *network_in = (struct sockaddr_in6 *)address;
+                    struct sockaddr_in6 *mask_in = (struct sockaddr_in6 *)mask;
 
-                    struct sockaddr_in6 *mask_in6 = (struct sockaddr_in6 *)mask;
-                    struct sockaddr_in6 *network_in6 = (struct sockaddr_in6 *)address;
-                    struct in6_addr *mask_addr = &mask_in6->sin6_addr;
-                    struct in6_addr *network_addr = &network_in6->sin6_addr;
+                    struct in6_addr *packet_addr = (struct in6_addr *)&(packet_in->sin6_addr);
+                    struct in6_addr *network_addr = (struct in6_addr *)&(network_in->sin6_addr);
+                    struct in6_addr *mask_addr = (struct in6_addr *)&(mask_in->sin6_addr);
 
-                    fprintf(stderr, "got ipv6 direction packet\n");
+                    uint8_t tmp[16];
+                    bool match = 1;
+
+                    // check source
+                    for (int i = 0; i < 16; i++) {
+                        tmp[i] = packet_addr->s6_addr[i] & mask_addr->s6_addr[i];
+                        if (tmp[i] != network_addr->s6_addr[i]) {
+                            match = 0;
+                        }
+                    }
+                    if (match) { return 0; }
+
+                    packet_in = (struct sockaddr_in6 *)dst_ip;
+                    packet_addr = (struct in6_addr *)&(packet_in->sin6_addr);
+                    match = 1;
+
+                    // check destination
+                    for (int i = 0; i < 16; i++) {
+                        tmp[i] = packet_addr->s6_addr[i] & mask_addr->s6_addr[i];
+                        if (tmp[i] != network_addr->s6_addr[i]) {
+                            match = 0;
+                        }
+                    }
+                    if (match) { return 1; }
+
                 }
             }
         }
