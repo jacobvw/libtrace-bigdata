@@ -17,6 +17,32 @@ struct module_flow_statistics_conf {
 };
 static struct module_flow_statistics_conf *config;
 
+struct module_flow_statistics_ip_compare {
+    bool operator()(const sockaddr_storage& x, const sockaddr_storage& y) const {
+        if (x.ss_family != y.ss_family) {
+            return 1;
+        }
+
+        if (x.ss_family == AF_INET) {
+            struct sockaddr_in *xx = (struct sockaddr_in *)&x;
+            struct sockaddr_in *yy = (struct sockaddr_in *)&y;
+            return xx->sin_addr.s_addr < yy->sin_addr.s_addr;
+        }
+
+        if (x.ss_family == AF_INET6) {
+            struct sockaddr_in6 *xx = (struct sockaddr_in6 *)&x;
+            struct sockaddr_in6 *yy = (struct sockaddr_in6 *)&y;
+            for (int i = 0; i < 16; i++) {
+                if (xx->sin6_addr.s6_addr[i] != yy->sin6_addr.s6_addr[i]) {
+                    return xx->sin6_addr.s6_addr[i] < yy->sin6_addr.s6_addr[i];
+                }
+            }
+            // ips must match
+            return 0;
+        }
+    }
+};
+
 typedef struct module_flow_statistics_proto mod_flow_stats_proto_t;
 
 typedef struct module_flow_statistics {
@@ -35,11 +61,11 @@ typedef struct module_flow_statistics_proto {
     uint64_t in_packets;
     uint64_t out_packets;
 
-    std::set<uint32_t> *src_ips;
-    std::set<uint32_t> *dst_ips;
+    std::set<struct sockaddr_storage, module_flow_statistics_ip_compare> *src_ips;
+    std::set<struct sockaddr_storage, module_flow_statistics_ip_compare> *dst_ips;
 
-    std::set<uint32_t> *local_ips;
-    std::set<uint32_t> *remote_ips;
+    std::set<struct sockaddr_storage, module_flow_statistics_ip_compare> *local_ips;
+    std::set<struct sockaddr_storage, module_flow_statistics_ip_compare> *remote_ips;
 
     // keep track of all the flow ids - used as a way to count number of flows
     std::set<uint64_t> *flow_ids;
@@ -97,10 +123,10 @@ int module_flow_statistics_packet(libtrace_t *trace, libtrace_thread_t *thread,
         proto->out_bytes = 0;
         proto->in_packets = 0;
         proto->out_packets = 0;
-        proto->src_ips = new std::set<uint32_t>;
-        proto->dst_ips = new std::set<uint32_t>;
-        proto->local_ips = new std::set<uint32_t>;
-        proto->remote_ips = new std::set<uint32_t>;
+        proto->src_ips = new std::set<struct sockaddr_storage, module_flow_statistics_ip_compare>;
+        proto->dst_ips = new std::set<struct sockaddr_storage, module_flow_statistics_ip_compare>;
+        proto->local_ips = new std::set<struct sockaddr_storage, module_flow_statistics_ip_compare>;
+        proto->remote_ips = new std::set<struct sockaddr_storage, module_flow_statistics_ip_compare>;
         proto->flow_ids = new std::set<uint64_t>;
 
         stats->proto_stats->insert({flow_rec->lpi_module->protocol, proto});
@@ -149,48 +175,9 @@ int module_flow_statistics_packet(libtrace_t *trace, libtrace_thread_t *thread,
         src_ip = trace_get_source_address(packet, (struct sockaddr *)&src_addr);
         dst_ip = trace_get_destination_address(packet, (struct sockaddr *)&dst_addr);
         if (src_ip != NULL && dst_ip != NULL) {
-            // IPv4
-            if (src_ip->sa_family == AF_INET && dst_ip->sa_family == AF_INET) {
-                // get source ip address
-                struct sockaddr_in *v4 = (struct sockaddr_in *)src_ip;
-                struct in_addr ipv4 = (struct in_addr)v4->sin_addr;
-                uint32_t address = htonl(ipv4.s_addr);
-                // insert into source ip set
-                proto->src_ips->insert(address);
-                // check if the ip is local or remote
-                if (mod_statistics_is_local_ip(address)) {
-                    proto->local_ips->insert(address);
-                } else {
-                    proto->remote_ips->insert(address);
-                }
-
-                // get destination ip address
-                v4 = (struct sockaddr_in *)dst_ip;
-                ipv4 = (struct in_addr)v4->sin_addr;
-                address = htonl(ipv4.s_addr);
-                // insert into destination ip list
-                proto->dst_ips->insert(address);
-                // check if the ip is local or remote
-                if (mod_statistics_is_local_ip(address)) {
-                    proto->local_ips->insert(address);
-                } else {
-                    proto->remote_ips->insert(address);
-                }
-            }
-            // IPv6. TODO
-            if (src_ip->sa_family == AF_INET6 && dst_ip->sa_family == AF_INET6) {
-                struct sockaddr_in6 *v6 = (struct sockaddr_in6 *)src_ip;
-                struct in6_addr ipv6 = (struct in6_addr)v6->sin6_addr;
-                //unsigned char address[16] = ipv6.s6_addr;
-
-                // insert into set
-
-                v6 = (struct sockaddr_in6 *)dst_ip;
-                ipv6 = (struct in6_addr)v6->sin6_addr;
-                //address[16] = ipv6.s6_addr;
-
-                // insert into set
-            }
+            // insert into source and destination ips into the set
+            proto->src_ips->insert(src_addr);
+            proto->dst_ips->insert(dst_addr);
         }
     }
 
@@ -250,19 +237,42 @@ int module_flow_statistics_tick(libtrace_t *trace, libtrace_thread_t *thread,
             bd_result_set_insert_uint(result_set, "unique_src_ips", proto->src_ips->size());
             bd_result_set_insert_uint(result_set, "unique_dst_ips", proto->dst_ips->size());
         }
-        /*std::set<uint32_t>::iterator ite;
+
+        /*std::set<struct sockaddr_storage>::iterator ite;
         for (ite=proto->src_ips->begin(); ite != proto->src_ips->end(); ++ite) {
-            fprintf(stderr, "\tsrc ip: %d.%d.%d.%d\n", (*ite & 0xff000000) >> 24,
-                                                       (*ite & 0x00ff0000) >> 16,
-                                                       (*ite & 0x0000ff00) >> 8,
-                                                       (*ite & 0x000000ff));
+
+            struct sockaddr_storage tt = *ite;
+            if (tt.ss_family == AF_INET) {
+                  struct sockaddr_in *ttt = (struct sockaddr_in *)&tt;
+                  char asd[INET_ADDRSTRLEN];
+                  inet_ntop(AF_INET, &(ttt->sin_addr), asd, INET_ADDRSTRLEN);
+                  fprintf(stderr, "src ip address %s\n", asd);
+            }
+            if (tt.ss_family == AF_INET6) {
+                  struct sockaddr_in6 *ttt = (struct sockaddr_in6 *)&tt;
+                  char asd[INET6_ADDRSTRLEN];
+                  inet_ntop(AF_INET6, &(ttt->sin6_addr), asd, INET6_ADDRSTRLEN);
+                  fprintf(stderr, "src ip address %s\n", asd);
+            }
         }
+
         for (ite=proto->dst_ips->begin(); ite != proto->dst_ips->end(); ++ite) {
-            fprintf(stderr, "\tdst ip: %d.%d.%d.%d\n", (*ite & 0xff000000) >> 24,
-                                                       (*ite & 0x00ff0000) >> 16,
-                                                       (*ite & 0x0000ff00) >> 8,
-                                                       (*ite & 0x000000ff));
+
+            struct sockaddr_storage tt = *ite;
+            if (tt.ss_family == AF_INET) {
+                  struct sockaddr_in *ttt = (struct sockaddr_in *)&tt;
+                  char asd[INET_ADDRSTRLEN];
+                  inet_ntop(AF_INET, &(ttt->sin_addr), asd, INET_ADDRSTRLEN);
+                  fprintf(stderr, "dst ip address %s\n", asd);
+            }
+            if (tt.ss_family == AF_INET6) {
+                  struct sockaddr_in6 *ttt = (struct sockaddr_in6 *)&tt;
+                  char asd[INET6_ADDRSTRLEN];
+                  inet_ntop(AF_INET6, &(ttt->sin6_addr), asd, INET6_ADDRSTRLEN);
+                  fprintf(stderr, "dst ip address %s\n", asd);
+            }
         }*/
+
         if (config->flow_count) {
             bd_result_set_insert_uint(result_set, "unique_flows", proto->flow_ids->size());
         }
@@ -288,6 +298,10 @@ int module_flow_statistics_tick(libtrace_t *trace, libtrace_thread_t *thread,
 }
 
 int module_flow_statistics_combiner(bd_result_t *result) {
+
+}
+
+inline bool operator<(struct sockaddr_storage &lh, struct sockaddr_storage &rh) {
 
 }
 
