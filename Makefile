@@ -1,7 +1,7 @@
 CC=gcc
 
 # LINK EVERYTHING TOGETHER
-main: module_dns_spcdns_codec.o module_dns_spcdns_mappings.o module_dns.o bigdata_flow.o module_http.o module_influxdb.o bigdata.o module_statistics.o module_flow_statistics.o bigdata_parser.o
+main: module_dns_spcdns_codec.o module_dns_spcdns_mappings.o module_dns.o bigdata_flow.o module_http.o module_influxdb.o bigdata.o module_statistics.o module_flow_statistics.o bigdata_parser.o bigdata_resultset.o
 	$(CC) lib/module_dns_spcdns_codec.o lib/module_dns_spcdns_mappings.o \
 		lib/module_dns.o \
 		lib/bigdata_flow.o \
@@ -11,6 +11,7 @@ main: module_dns_spcdns_codec.o module_dns_spcdns_mappings.o module_dns.o bigdat
 		lib/module_statistics.o \
 		lib/module_flow_statistics.o \
 		lib/bigdata_parser.o \
+		lib/bigdata_resultset.o \
 		-ltrace -lflowmanager -lyaml -lprotoident -lm -lstdc++ -lcurl\
 		-o bigdata -g
 
@@ -24,10 +25,6 @@ module_dns_spcdns_mappings.o: lib/module_dns_spcdns_mappings.c lib/module_dns_sp
 
 module_dns.o: lib/module_dns.cc lib/module_dns.h module_dns_spcdns_codec.o module_dns_spcdns_mappings.o
 	$(CC) lib/module_dns.cc -c -o lib/module_dns.o -g
-
-# FLOW MODULE
-bigdata_flow.o: lib/bigdata_flow.cc lib/bigdata_flow.h
-	$(CC) lib/bigdata_flow.cc -c -o lib/bigdata_flow.o -g
 
 # HTTP MODULE
 module_http.o: lib/module_http.cc lib/module_http.h
@@ -45,12 +42,19 @@ module_statistics.o: lib/module_statistics.cc lib/module_statistics.h
 module_flow_statistics.o: lib/module_flow_statistics.cc lib/module_flow_statistics.h
 	$(CC) lib/module_flow_statistics.cc -c -o lib/module_flow_statistics.o -g
 
-bigdata_parser.o: lib/bigdata_parser.cc lib/bigdata_parser.h
-	$(CC) lib/bigdata_parser.cc -c -o lib/bigdata_parser.o -g
-
 # MAIN APPLICATION
 bigdata.o: lib/bigdata.cc lib/bigdata.h
 	$(CC) lib/bigdata.cc -c -o lib/bigdata.o -g
+
+bigdata_flow.o: lib/bigdata_flow.cc lib/bigdata_flow.h
+	$(CC) lib/bigdata_flow.cc -c -o lib/bigdata_flow.o -g
+
+bigdata_parser.o: lib/bigdata_parser.cc lib/bigdata_parser.h
+	$(CC) lib/bigdata_parser.cc -c -o lib/bigdata_parser.o -g
+
+bigdata_resultset.o: lib/bigdata_resultset.cc lib/bigdata_resultset.h
+	$(CC) lib/bigdata_resultset.cc -c -o lib/bigdata_resultset.o -g
+
 
 clean:
 	rm -rf lib/*.o
