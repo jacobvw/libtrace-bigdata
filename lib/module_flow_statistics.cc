@@ -10,6 +10,7 @@ struct module_flow_statistics_conf {
     bd_cb_set *callbacks;
     bool enabled;
     int output_interval;
+    bool output_all_protocols;
     bool byte_count;
     bool packet_count;
     bool flow_count;
@@ -52,6 +53,7 @@ typedef struct module_flow_statistics {
 
 typedef struct module_flow_statistics_proto {
     lpi_module *module;
+    char *protocol_name;
 
     // byte_counters
     uint64_t in_bytes;
@@ -76,6 +78,49 @@ int mod_statistics_is_local_ip(uint32_t address) {
     return 0;
 }
 
+static int module_flow_statistics_init_proto_stats(mod_flow_stats_proto_t *proto,
+    lpi_protocol_t p) {
+
+    // initialise the new protocol
+    proto->module = NULL;
+    proto->protocol_name = strdup(lpi_print(p));
+    proto->in_bytes = 0;
+    proto->out_bytes = 0;
+    proto->in_packets = 0;
+    proto->out_packets = 0;
+    proto->src_ips = new std::set<struct sockaddr_storage,
+        module_flow_statistics_ip_compare>;
+    proto->dst_ips = new std::set<struct sockaddr_storage,
+        module_flow_statistics_ip_compare>;
+    proto->local_ips = new std::set<struct sockaddr_storage,
+        module_flow_statistics_ip_compare>;
+    proto->remote_ips = new std::set<struct sockaddr_storage,
+        module_flow_statistics_ip_compare>;
+    proto->flow_ids = new std::set<uint64_t>;
+}
+
+static int module_flow_statistics_clear_proto_stats(mod_flow_stats_proto_t *proto) {
+    proto->in_bytes = 0;
+    proto->out_bytes = 0;
+    proto->in_packets = 0;
+    proto->out_packets = 0;
+    proto->src_ips->clear();
+    proto->dst_ips->clear();
+    proto->local_ips->clear();
+    proto->remote_ips->clear();
+    proto->flow_ids->clear();
+}
+
+static int module_flow_statistics_delete_proto_stats(mod_flow_stats_proto_t *proto) {
+    free(proto->protocol_name);
+    delete(proto->src_ips);
+    delete(proto->dst_ips);
+    delete(proto->local_ips);
+    delete(proto->remote_ips);
+    delete(proto->flow_ids);
+    free(proto);
+}
+
 void *module_flow_statistics_starting(void *tls) {
     /* Allocate memory for module storage */
     mod_flow_stats_t *stats = (mod_flow_stats_t *)malloc(sizeof(mod_flow_stats_t));
@@ -87,6 +132,27 @@ void *module_flow_statistics_starting(void *tls) {
 
     // create protocol list
     stats->proto_stats = new std::unordered_map<lpi_protocol_t, mod_flow_stats_proto_t *>;
+
+    // if config option is enabled to output all protocols insert all known protocols by
+    // libprotoident into the proto_stats list
+    if (config->output_all_protocols) {
+        // create flow records for each protocol
+        for (int i = 0; i < LPI_PROTO_LAST; i++) {
+            mod_flow_stats_proto_t *proto = (mod_flow_stats_proto_t *)
+                malloc(sizeof(mod_flow_stats_proto_t));
+            if (proto == NULL) {
+                fprintf(stderr, "Unable to allocate memory. func. "
+                    "module_flow_statistics_packet()\n");
+                exit(BD_OUTOFMEMORY);
+            }
+
+            // init the protocol stats
+            module_flow_statistics_init_proto_stats(proto, (lpi_protocol_t)i);
+
+            // insert the protocol into the list
+            stats->proto_stats->insert({(lpi_protocol_t)i, proto});
+        }
+    }
 
     return stats;
 }
@@ -107,7 +173,7 @@ int module_flow_statistics_packet(libtrace_t *trace, libtrace_thread_t *thread,
     auto search = stats->proto_stats->find(flow_rec->lpi_module->protocol);
     mod_flow_stats_proto_t *proto;
 
-    // If protocol was not found create it and insert it
+    // protocol not found in list, create and insert it
     if (search == stats->proto_stats->end()) {
         proto = (mod_flow_stats_proto_t *)
             malloc(sizeof(mod_flow_stats_proto_t));
@@ -117,25 +183,21 @@ int module_flow_statistics_packet(libtrace_t *trace, libtrace_thread_t *thread,
             exit(BD_OUTOFMEMORY);
         }
 
-        // initialise the new module
-        proto->module = flow_rec->lpi_module;
-        proto->in_bytes = 0;
-        proto->out_bytes = 0;
-        proto->in_packets = 0;
-        proto->out_packets = 0;
-        proto->src_ips = new std::set<struct sockaddr_storage, module_flow_statistics_ip_compare>;
-        proto->dst_ips = new std::set<struct sockaddr_storage, module_flow_statistics_ip_compare>;
-        proto->local_ips = new std::set<struct sockaddr_storage, module_flow_statistics_ip_compare>;
-        proto->remote_ips = new std::set<struct sockaddr_storage, module_flow_statistics_ip_compare>;
-        proto->flow_ids = new std::set<uint64_t>;
+        // init the protocol stats
+        module_flow_statistics_init_proto_stats(proto, flow_rec->lpi_module->protocol);
 
+        // insert the protocol into the list
         stats->proto_stats->insert({flow_rec->lpi_module->protocol, proto});
     } else {
+        // module was found in list
         proto = (mod_flow_stats_proto_t *)search->second;
     }
 
+    // set the module if not known
+    if (proto->module == NULL) { proto->module = flow_rec->lpi_module; }
+
     // if the protocol has changed for this flow
-    if (proto->module->protocol != flow_rec->lpi_module->protocol) {
+    /*if (proto->module->protocol != flow_rec->lpi_module->protocol) {
         // search for the old protocol
         auto search_old = stats->proto_stats->find(proto->module->protocol);
         if (search_old == stats->proto_stats->end()) {
@@ -143,7 +205,7 @@ int module_flow_statistics_packet(libtrace_t *trace, libtrace_thread_t *thread,
         } else {
             // get the old protocol
             mod_flow_stats_proto_t *proto_old = (mod_flow_stats_proto_t *)
-                search_old->second;;
+                search_old->second;
             // remove counters from the previous protocol
             proto_old->in_bytes -= bd_flow_get_in_bytes(flow);
             proto_old->out_bytes -= bd_flow_get_out_bytes(flow);
@@ -160,7 +222,7 @@ int module_flow_statistics_packet(libtrace_t *trace, libtrace_thread_t *thread,
         proto->out_packets += bd_flow_get_out_packets(flow);
         // note: this iteration should add src/dst ips to the set
         proto->module = flow_rec->lpi_module;
-    }
+    }*/
 
     // dir = 1 is inbound packets
     if (dir) {
@@ -194,6 +256,7 @@ int module_flow_statistics_stopping(void *tls, void *mls) {
 
         mod_flow_stats_proto_t *proto = (mod_flow_stats_proto_t *)it->second;
 
+        free(proto->protocol_name);
         delete(proto->src_ips);
         delete(proto->dst_ips);
         delete(proto->local_ips);
@@ -222,7 +285,7 @@ int module_flow_statistics_tick(libtrace_t *trace, libtrace_thread_t *thread,
         mod_flow_stats_proto_t *proto = (mod_flow_stats_proto_t *)it->second;
 
         bd_result_set_t *result_set = bd_result_set_create("flow_stats");
-        bd_result_set_insert_tag(result_set, "protocol", proto->module->name);
+        bd_result_set_insert_tag(result_set, "protocol", proto->protocol_name);
 
         if (config->packet_count) {
             bd_result_set_insert_uint(result_set, "in_packets", proto->in_packets);
@@ -285,16 +348,18 @@ int module_flow_statistics_tick(libtrace_t *trace, libtrace_thread_t *thread,
         // publish the result
         bd_result_set_publish(trace, thread, result_set);
 
-        delete(proto->src_ips);
-        delete(proto->dst_ips);
-        delete(proto->local_ips);
-        delete(proto->remote_ips);
-        delete(proto->flow_ids);
-        free(proto);
+        // if output_all_protocols is enabled only clear protocol counters
+        if (config->output_all_protocols) {
+            module_flow_statistics_clear_proto_stats(proto);
+        } else {
+            module_flow_statistics_delete_proto_stats(proto);
+        }
     }
 
-    // clear the protocol list
-    stats->proto_stats->clear();
+    // clear proto stats list if output_all_protocols is disabled
+    if (!config->output_all_protocols) {
+        stats->proto_stats->clear();
+    }
 }
 
 int module_flow_statistics_combiner(bd_result_t *result) {
@@ -333,6 +398,17 @@ int module_flow_statistics_config(yaml_parser_t *parser, yaml_event_t *event, in
                         fprintf(stderr, "Invalid output_interval value. "
                             "module_flow_statistics. Disabling module\n");
                         config->enabled = 0;
+                    }
+                    break;
+                }
+                if (strcmp((char *)event->data.scalar.value, "output_all_protocols") == 0) {
+                    consume_event(parser, event, level);
+                    if (strcmp((char *)event->data.scalar.value, "1") == 0 ||
+                        strcmp((char *)event->data.scalar.value, "yes") == 0 ||
+                        strcmp((char *)event->data.scalar.value, "true") == 0 ||
+                        strcmp((char *)event->data.scalar.value, "t") == 0) {
+
+                        config->output_all_protocols = 1;
                     }
                     break;
                 }
@@ -386,6 +462,7 @@ int module_flow_statistics_init() {
     // initialise the config structure
     config->enabled = 0;
     config->output_interval = 60;
+    config->output_all_protocols = 0;
     config->byte_count = 0;
     config->packet_count = 0;
     config->flow_count = 0;

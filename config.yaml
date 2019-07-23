@@ -39,6 +39,8 @@ foreach:
     enabled: 1
     # how often to output results in seconds
     output_interval: 30
+    # enable to output counters for protcols that have not seen a packet
+    output_all_protocols: 1
     metrics:
       - byte_count
       - packet_count
