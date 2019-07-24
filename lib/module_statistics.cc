@@ -100,7 +100,7 @@ int module_statistics_tick(libtrace_t *trace, libtrace_thread_t *thread,
         bd_result_set_insert_uint(result_set, "in_bytes", stats->c_in_bytes);
         bd_result_set_insert_uint(result_set, "out_bytes", stats->c_out_bytes);
     }
-    bd_result_set_publish(trace, thread, result_set);
+    bd_result_set_publish(trace, thread, result_set, tick);
 
     // clear stats counters
     module_statistics_init_stor(stats);

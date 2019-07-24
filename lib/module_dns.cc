@@ -235,7 +235,7 @@ int module_dns_packet(libtrace_t *trace, libtrace_thread_t *thread,
         bd_result_set_insert_timestamp(result_set, tv.tv_sec);
 
         // send resultset to reporter thread
-        bd_result_set_publish(trace, thread, result_set);
+        bd_result_set_publish(trace, thread, result_set, tv.tv_sec);
 
         // remove request from map and free memory for request and response
         map->erase(identifier);

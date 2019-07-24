@@ -238,29 +238,46 @@ static void reporter_result(libtrace_t *trace, libtrace_thread_t *thread,
 
     // get the generic structure holding the result
     libtrace_generic_t gen = res->value;
-    // cast back to a result set
-    bd_result_set_t *result = (bd_result_set_t *)gen.ptr;
+    // cast back to a result wrapper
+    bd_result_set_wrap_t *result = (bd_result_set_wrap_t *)gen.ptr;
 
     // get global and reporter thread storage
     bd_global_t *g_data = (bd_global_t *)global;
     bd_rthread_local_t *l_data = (bd_rthread_local_t *)tls;
 
-    bd_cb_set *cbs = g_data->callbacks;
-    for (; cbs != NULL; cbs = cbs->next) {
-        if (cbs->reporter_output_cb != NULL) {
-            ret = cbs->reporter_output_cb(tls, l_data->mls[cb_counter], result);
-            // if ret isnt 0 output failed so store and output and try again later??
-            if (ret != 0) {
-                fprintf(stderr, "Failed posting result to %s\n", cbs->name);
-            } else if (g_data->config->debug) {
-                fprintf(stderr, "DEBUG: Result posted to %s\n", cbs->name);
+    // if the result needs to be sent to the modules combiner do that
+    if (result->type == BD_RESULT_COMBINE) {
+
+        bd_cb_set *cbs = g_data->callbacks;
+        for (; cbs != NULL; cbs = cbs->next) {
+            if (cbs->combiner_cb != NULL) {
+                // if this result if for the current module
+                //TODO
+                //ret = cbs->combiner_cb(tls, l_data->mls[cb_counter], result->value);
             }
+            cb_counter += 1;
         }
-        cb_counter += 1;
+
+    } else if (result->type == BD_RESULT_PUBLISH) {
+
+        bd_cb_set *cbs = g_data->callbacks;
+        for (; cbs != NULL; cbs = cbs->next) {
+            if (cbs->reporter_output_cb != NULL) {
+                ret = cbs->reporter_output_cb(tls, l_data->mls[cb_counter],
+                    (bd_result_set *)result->value);
+                // if ret isnt 0 output failed so store and output and try again later??
+                if (ret != 0) {
+                    fprintf(stderr, "Failed posting result to %s\n", cbs->name);
+                } else if (g_data->config->debug) {
+                    fprintf(stderr, "DEBUG: Result posted to %s\n", cbs->name);
+                }
+            }
+            cb_counter += 1;
+        }
     }
 
     // cleanup the resultset
-    bd_result_set_free(result);
+    bd_result_set_wrap_free(result);
 }
 
 static void reporter_stopping(libtrace_t *trace, libtrace_thread_t *thread,
@@ -391,6 +408,13 @@ bd_cb_set *bd_create_cb_set(const char *module_name) {
 
     return cbset;
 }
+
+/* Registers a modules callback functions against libtrace-bigdata
+ * params:
+ *     bd_cb_set - modules callback set
+ * returns:
+ *     assigned module ID
+ */
 int bd_register_cb_set(bd_cb_set *cbset) {
     // obtain lock for global data
     pthread_mutex_lock(&global_data->lock);
@@ -408,9 +432,12 @@ int bd_register_cb_set(bd_cb_set *cbset) {
 
     // increment callback count
     global_data->callback_count += 1;
+    // set modules ID
+    cbset->id = global_data->callback_count;
 
     pthread_mutex_unlock(&global_data->lock);
-    return 0;
+
+    return cbset->id;
 }
 int bd_add_filter_to_cb_set(bd_cb_set *cbset, const char *filter) {
     cbset->filter = trace_create_filter(filter);

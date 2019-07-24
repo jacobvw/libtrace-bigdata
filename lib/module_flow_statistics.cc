@@ -346,7 +346,7 @@ int module_flow_statistics_tick(libtrace_t *trace, libtrace_thread_t *thread,
         bd_result_set_insert_int(result_set, "interval", config->output_interval);
 
         // publish the result
-        bd_result_set_publish(trace, thread, result_set);
+        bd_result_set_publish(trace, thread, result_set, tick);
 
         // if output_all_protocols is enabled only clear protocol counters
         if (config->output_all_protocols) {
@@ -444,6 +444,7 @@ int module_flow_statistics_config(yaml_parser_t *parser, yaml_event_t *event, in
         config->callbacks->packet_cb = (cb_packet)module_flow_statistics_packet;
         config->callbacks->stop_cb = (cb_stop)module_flow_statistics_stopping;
         config->callbacks->tick_cb = (cb_tick)module_flow_statistics_tick;
+        config->callbacks->combiner_cb = (cb_combiner)module_flow_statistics_combiner;
     }
 
     return 0;

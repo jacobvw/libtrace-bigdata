@@ -68,6 +68,8 @@ typedef int (*cb_config) (yaml_parser_t *parser, yaml_event_t *event, int *level
 
 typedef struct bigdata_callback_set bd_cb_set;
 typedef struct bigdata_callback_set {
+    // module ID
+    int id;
     char *name;
     // processing thread callbacks
     cb_start start_cb;
@@ -120,28 +122,6 @@ int bd_register_cb_set(bd_cb_set *cbset);
 int bd_add_filter_to_cb_set(bd_cb_set *cbset, const char *filter);
 int bd_add_tickrate_to_cb_set(bd_cb_set *cbset, size_t tickrate);
 
-/* output result set prototypes */
-bd_result_set_t *bd_result_set_create(const char *mod);
-int bd_result_set_insert(bd_result_set_t *result_set, const char *key,
-    bd_record_type dtype, bd_record_value value);
-int bd_result_set_insert_string(bd_result_set_t *result_set, const char *key,
-    const char *value);
-int bd_result_set_insert_float(bd_result_set_t *result_set, const char *key,
-    float value);
-int bd_result_set_insert_double(bd_result_set_t *result_set, const char *key,
-    double value);
-int bd_result_set_insert_int(bd_result_set_t *result_set, const char *key,
-    int64_t value);
-int bd_result_set_insert_uint(bd_result_set_t *result_set, const char *key,
-    uint64_t value);
-int bd_result_set_insert_bool(bd_result_set_t *result_set, const char *key,
-    bool value);
-int bd_result_set_insert_timestamp(bd_result_set_t *result_set, uint64_t timestamp);
-int bd_result_set_insert_tag(bd_result_set_t *result_set, const char *tag,
-    const char *value);
-int bd_result_set_publish(libtrace_t *trace, libtrace_thread_t *thread,
-    bd_result_set_t *result);
-int bd_result_set_free(bd_result_set_t *result_set);
 
 int bd_get_packet_direction(libtrace_packet_t *packet);
 

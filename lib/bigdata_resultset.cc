@@ -125,30 +125,67 @@ int bd_result_set_insert_tag(bd_result_set_t *result_set, const char *tag,
 
     return 0;
 }
+
+// to send a result set directly to any registered output modules
 int bd_result_set_publish(libtrace_t *trace, libtrace_thread_t *thread,
-    bd_result_set_t *result) {
+    bd_result_set_t *result, uint64_t ts) {
 
     if (result == NULL) {
         fprintf(stderr, "NULL result set. func. bd_result_set_output()\n");
-        exit(BD_OUTOFMEMORY);
+        return -1;
     }
 
+    bd_result_set_wrap_t *res = (bd_result_set_wrap_t *)
+        malloc(sizeof(bd_result_set_wrap_t));
+    if (res == NULL) {
+        fprintf(stderr, "Unable to allocate memory. func. bd_result_set_publish()\n");
+        exit(BD_OUTOFMEMORY);
+    }
+    res->type = BD_RESULT_PUBLISH;
+    res->value = (void *)result;
+
     libtrace_generic_t gen;
-    gen.ptr = (void *)result;
-    uint64_t ts = (uint64_t)result->timestamp;
+    gen.ptr = (void *)res;
 
     // send the result to the reporter thread
     trace_publish_result(trace, thread, ts, gen, RESULT_USER);
 
     return 0;
 }
+
+// to send a result to the combine callback for the module
+int bd_result_combine(libtrace_t *trace, libtrace_thread_t *thread,
+    void *result, uint64_t ts) {
+
+    if (result == NULL) {
+        fprintf(stderr, "NULL result set. func. bd_result_set_combine()\n");
+        return -1;
+    }
+
+    bd_result_set_wrap_t *res = (bd_result_set_wrap_t *)
+        malloc(sizeof(bd_result_set_wrap_t));
+    if (res == NULL) {
+        fprintf(stderr, "Unable to allocate memory. func. bd_result_set_publish()\n");
+        exit(BD_OUTOFMEMORY);
+    }
+    res->type = BD_RESULT_COMBINE;
+    res->value = (void *)result;
+
+    libtrace_generic_t gen;
+    gen.ptr = (void *)res;
+
+    trace_publish_result(trace, thread, ts, gen, RESULT_USER);
+
+    return 0;
+}
+
 int bd_result_set_free(bd_result_set_t *result_set) {
 
     int i;
 
     if (result_set == NULL) {
         fprintf(stderr, "NULL result set. func. bd_result_set_free()\n");
-        exit(BD_OUTOFMEMORY);
+        return -1;;
     }
 
     if (result_set->results != NULL) {
@@ -170,3 +207,19 @@ int bd_result_set_free(bd_result_set_t *result_set) {
     return 0;
 }
 
+int bd_result_set_wrap_free(bd_result_set_wrap_t *r) {
+    int ret = 0;
+
+    if (r == NULL) {
+        fprintf(stderr, "NULL result wrapper. func. bd_result_set_wrap_free()\n");
+        return -1;
+    }
+
+    if (r->type == BD_RESULT_PUBLISH) {
+        ret = bd_result_set_free((bd_result_set_t *)r->value);
+    }
+
+    free(r);
+
+    return ret;
+}
