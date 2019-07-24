@@ -18,6 +18,7 @@ struct module_flow_statistics_conf {
 };
 static struct module_flow_statistics_conf *config;
 
+// comparator for set of ips
 struct module_flow_statistics_ip_compare {
     bool operator()(const sockaddr_storage& x, const sockaddr_storage& y) const {
         if (x.ss_family != y.ss_family) {
@@ -160,7 +161,7 @@ int module_flow_statistics_packet(libtrace_t *trace, libtrace_thread_t *thread,
             proto->src_ips->insert(src_addr);
             proto->dst_ips->insert(dst_addr);
 
-            if (
+            
         }
     }
 
@@ -196,7 +197,21 @@ int module_flow_statistics_tick(libtrace_t *trace, libtrace_thread_t *thread,
 
     // copy over protocol stats
     for (int i = 0; i < LPI_PROTO_LAST; i++) {
-        combine->proto_stats[i] = stats->proto_stats[i];
+        // copy over packet/byte counts
+        combine->proto_stats[i].in_bytes = stats->proto_stats[i].in_bytes;
+        combine->proto_stats[i].out_bytes = stats->proto_stats[i].out_bytes;
+        combine->proto_stats[i].in_packets = stats->proto_stats[i].in_packets;
+        combine->proto_stats[i].out_packets = stats->proto_stats[i].out_packets;
+        // copy over src/dst ips
+        combine->proto_stats[i].src_ips = stats->proto_stats[i].src_ips;
+        combine->proto_stats[i].dst_ips = stats->proto_stats[i].dst_ips;
+        // copy over local/remote ips
+        combine->proto_stats[i].local_ips = stats->proto_stats[i].local_ips;
+        combine->proto_stats[i].remote_ips = stats->proto_stats[i].remote_ips;
+        // copy over flow ids
+        combine->proto_stats[i].flow_ids = stats->proto_stats[i].flow_ids;
+
+        // clear stats for current protocol
         module_flow_statistics_clear_proto_stats(&(stats->proto_stats[i]));
     }
 
@@ -236,8 +251,8 @@ int module_flow_statistics_combiner(bd_bigdata_t *bigdata, void *mls,
         tally->lastkey = tick;
     }
 
-    // if the incoming result is for a new time period flush current tally
-    // and reset
+    // if the incoming result is for a new time period (key) flush current tally
+    // and clear it
     if (tally->lastkey < tick) {
         for (int i = 0; i < LPI_PROTO_LAST; i++) {
             // get pointer to current protocol
@@ -280,6 +295,7 @@ int module_flow_statistics_combiner(bd_bigdata_t *bigdata, void *mls,
             module_flow_statistics_clear_proto_stats(proto);
         }
 
+        // update the last key
         tally->lastkey = tick;
     }
 
