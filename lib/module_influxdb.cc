@@ -20,7 +20,7 @@ typedef struct module_influxdb_options {
 } mod_influxdb_opts_t;
 
 void *module_influxdb_starting(void *tls);
-int module_influxdb_post(void *tls, void *mls, bd_result_set *result);
+int module_influxdb_post(bd_bigdata_t *bigdata, void *mls, bd_result_set *result);
 void *module_influxdb_stopping(void *tls, void *mls);
 
 void *module_influxdb_starting(void *tls) {
@@ -49,7 +49,7 @@ void *module_influxdb_starting(void *tls) {
     return opts;
 }
 
-int module_influxdb_post(void *tls, void *mls, bd_result_set *result) {
+int module_influxdb_post(bd_bigdata_t *bigdata, void *mls, bd_result_set *result) {
 
     mod_influxdb_opts_t *opts = (mod_influxdb_opts_t *)mls;
 
@@ -147,6 +147,8 @@ int module_influxdb_post(void *tls, void *mls, bd_result_set *result) {
         snprintf(buf, INFLUX_BUF_LEN, "%lu", (result->timestamp*1000000)*1000);
         strcat(str, buf);
     }
+
+    fprintf(stderr, "%s\n", str);
 
     /* Now specify the POST data */
     curl_easy_setopt(opts->curl, CURLOPT_POSTFIELDS, str);

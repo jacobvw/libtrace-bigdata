@@ -108,7 +108,7 @@ int module_statistics_tick(libtrace_t *trace, libtrace_thread_t *thread,
 }
 
 int module_statistics_combiner(bd_result_t *result) {
-
+    fprintf(stderr, "hit combiner\n");
 }
 
 int module_statistics_config(yaml_parser_t *parser, yaml_event_t *event, int *level) {

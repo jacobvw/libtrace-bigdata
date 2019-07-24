@@ -241,39 +241,24 @@ static void reporter_result(libtrace_t *trace, libtrace_thread_t *thread,
     // cast back to a result wrapper
     bd_result_set_wrap_t *result = (bd_result_set_wrap_t *)gen.ptr;
 
-    // get global and reporter thread storage
-    bd_global_t *g_data = (bd_global_t *)global;
-    bd_rthread_local_t *l_data = (bd_rthread_local_t *)tls;
+    // create bigdata structure for callbacks
+    bd_bigdata_t bigdata;
+    bigdata.trace = trace;
+    bigdata.thread = thread;
+    bigdata.packet = NULL;
+    bigdata.flow = NULL;
+    bigdata.global = (bd_global_t *)global;
+    bigdata.tls = tls;
 
     // if the result needs to be sent to the modules combiner do that
     if (result->type == BD_RESULT_COMBINE) {
-
-        bd_cb_set *cbs = g_data->callbacks;
-        for (; cbs != NULL; cbs = cbs->next) {
-            if (cbs->combiner_cb != NULL) {
-                // if this result if for the current module
-                //TODO
-                //ret = cbs->combiner_cb(tls, l_data->mls[cb_counter], result->value);
-            }
-            cb_counter += 1;
-        }
-
+       // trigger combiner callback
+       fprintf(stderr, "calling combiner\n");
+       bd_callback_trigger_combiner(&bigdata, (bd_result_set_wrap_t *)result);
+       fprintf(stderr, "end combiner\n");
     } else if (result->type == BD_RESULT_PUBLISH) {
-
-        bd_cb_set *cbs = g_data->callbacks;
-        for (; cbs != NULL; cbs = cbs->next) {
-            if (cbs->reporter_output_cb != NULL) {
-                ret = cbs->reporter_output_cb(tls, l_data->mls[cb_counter],
-                    (bd_result_set *)result->value);
-                // if ret isnt 0 output failed so store and output and try again later??
-                if (ret != 0) {
-                    fprintf(stderr, "Failed posting result to %s\n", cbs->name);
-                } else if (g_data->config->debug) {
-                    fprintf(stderr, "DEBUG: Result posted to %s\n", cbs->name);
-                }
-            }
-            cb_counter += 1;
-        }
+       // trigger output callback
+       bd_callback_trigger_output(&bigdata, (bd_result_set_t *)result->value);
     }
 
     // cleanup the resultset

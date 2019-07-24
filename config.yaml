@@ -20,14 +20,14 @@ local_networks:
 enable_bidirectional_hasher: 1
 
 # Enable debug output to stderr
-debug: 0
+debug: 1
 
 # capture modules
 foreach:
 
   # dns module
   dns:
-    enabled: 1
+    enabled: 0
     #metrics:
     #  - question
     #  - question_type
@@ -38,9 +38,7 @@ foreach:
   flow_statistics:
     enabled: 1
     # how often to output results in seconds
-    output_interval: 30
-    # enable to output counters for protcols that have not seen a packet
-    output_all_protocols: 1
+    output_interval: 60
     metrics:
       - byte_count
       - packet_count

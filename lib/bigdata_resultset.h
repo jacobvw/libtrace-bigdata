@@ -47,6 +47,8 @@ typedef struct bd_result_set {
 typedef struct bd_result_set_wrapper {
     void *value;
     bd_result_type type;
+    int module_id;
+    uint64_t key;
 } bd_result_set_wrap_t;
 
 /* output result set prototypes */
@@ -79,10 +81,10 @@ int bd_result_set_insert_tag(bd_result_set_t *result_set, const char *tag,
     const char *value);
 
 int bd_result_set_publish(libtrace_t *trace, libtrace_thread_t *thread,
-    bd_result_set_t *result, uint64_t ts);
+    bd_result_set_t *result, uint64_t key);
 
-int bd_result_set_combine(libtrace_t *trace, libtrace_thread_t *thread,
-    void *result, uint64_t ts);
+int bd_result_combine(libtrace_t *trace, libtrace_thread_t *thread,
+    void *result, uint64_t key, int module_id);
 
 int bd_result_set_free(bd_result_set_t *result_set);
 

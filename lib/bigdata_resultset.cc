@@ -126,9 +126,10 @@ int bd_result_set_insert_tag(bd_result_set_t *result_set, const char *tag,
     return 0;
 }
 
-// to send a result set directly to any registered output modules
+// to send a result set to any registered output modules. Should
+// only be called by processing threads
 int bd_result_set_publish(libtrace_t *trace, libtrace_thread_t *thread,
-    bd_result_set_t *result, uint64_t ts) {
+    bd_result_set_t *result, uint64_t key) {
 
     if (result == NULL) {
         fprintf(stderr, "NULL result set. func. bd_result_set_output()\n");
@@ -143,19 +144,21 @@ int bd_result_set_publish(libtrace_t *trace, libtrace_thread_t *thread,
     }
     res->type = BD_RESULT_PUBLISH;
     res->value = (void *)result;
+    res->module_id = 0;
+    res->key = key;
 
     libtrace_generic_t gen;
     gen.ptr = (void *)res;
 
-    // send the result to the reporter thread
-    trace_publish_result(trace, thread, ts, gen, RESULT_USER);
+    trace_publish_result(trace, thread, key, gen, RESULT_USER);
 
     return 0;
 }
 
-// to send a result to the combine callback for the module
+// to send a result to the registered combine callback for the supplied module id.
+// Should only be called from a processing thread.
 int bd_result_combine(libtrace_t *trace, libtrace_thread_t *thread,
-    void *result, uint64_t ts) {
+    void *result, uint64_t key, int module_id) {
 
     if (result == NULL) {
         fprintf(stderr, "NULL result set. func. bd_result_set_combine()\n");
@@ -170,11 +173,13 @@ int bd_result_combine(libtrace_t *trace, libtrace_thread_t *thread,
     }
     res->type = BD_RESULT_COMBINE;
     res->value = (void *)result;
+    res->module_id = module_id;
+    res->key = key;
 
     libtrace_generic_t gen;
     gen.ptr = (void *)res;
 
-    trace_publish_result(trace, thread, ts, gen, RESULT_USER);
+    trace_publish_result(trace, thread, key, gen, RESULT_USER);
 
     return 0;
 }
@@ -196,13 +201,16 @@ int bd_result_set_free(bd_result_set_t *result_set) {
 
                 if (result_set->results[i].value.data_string != NULL) {
                     free(result_set->results[i].value.data_string);
+                    result_set->results[i].value.data_string = NULL;
                 }
             }
         }
         free(result_set->results);
+        result_set->results = NULL;
     }
 
     free(result_set);
+    result_set = NULL;
 
     return 0;
 }
@@ -220,6 +228,7 @@ int bd_result_set_wrap_free(bd_result_set_wrap_t *r) {
     }
 
     free(r);
+    r = NULL;
 
     return ret;
 }

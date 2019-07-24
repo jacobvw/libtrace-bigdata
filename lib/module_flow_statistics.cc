@@ -44,17 +44,7 @@ struct module_flow_statistics_ip_compare {
     }
 };
 
-typedef struct module_flow_statistics_proto mod_flow_stats_proto_t;
-
-typedef struct module_flow_statistics {
-    // map containing stats for each flow
-    std::unordered_map<lpi_protocol_t, mod_flow_stats_proto_t *> *proto_stats;
-} mod_flow_stats_t;
-
 typedef struct module_flow_statistics_proto {
-    lpi_module *module;
-    char *protocol_name;
-
     // byte_counters
     uint64_t in_bytes;
     uint64_t out_bytes;
@@ -73,17 +63,19 @@ typedef struct module_flow_statistics_proto {
     std::set<uint64_t> *flow_ids;
 } mod_flow_stats_proto_t;
 
-int mod_statistics_is_local_ip(uint32_t address) {
+typedef struct module_flow_statistics {
+    mod_flow_stats_proto_t proto_stats[LPI_PROTO_LAST];
+    uint64_t lastkey;
+} mod_flow_stats_t;
+
+int mod_statistics_is_local_ip(struct sockaddr_storage ip) {
     //bd_get_local_ips();
     return 0;
 }
 
-static int module_flow_statistics_init_proto_stats(mod_flow_stats_proto_t *proto,
-    lpi_protocol_t p) {
+static void module_flow_statistics_init_proto_stats(mod_flow_stats_proto_t *proto) {
 
     // initialise the new protocol
-    proto->module = NULL;
-    proto->protocol_name = strdup(lpi_print(p));
     proto->in_bytes = 0;
     proto->out_bytes = 0;
     proto->in_packets = 0;
@@ -99,7 +91,7 @@ static int module_flow_statistics_init_proto_stats(mod_flow_stats_proto_t *proto
     proto->flow_ids = new std::set<uint64_t>;
 }
 
-static int module_flow_statistics_clear_proto_stats(mod_flow_stats_proto_t *proto) {
+static void module_flow_statistics_clear_proto_stats(mod_flow_stats_proto_t *proto) {
     proto->in_bytes = 0;
     proto->out_bytes = 0;
     proto->in_packets = 0;
@@ -111,14 +103,12 @@ static int module_flow_statistics_clear_proto_stats(mod_flow_stats_proto_t *prot
     proto->flow_ids->clear();
 }
 
-static int module_flow_statistics_delete_proto_stats(mod_flow_stats_proto_t *proto) {
-    free(proto->protocol_name);
+static void module_flow_statistics_delete_proto_stats(mod_flow_stats_proto_t *proto) {
     delete(proto->src_ips);
     delete(proto->dst_ips);
     delete(proto->local_ips);
     delete(proto->remote_ips);
     delete(proto->flow_ids);
-    free(proto);
 }
 
 void *module_flow_statistics_starting(void *tls) {
@@ -130,28 +120,9 @@ void *module_flow_statistics_starting(void *tls) {
         exit(BD_OUTOFMEMORY);
     }
 
-    // create protocol list
-    stats->proto_stats = new std::unordered_map<lpi_protocol_t, mod_flow_stats_proto_t *>;
-
-    // if config option is enabled to output all protocols insert all known protocols by
-    // libprotoident into the proto_stats list
-    if (config->output_all_protocols) {
-        // create flow records for each protocol
-        for (int i = 0; i < LPI_PROTO_LAST; i++) {
-            mod_flow_stats_proto_t *proto = (mod_flow_stats_proto_t *)
-                malloc(sizeof(mod_flow_stats_proto_t));
-            if (proto == NULL) {
-                fprintf(stderr, "Unable to allocate memory. func. "
-                    "module_flow_statistics_packet()\n");
-                exit(BD_OUTOFMEMORY);
-            }
-
-            // init the protocol stats
-            module_flow_statistics_init_proto_stats(proto, (lpi_protocol_t)i);
-
-            // insert the protocol into the list
-            stats->proto_stats->insert({(lpi_protocol_t)i, proto});
-        }
+    // init proto stats
+    for (int i = 0; i < LPI_PROTO_LAST; i++) {
+        module_flow_statistics_init_proto_stats(&(stats->proto_stats[i]));
     }
 
     return stats;
@@ -169,60 +140,8 @@ int module_flow_statistics_packet(libtrace_t *trace, libtrace_thread_t *thread,
     struct sockaddr_storage src_addr, dst_addr;
     struct sockaddr *src_ip, *dst_ip;
 
-    // search proto_stats map for this protocol
-    auto search = stats->proto_stats->find(flow_rec->lpi_module->protocol);
-    mod_flow_stats_proto_t *proto;
-
-    // protocol not found in list, create and insert it
-    if (search == stats->proto_stats->end()) {
-        proto = (mod_flow_stats_proto_t *)
-            malloc(sizeof(mod_flow_stats_proto_t));
-        if (proto == NULL) {
-            fprintf(stderr, "Unable to allocate memory. func. "
-                "module_flow_statistics_packet()\n");
-            exit(BD_OUTOFMEMORY);
-        }
-
-        // init the protocol stats
-        module_flow_statistics_init_proto_stats(proto, flow_rec->lpi_module->protocol);
-
-        // insert the protocol into the list
-        stats->proto_stats->insert({flow_rec->lpi_module->protocol, proto});
-    } else {
-        // module was found in list
-        proto = (mod_flow_stats_proto_t *)search->second;
-    }
-
-    // set the module if not known
-    if (proto->module == NULL) { proto->module = flow_rec->lpi_module; }
-
-    // if the protocol has changed for this flow
-    /*if (proto->module->protocol != flow_rec->lpi_module->protocol) {
-        // search for the old protocol
-        auto search_old = stats->proto_stats->find(proto->module->protocol);
-        if (search_old == stats->proto_stats->end()) {
-            // protocol not found. this should not happen
-        } else {
-            // get the old protocol
-            mod_flow_stats_proto_t *proto_old = (mod_flow_stats_proto_t *)
-                search_old->second;
-            // remove counters from the previous protocol
-            proto_old->in_bytes -= bd_flow_get_in_bytes(flow);
-            proto_old->out_bytes -= bd_flow_get_out_bytes(flow);
-            proto_old->in_packets -= bd_flow_get_in_packets(flow);
-            proto_old->out_packets -= bd_flow_get_out_packets(flow);
-            // need a way to remove ip sets from old protocol but only if it only
-            // occurred for a single flow. Could iterate over flow_ids somehow?
-        }
-
-        // add counters to the newly identified protocol
-        proto->in_bytes += bd_flow_get_in_bytes(flow);
-        proto->out_bytes += bd_flow_get_out_bytes(flow);
-        proto->in_packets += bd_flow_get_in_packets(flow);
-        proto->out_packets += bd_flow_get_out_packets(flow);
-        // note: this iteration should add src/dst ips to the set
-        proto->module = flow_rec->lpi_module;
-    }*/
+    // get pointer to protocol for this packet
+    mod_flow_stats_proto_t *proto = &(stats->proto_stats[flow_rec->lpi_module->protocol]);
 
     // dir = 1 is inbound packets
     if (dir) {
@@ -240,6 +159,8 @@ int module_flow_statistics_packet(libtrace_t *trace, libtrace_thread_t *thread,
             // insert into source and destination ips into the set
             proto->src_ips->insert(src_addr);
             proto->dst_ips->insert(dst_addr);
+
+            if (
         }
     }
 
@@ -250,23 +171,9 @@ int module_flow_statistics_packet(libtrace_t *trace, libtrace_thread_t *thread,
 int module_flow_statistics_stopping(void *tls, void *mls) {
     mod_flow_stats_t *stats = (mod_flow_stats_t *)mls;
 
-    // free allocated structures within the map
-    for (std::unordered_map<lpi_protocol_t, mod_flow_stats_proto_t *>::iterator
-        it=stats->proto_stats->begin(); it!=stats->proto_stats->end(); ++it) {
-
-        mod_flow_stats_proto_t *proto = (mod_flow_stats_proto_t *)it->second;
-
-        free(proto->protocol_name);
-        delete(proto->src_ips);
-        delete(proto->dst_ips);
-        delete(proto->local_ips);
-        delete(proto->remote_ips);
-        delete(proto->flow_ids);
-        free(proto);
+    for (int i = 0; i < LPI_PROTO_LAST; i++) {
+        module_flow_statistics_delete_proto_stats(&(stats->proto_stats[i]));
     }
-
-    // delete the map
-    delete(stats->proto_stats);
 
     /* release stats memory */
     free(stats);
@@ -278,96 +185,137 @@ int module_flow_statistics_tick(libtrace_t *trace, libtrace_thread_t *thread,
     // gain access to the stats
     mod_flow_stats_t *stats = (mod_flow_stats_t *)mls;
 
-    // output protocol counters
-    for (std::unordered_map<lpi_protocol_t, mod_flow_stats_proto_t *>::iterator
-        it=stats->proto_stats->begin(); it != stats->proto_stats->end(); ++it) {
+    // create result to send to combiner
+    mod_flow_stats_t *combine = (mod_flow_stats_t *)
+        malloc(sizeof(mod_flow_stats_t));
+    if (combine == NULL) {
+        fprintf(stderr, "Unable to allocate memory. func. "
+            "module_flow_statistics_tick()\n");
+        exit(BD_OUTOFMEMORY);
+    }
 
-        mod_flow_stats_proto_t *proto = (mod_flow_stats_proto_t *)it->second;
+    // copy over protocol stats
+    for (int i = 0; i < LPI_PROTO_LAST; i++) {
+        combine->proto_stats[i] = stats->proto_stats[i];
+        module_flow_statistics_clear_proto_stats(&(stats->proto_stats[i]));
+    }
 
-        bd_result_set_t *result_set = bd_result_set_create("flow_stats");
-        bd_result_set_insert_tag(result_set, "protocol", proto->protocol_name);
+    // send result to the combiner function
+    bd_result_combine(trace, thread, combine, tick, config->callbacks->id);
 
-        if (config->packet_count) {
-            bd_result_set_insert_uint(result_set, "in_packets", proto->in_packets);
-            bd_result_set_insert_uint(result_set, "out_packets", proto->out_packets);
-        }
+    return 0;
+}
 
-        if (config->byte_count) {
-            bd_result_set_insert_uint(result_set, "in_bytes", proto->in_bytes);
-            bd_result_set_insert_uint(result_set, "out_bytes", proto->out_bytes);
-        }
-        if (config->ip_count) {
-            bd_result_set_insert_uint(result_set, "unique_src_ips", proto->src_ips->size());
-            bd_result_set_insert_uint(result_set, "unique_dst_ips", proto->dst_ips->size());
-        }
+void *module_flow_statistics_reporter_start(void *tls) {
+    // create structure to hold tallies
+    mod_flow_stats_t *tally = (mod_flow_stats_t *)
+        malloc(sizeof(mod_flow_stats_t));
+    if (tally == NULL) {
+        fprintf(stderr, "Unable to allocate memory. func. "
+            "module_flow_statistics_reporter_start()\n");
+        exit(BD_OUTOFMEMORY);
+    }
 
-        /*std::set<struct sockaddr_storage>::iterator ite;
-        for (ite=proto->src_ips->begin(); ite != proto->src_ips->end(); ++ite) {
+    tally->lastkey = 0;
 
-            struct sockaddr_storage tt = *ite;
-            if (tt.ss_family == AF_INET) {
-                  struct sockaddr_in *ttt = (struct sockaddr_in *)&tt;
-                  char asd[INET_ADDRSTRLEN];
-                  inet_ntop(AF_INET, &(ttt->sin_addr), asd, INET_ADDRSTRLEN);
-                  fprintf(stderr, "src ip address %s\n", asd);
+    // init all proto stats counters
+    for (int i = 0; i < LPI_PROTO_LAST; i++) {
+        module_flow_statistics_init_proto_stats(&(tally->proto_stats[i]));
+    }
+
+    return tally;
+}
+
+int module_flow_statistics_combiner(bd_bigdata_t *bigdata, void *mls,
+    uint64_t tick, void *result) {
+
+    mod_flow_stats_t *tally = (mod_flow_stats_t *)mls;
+    mod_flow_stats_t *res = (mod_flow_stats_t *)result;
+
+    if (tally->lastkey == 0) {
+        tally->lastkey = tick;
+    }
+
+    // if the incoming result is for a new time period flush current tally
+    // and reset
+    if (tally->lastkey < tick) {
+        for (int i = 0; i < LPI_PROTO_LAST; i++) {
+            // get pointer to current protocol
+            mod_flow_stats_proto_t *proto = &(tally->proto_stats[i]);
+
+            // create and populate the result set
+            bd_result_set_t *result_set = bd_result_set_create("flow_stats");
+            bd_result_set_insert_tag(result_set, "protocol",
+                lpi_print((lpi_protocol_t)i));
+            if (config->packet_count) {
+                bd_result_set_insert_uint(result_set, "in_packets", proto->in_packets);
+                bd_result_set_insert_uint(result_set, "out_packets", proto->out_packets);
             }
-            if (tt.ss_family == AF_INET6) {
-                  struct sockaddr_in6 *ttt = (struct sockaddr_in6 *)&tt;
-                  char asd[INET6_ADDRSTRLEN];
-                  inet_ntop(AF_INET6, &(ttt->sin6_addr), asd, INET6_ADDRSTRLEN);
-                  fprintf(stderr, "src ip address %s\n", asd);
+            if (config->byte_count) {
+                bd_result_set_insert_uint(result_set, "in_bytes", proto->in_bytes);
+                bd_result_set_insert_uint(result_set, "out_bytes", proto->out_bytes);
             }
-        }
-
-        for (ite=proto->dst_ips->begin(); ite != proto->dst_ips->end(); ++ite) {
-
-            struct sockaddr_storage tt = *ite;
-            if (tt.ss_family == AF_INET) {
-                  struct sockaddr_in *ttt = (struct sockaddr_in *)&tt;
-                  char asd[INET_ADDRSTRLEN];
-                  inet_ntop(AF_INET, &(ttt->sin_addr), asd, INET_ADDRSTRLEN);
-                  fprintf(stderr, "dst ip address %s\n", asd);
+            if (config->ip_count) {
+                bd_result_set_insert_uint(result_set, "unique_src_ips",
+                    proto->src_ips->size());
+                bd_result_set_insert_uint(result_set, "unique_dst_ips",
+                    proto->dst_ips->size());
             }
-            if (tt.ss_family == AF_INET6) {
-                  struct sockaddr_in6 *ttt = (struct sockaddr_in6 *)&tt;
-                  char asd[INET6_ADDRSTRLEN];
-                  inet_ntop(AF_INET6, &(ttt->sin6_addr), asd, INET6_ADDRSTRLEN);
-                  fprintf(stderr, "dst ip address %s\n", asd);
+            if (config->flow_count) {
+                bd_result_set_insert_uint(result_set, "unique_flows",
+                    proto->flow_ids->size());
             }
-        }*/
+            // set the timestamp for the result
+            bd_result_set_insert_timestamp(result_set, tick);
+            // add interval
+            bd_result_set_insert_int(result_set, "interval", config->output_interval);
 
-        if (config->flow_count) {
-            bd_result_set_insert_uint(result_set, "unique_flows", proto->flow_ids->size());
-        }
+            // send the result to any registered output modules
+            bd_callback_trigger_output(bigdata, result_set);
 
-        // set the timestamp for the result
-        bd_result_set_insert_timestamp(result_set, tick);
-        // add interval
-        bd_result_set_insert_int(result_set, "interval", config->output_interval);
+            // free the result set
+            bd_result_set_free(result_set);
 
-        // publish the result
-        bd_result_set_publish(trace, thread, result_set, tick);
-
-        // if output_all_protocols is enabled only clear protocol counters
-        if (config->output_all_protocols) {
+            // clear the tally for this protocol
             module_flow_statistics_clear_proto_stats(proto);
-        } else {
-            module_flow_statistics_delete_proto_stats(proto);
         }
+
+        tally->lastkey = tick;
     }
 
-    // clear proto stats list if output_all_protocols is disabled
-    if (!config->output_all_protocols) {
-        stats->proto_stats->clear();
+    for (int i = 0; i < LPI_PROTO_LAST; i++) {
+        tally->proto_stats[i].in_bytes += res->proto_stats[i].in_bytes;
+        tally->proto_stats[i].out_bytes += res->proto_stats[i].out_bytes;
+        tally->proto_stats[i].in_packets += res->proto_stats[i].in_packets;
+        tally->proto_stats[i].out_packets += res->proto_stats[i].out_packets;
+
+        // merge src/dst ip sets
+        tally->proto_stats[i].src_ips->insert(res->proto_stats[i].src_ips->begin(),
+            res->proto_stats[i].src_ips->end());
+        tally->proto_stats[i].dst_ips->insert(res->proto_stats[i].dst_ips->begin(),
+            res->proto_stats[i].dst_ips->end());
+        // merge local/remote ip sets
+        tally->proto_stats[i].local_ips->insert(res->proto_stats[i].local_ips->begin(),
+            res->proto_stats[i].local_ips->end());
+        tally->proto_stats[i].remote_ips->insert(res->proto_stats[i].remote_ips->begin(),
+            res->proto_stats[i].remote_ips->end());
+        // merge flow id set
+        tally->proto_stats[i].flow_ids->insert(res->proto_stats[i].flow_ids->begin(),
+            res->proto_stats[i].flow_ids->end());
     }
+
+    // free the result passed to combiner
+    free(result);
 }
 
-int module_flow_statistics_combiner(bd_result_t *result) {
+int module_flow_statistics_reporter_stop(void *tls, void *mls) {
+    mod_flow_stats_t *tally = (mod_flow_stats_t *)mls;
 
-}
+    for (int i = 0; i < LPI_PROTO_LAST; i++) {
+        module_flow_statistics_delete_proto_stats(&(tally->proto_stats[i]));
+    }
 
-inline bool operator<(struct sockaddr_storage &lh, struct sockaddr_storage &rh) {
-
+    free(tally);
 }
 
 int module_flow_statistics_config(yaml_parser_t *parser, yaml_event_t *event, int *level) {
@@ -443,8 +391,15 @@ int module_flow_statistics_config(yaml_parser_t *parser, yaml_event_t *event, in
         config->callbacks->start_cb = (cb_start)module_flow_statistics_starting;
         config->callbacks->packet_cb = (cb_packet)module_flow_statistics_packet;
         config->callbacks->stop_cb = (cb_stop)module_flow_statistics_stopping;
+
         config->callbacks->tick_cb = (cb_tick)module_flow_statistics_tick;
-        config->callbacks->combiner_cb = (cb_combiner)module_flow_statistics_combiner;
+
+        config->callbacks->reporter_start_cb = (cb_reporter_start)
+            module_flow_statistics_reporter_start;
+        config->callbacks->reporter_combiner_cb = (cb_reporter_combiner)
+            module_flow_statistics_combiner;
+        config->callbacks->reporter_stop_cb = (cb_reporter_stop)
+            module_flow_statistics_reporter_stop;
     }
 
     return 0;

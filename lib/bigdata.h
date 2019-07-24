@@ -7,6 +7,8 @@
 typedef struct bigdata_config bd_conf_t;
 typedef struct bigdata_global bd_global_t;
 typedef struct bigdata_network bd_network_t;
+typedef struct bigdata bd_bigdata_t;
+typedef struct bigdata_global bd_global_t;
 
 // external libraries
 #include <libtrace_parallel.h>
@@ -22,6 +24,7 @@ typedef struct bigdata_network bd_network_t;
 #include "bigdata_parser.h"
 #include "bigdata_flow.h"
 #include "bigdata_resultset.h"
+#include "bigdata_callbacks.h"
 
 // Capture modules
 #include "module_dns.h"
@@ -32,6 +35,15 @@ typedef struct bigdata_network bd_network_t;
 #include "module_flow_statistics.h"
 
 #define BD_OUTOFMEMORY 1
+
+typedef struct bigdata {
+    libtrace_t *trace;
+    libtrace_thread_t *thread;
+    libtrace_packet_t *packet;
+    Flow *flow;
+    bd_global_t *global;
+    void *tls;
+} bd_bigdata_t;
 
 // configuration structure for application core
 typedef struct bigdata_config {
@@ -56,14 +68,25 @@ typedef void* (*cb_start) (void *tls);
 typedef int (*cb_packet) (libtrace_t *trace, libtrace_thread_t *thread,
     Flow *flow, libtrace_packet_t *packet, void *tls, void *mls);
 typedef int (*cb_stop) (void *tls, void *mls);
+
+
 typedef void* (*cb_reporter_start) (void *tls);
-typedef int (*cb_reporter_output) (void *tls, void *mls, bd_result_set *result);
+
+typedef int (*cb_reporter_output) (bd_bigdata_t *bigdata, void *mls,
+    bd_result_set *result);
+
+typedef int (*cb_reporter_combiner) (bd_bigdata_t *bigdata, void *mls,
+    uint64_t tick, void *result);
+
 typedef int (*cb_reporter_stop) (void *tls, void *mls);
+
+
 typedef int (*cb_flowend) ();
 typedef int (*cb_flowstart) ();
+
 typedef int (*cb_tick) (libtrace_t *trace, libtrace_thread_t *thread,
     void *tls, void *mls, uint64_t tick);
-typedef int (*cb_combiner) ();
+
 typedef int (*cb_config) (yaml_parser_t *parser, yaml_event_t *event, int *level);
 
 typedef struct bigdata_callback_set bd_cb_set;
@@ -78,6 +101,7 @@ typedef struct bigdata_callback_set {
     // reporter thread callbacks
     cb_reporter_start reporter_start_cb;
     cb_reporter_output reporter_output_cb;
+    cb_reporter_combiner reporter_combiner_cb;
     cb_reporter_stop reporter_stop_cb;
     // flow callbacks
     cb_flowstart flowstart_cb;
@@ -86,8 +110,6 @@ typedef struct bigdata_callback_set {
     cb_tick tick_cb;
     size_t tickrate;               // base tickrate
     uint64_t c_tickrate;           // tickrate for next report
-    // combiner callback
-    cb_combiner combiner_cb;
     // filter for the module
     libtrace_filter_t *filter;
     // config callback

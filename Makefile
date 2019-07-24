@@ -1,7 +1,7 @@
 CC=gcc
 
 # LINK EVERYTHING TOGETHER
-main: module_dns_spcdns_codec.o module_dns_spcdns_mappings.o module_dns.o bigdata_flow.o module_http.o module_influxdb.o bigdata.o module_statistics.o module_flow_statistics.o bigdata_parser.o bigdata_resultset.o
+main: module_dns_spcdns_codec.o module_dns_spcdns_mappings.o module_dns.o bigdata_flow.o module_http.o module_influxdb.o bigdata.o module_statistics.o module_flow_statistics.o bigdata_parser.o bigdata_resultset.o bigdata_callbacks.o
 	$(CC) lib/module_dns_spcdns_codec.o lib/module_dns_spcdns_mappings.o \
 		lib/module_dns.o \
 		lib/bigdata_flow.o \
@@ -12,6 +12,7 @@ main: module_dns_spcdns_codec.o module_dns_spcdns_mappings.o module_dns.o bigdat
 		lib/module_flow_statistics.o \
 		lib/bigdata_parser.o \
 		lib/bigdata_resultset.o \
+		lib/bigdata_callbacks.o \
 		-ltrace -lflowmanager -lyaml -lprotoident -lm -lstdc++ -lcurl\
 		-o bigdata -g
 
@@ -55,6 +56,8 @@ bigdata_parser.o: lib/bigdata_parser.cc lib/bigdata_parser.h
 bigdata_resultset.o: lib/bigdata_resultset.cc lib/bigdata_resultset.h
 	$(CC) lib/bigdata_resultset.cc -c -o lib/bigdata_resultset.o -g
 
+bigdata_callbacks.o: lib/bigdata_callbacks.cc lib/bigdata_callbacks.h
+	$(CC) lib/bigdata_callbacks.cc -c -o lib/bigdata_callbacks.o -g
 
 clean:
 	rm -rf lib/*.o
