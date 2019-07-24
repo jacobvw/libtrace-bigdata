@@ -148,8 +148,6 @@ int module_influxdb_post(bd_bigdata_t *bigdata, void *mls, bd_result_set *result
         strcat(str, buf);
     }
 
-    fprintf(stderr, "%s\n", str);
-
     /* Now specify the POST data */
     curl_easy_setopt(opts->curl, CURLOPT_POSTFIELDS, str);
 

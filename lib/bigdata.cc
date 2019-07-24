@@ -253,9 +253,7 @@ static void reporter_result(libtrace_t *trace, libtrace_thread_t *thread,
     // if the result needs to be sent to the modules combiner do that
     if (result->type == BD_RESULT_COMBINE) {
        // trigger combiner callback
-       fprintf(stderr, "calling combiner\n");
        bd_callback_trigger_combiner(&bigdata, (bd_result_set_wrap_t *)result);
-       fprintf(stderr, "end combiner\n");
     } else if (result->type == BD_RESULT_PUBLISH) {
        // trigger output callback
        bd_callback_trigger_output(&bigdata, (bd_result_set_t *)result->value);
