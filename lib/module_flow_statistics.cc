@@ -54,11 +54,12 @@ typedef struct module_flow_statistics_proto {
     uint64_t in_packets;
     uint64_t out_packets;
 
-    std::set<struct sockaddr_storage, module_flow_statistics_ip_compare> *src_ips;
-    std::set<struct sockaddr_storage, module_flow_statistics_ip_compare> *dst_ips;
-
-    std::set<struct sockaddr_storage, module_flow_statistics_ip_compare> *local_ips;
-    std::set<struct sockaddr_storage, module_flow_statistics_ip_compare> *remote_ips;
+    // external ip sets
+    std::set<struct sockaddr_storage, module_flow_statistics_ip_compare> *esrc_ips;
+    std::set<struct sockaddr_storage, module_flow_statistics_ip_compare> *edst_ips;
+    // internal ip sets
+    std::set<struct sockaddr_storage, module_flow_statistics_ip_compare> *isrc_ips;
+    std::set<struct sockaddr_storage, module_flow_statistics_ip_compare> *idst_ips;
 
     // keep track of all the flow ids - used as a way to count number of flows
     std::set<uint64_t> *flow_ids;
@@ -76,13 +77,13 @@ static void module_flow_statistics_init_proto_stats(mod_flow_stats_proto_t *prot
     proto->out_bytes = 0;
     proto->in_packets = 0;
     proto->out_packets = 0;
-    proto->src_ips = new std::set<struct sockaddr_storage,
+    proto->esrc_ips = new std::set<struct sockaddr_storage,
         module_flow_statistics_ip_compare>;
-    proto->dst_ips = new std::set<struct sockaddr_storage,
+    proto->edst_ips = new std::set<struct sockaddr_storage,
         module_flow_statistics_ip_compare>;
-    proto->local_ips = new std::set<struct sockaddr_storage,
+    proto->isrc_ips = new std::set<struct sockaddr_storage,
         module_flow_statistics_ip_compare>;
-    proto->remote_ips = new std::set<struct sockaddr_storage,
+    proto->idst_ips = new std::set<struct sockaddr_storage,
         module_flow_statistics_ip_compare>;
     proto->flow_ids = new std::set<uint64_t>;
 }
@@ -92,18 +93,18 @@ static void module_flow_statistics_clear_proto_stats(mod_flow_stats_proto_t *pro
     proto->out_bytes = 0;
     proto->in_packets = 0;
     proto->out_packets = 0;
-    proto->src_ips->clear();
-    proto->dst_ips->clear();
-    proto->local_ips->clear();
-    proto->remote_ips->clear();
+    proto->esrc_ips->clear();
+    proto->edst_ips->clear();
+    proto->isrc_ips->clear();
+    proto->idst_ips->clear();
     proto->flow_ids->clear();
 }
 
 static void module_flow_statistics_delete_proto_stats(mod_flow_stats_proto_t *proto) {
-    delete(proto->src_ips);
-    delete(proto->dst_ips);
-    delete(proto->local_ips);
-    delete(proto->remote_ips);
+    delete(proto->esrc_ips);
+    delete(proto->edst_ips);
+    delete(proto->isrc_ips);
+    delete(proto->idst_ips);
     delete(proto->flow_ids);
 }
 
@@ -155,20 +156,25 @@ int module_flow_statistics_packet(libtrace_t *trace, libtrace_thread_t *thread,
         bd_flow_get_source_ip(flow, &src_addr);
         bd_flow_get_destination_ip(flow, &dst_addr);
 
-        proto->src_ips->insert(src_addr);
-        proto->dst_ips->insert(dst_addr);
+        // check if source ip is local/internal or external
+        if (bd_local_ip((struct sockaddr *)&src_addr)) {
+            proto->isrc_ips->insert(src_addr);
+        } else {
+            proto->esrc_ips->insert(src_addr);
+        }
 
-        // check if source ip is local
-        if (bd_local_ip((struct sockaddr *)&src_addr)) { proto->local_ips->insert(src_addr); }
-        else { proto->remote_ips->insert(src_addr); }
-
-        // check if destination is local
-        if (bd_local_ip((struct sockaddr *)&dst_addr)) { proto->local_ips->insert(dst_addr); }
-        else { proto->remote_ips->insert(dst_addr); }
+        // check if destination ip is local/internal or external
+        if (bd_local_ip((struct sockaddr *)&dst_addr)) {
+            proto->idst_ips->insert(dst_addr);
+        } else {
+            proto->edst_ips->insert(dst_addr);
+        }
     }
 
     // insert the flow id
-    if (config->flow_count) { proto->flow_ids->insert(flow->id.get_id_num()); }
+    if (config->flow_count) {
+        proto->flow_ids->insert(flow->id.get_id_num());
+    }
 }
 
 int module_flow_statistics_stopping(void *tls, void *mls) {
@@ -205,11 +211,11 @@ int module_flow_statistics_tick(libtrace_t *trace, libtrace_thread_t *thread,
         combine->proto_stats[i].in_packets = stats->proto_stats[i].in_packets;
         combine->proto_stats[i].out_packets = stats->proto_stats[i].out_packets;
         // copy over src/dst ips
-        combine->proto_stats[i].src_ips = stats->proto_stats[i].src_ips;
-        combine->proto_stats[i].dst_ips = stats->proto_stats[i].dst_ips;
-        // copy over local/remote ips
-        combine->proto_stats[i].local_ips = stats->proto_stats[i].local_ips;
-        combine->proto_stats[i].remote_ips = stats->proto_stats[i].remote_ips;
+        combine->proto_stats[i].esrc_ips = stats->proto_stats[i].esrc_ips;
+        combine->proto_stats[i].edst_ips = stats->proto_stats[i].edst_ips;
+        // copy over internal src/dst ips
+        combine->proto_stats[i].isrc_ips = stats->proto_stats[i].isrc_ips;
+        combine->proto_stats[i].idst_ips = stats->proto_stats[i].idst_ips;
         // copy over flow ids
         combine->proto_stats[i].flow_ids = stats->proto_stats[i].flow_ids;
 
@@ -273,13 +279,17 @@ int module_flow_statistics_combiner(bd_bigdata_t *bigdata, void *mls,
                 bd_result_set_insert_uint(result_set, "out_bytes", proto->out_bytes);
             }
             if (config->ip_count) {
-                bd_result_set_insert_uint(result_set, "unique_src_ips",
-                    proto->src_ips->size());
-                bd_result_set_insert_uint(result_set, "unique_dst_ips",
-                    proto->dst_ips->size());
+                bd_result_set_insert_uint(result_set, "count_esrc_ips",
+                    proto->esrc_ips->size());
+                bd_result_set_insert_uint(result_set, "count_edst_ips",
+                    proto->edst_ips->size());
+                bd_result_set_insert_uint(result_set, "count_isrc_ips",
+                    proto->isrc_ips->size());
+                bd_result_set_insert_uint(result_set, "count_idst_ips",
+                    proto->idst_ips->size());
             }
             if (config->flow_count) {
-                bd_result_set_insert_uint(result_set, "unique_flows",
+                bd_result_set_insert_uint(result_set, "count_flows",
                     proto->flow_ids->size());
             }
             // set the timestamp for the result
@@ -308,15 +318,15 @@ int module_flow_statistics_combiner(bd_bigdata_t *bigdata, void *mls,
         tally->proto_stats[i].out_packets += res->proto_stats[i].out_packets;
 
         // merge src/dst ip sets
-        tally->proto_stats[i].src_ips->insert(res->proto_stats[i].src_ips->begin(),
-            res->proto_stats[i].src_ips->end());
-        tally->proto_stats[i].dst_ips->insert(res->proto_stats[i].dst_ips->begin(),
-            res->proto_stats[i].dst_ips->end());
-        // merge local/remote ip sets
-        tally->proto_stats[i].local_ips->insert(res->proto_stats[i].local_ips->begin(),
-            res->proto_stats[i].local_ips->end());
-        tally->proto_stats[i].remote_ips->insert(res->proto_stats[i].remote_ips->begin(),
-            res->proto_stats[i].remote_ips->end());
+        tally->proto_stats[i].esrc_ips->insert(res->proto_stats[i].esrc_ips->begin(),
+            res->proto_stats[i].esrc_ips->end());
+        tally->proto_stats[i].edst_ips->insert(res->proto_stats[i].edst_ips->begin(),
+            res->proto_stats[i].edst_ips->end());
+        // merge local src/dst ip sets
+        tally->proto_stats[i].isrc_ips->insert(res->proto_stats[i].isrc_ips->begin(),
+            res->proto_stats[i].isrc_ips->end());
+        tally->proto_stats[i].idst_ips->insert(res->proto_stats[i].idst_ips->begin(),
+            res->proto_stats[i].idst_ips->end());
         // merge flow id set
         tally->proto_stats[i].flow_ids->insert(res->proto_stats[i].flow_ids->begin(),
             res->proto_stats[i].flow_ids->end());
