@@ -146,6 +146,7 @@ int bd_add_tickrate_to_cb_set(bd_cb_set *cbset, size_t tickrate);
 
 
 int bd_get_packet_direction(libtrace_packet_t *packet);
+int bd_local_ip(struct sockaddr *ip);
 
 /* Flow function prototypes */
 Flow *flow_per_packet(libtrace_t *trace, libtrace_packet_t *packet, void *global, void *tls);
@@ -155,5 +156,6 @@ int flow_expire(libtrace_t *trace, libtrace_packet_t *packet, void *global, void
 
 /* API functions */
 void consume_event(yaml_parser_t *parser, yaml_event_t *event, int *level);
+
 
 #endif
