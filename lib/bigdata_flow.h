@@ -6,9 +6,8 @@
 typedef struct bigdata_flow_record {
     double start_ts;
     double end_ts;
-    char *proto;
-    char *src_ip;
-    char *dst_ip;
+    struct sockaddr_storage src_ip;
+    struct sockaddr_storage dst_ip;
     uint16_t src_port;
     uint16_t dst_port;
     uint64_t in_packets;
@@ -31,4 +30,7 @@ uint64_t bd_flow_get_out_packets(Flow *flow);
 uint64_t bd_flow_get_in_bytes(Flow *flow);
 uint64_t bd_flow_get_out_bytes(Flow *flow);
 int bd_flow_get_direction(Flow *flow);
+struct sockaddr_storage *bd_flow_get_source_ip(Flow *flow, struct sockaddr_storage *src);
+struct sockaddr_storage *bd_flow_get_destination_ip(Flow *flow, struct sockaddr_storage *dst);
+
 #endif

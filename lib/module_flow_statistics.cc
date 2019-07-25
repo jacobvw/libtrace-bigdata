@@ -136,9 +136,6 @@ int module_flow_statistics_packet(libtrace_t *trace, libtrace_thread_t *thread,
     int flow_dir = bd_flow_get_direction(flow);
     int dir = bd_get_packet_direction(packet);
 
-    struct sockaddr_storage src_addr, dst_addr;
-    struct sockaddr *src_ip, *dst_ip;
-
     // get pointer to protocol for this packet
     mod_flow_stats_proto_t *proto = &(stats->proto_stats[flow_rec->lpi_module->protocol]);
 
@@ -152,28 +149,22 @@ int module_flow_statistics_packet(libtrace_t *trace, libtrace_thread_t *thread,
     }
 
     if (config->ip_count) {
-        src_ip = trace_get_source_address(packet, (struct sockaddr *)&src_addr);
-        dst_ip = trace_get_destination_address(packet, (struct sockaddr *)&dst_addr);
-        if (src_ip != NULL && dst_ip != NULL) {
+        struct sockaddr_storage src_addr, dst_addr;
 
-            // insert into source and destination ips into the set
-            // CHECK THIS
-            if (dir == flow_dir) {
-                proto->src_ips->insert(src_addr);
-                proto->dst_ips->insert(dst_addr);
+        // get the initial source and destination address for the flow
+        bd_flow_get_source_ip(flow, &src_addr);
+        bd_flow_get_destination_ip(flow, &dst_addr);
 
-            } else {
-                proto->src_ips->insert(dst_addr);
-                proto->dst_ips->insert(src_addr);
-            }
+        proto->src_ips->insert(src_addr);
+        proto->dst_ips->insert(dst_addr);
 
-            // check if source ip is local
-            if (bd_local_ip(src_ip)) { proto->local_ips->insert(src_addr); }
-            else { proto->remote_ips->insert(src_addr); }
-            // check if destination is local
-            if (bd_local_ip(dst_ip)) { proto->local_ips->insert(dst_addr); }
-            else { proto->remote_ips->insert(dst_addr); }
-        }
+        // check if source ip is local
+        if (bd_local_ip((struct sockaddr *)&src_addr)) { proto->local_ips->insert(src_addr); }
+        else { proto->remote_ips->insert(src_addr); }
+
+        // check if destination is local
+        if (bd_local_ip((struct sockaddr *)&dst_addr)) { proto->local_ips->insert(dst_addr); }
+        else { proto->remote_ips->insert(dst_addr); }
     }
 
     // insert the flow id

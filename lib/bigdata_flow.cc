@@ -1,7 +1,7 @@
 #include "bigdata_flow.h"
 #include "bigdata.h"
 #include <netinet/in.h>
-
+#include <arpa/inet.h>
 /* private prototypes */
 int flow_init_metrics(libtrace_packet_t *packet, Flow *flow, uint8_t dir, double ts);
 int flow_process_metrics(libtrace_packet_t *packet, Flow *flow, double dir, double ts);
@@ -71,18 +71,16 @@ Flow *flow_per_packet(libtrace_t *trace, libtrace_thread_t *thread,
 int flow_init_metrics(libtrace_packet_t *packet, Flow *flow, uint8_t dir, double ts) {
     // create flow record for the flow
     bd_flow_record_t *flow_record = (bd_flow_record_t *)malloc(sizeof(bd_flow_record_t));
-
-
-    flow_record->src_ip = (char *)malloc(INET6_ADDRSTRLEN);
-    flow_record->dst_ip = (char *)malloc(INET6_ADDRSTRLEN);
-    if (flow_record->src_ip == NULL || flow_record->dst_ip == NULL) {
+    if (flow_record == NULL) {
         fprintf(stderr, "Unable to allocate memory. func. flow_init_metrics()\n");
-        return 1;
+        exit(BD_OUTOFMEMORY);
     }
-    flow_record->src_ip = trace_get_source_address_string(packet, flow_record->src_ip,
-        INET6_ADDRSTRLEN);
-    flow_record->dst_ip = trace_get_destination_address_string(packet, flow_record->dst_ip,
-        INET6_ADDRSTRLEN);
+
+    struct sockaddr *src_ip, *dst_ip;
+
+    src_ip = trace_get_source_address(packet, (struct sockaddr *)&(flow_record->src_ip));
+    dst_ip = trace_get_destination_address(packet, (struct sockaddr *)&(flow_record->dst_ip));
+
     flow_record->src_port = trace_get_source_port(packet);
     flow_record->dst_port = trace_get_destination_port(packet);
     flow_record->start_ts = ts;
@@ -166,9 +164,6 @@ int flow_expire(libtrace_t *trace, libtrace_thread_t *thread,
         }
 
         // Free the metrics structure and release the flow to libflowmanager
-        free(flow_record->src_ip);
-        free(flow_record->dst_ip);
-        //free(flow_record->proto);
         free(flow_record);
         fm->releaseFlow(expired_flow);
     }
@@ -203,4 +198,30 @@ uint64_t bd_flow_get_out_bytes(Flow *flow) {
 int bd_flow_get_direction(Flow *flow) {
     bd_flow_record_t *flow_record = (bd_flow_record_t *)flow->extension;
     return flow_record->init_dir;
+}
+
+struct sockaddr_storage *bd_flow_get_source_ip(Flow *flow,
+    struct sockaddr_storage *src) {
+
+    if (src == NULL) {
+        return NULL;
+    }
+
+    bd_flow_record_t *flow_record = (bd_flow_record_t *)flow->extension;
+    memcpy(src, &(flow_record->src_ip), sizeof(struct sockaddr_storage));
+
+    return src;
+}
+
+struct sockaddr_storage *bd_flow_get_destination_ip(Flow *flow,
+    struct sockaddr_storage *dst) {
+
+    if (dst == NULL) {
+        return NULL;
+    }
+
+    bd_flow_record_t *flow_record = (bd_flow_record_t *)flow->extension;
+    memcpy(dst, &(flow_record->dst_ip), sizeof(struct sockaddr_storage));
+
+    return dst;
 }
