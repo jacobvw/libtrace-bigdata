@@ -30,4 +30,5 @@ uint64_t bd_flow_get_in_packets(Flow *flow);
 uint64_t bd_flow_get_out_packets(Flow *flow);
 uint64_t bd_flow_get_in_bytes(Flow *flow);
 uint64_t bd_flow_get_out_bytes(Flow *flow);
+int bd_flow_get_direction(Flow *flow);
 #endif

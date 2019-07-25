@@ -69,11 +69,6 @@ typedef struct module_flow_statistics {
     uint64_t lastkey;
 } mod_flow_stats_t;
 
-int mod_statistics_is_local_ip(struct sockaddr_storage ip) {
-    //bd_get_local_ips();
-    return 0;
-}
-
 static void module_flow_statistics_init_proto_stats(mod_flow_stats_proto_t *proto) {
 
     // initialise the new protocol
@@ -136,8 +131,11 @@ int module_flow_statistics_packet(libtrace_t *trace, libtrace_thread_t *thread,
     mod_flow_stats_t *stats = (mod_flow_stats_t *)mls;
     // get the flow record
     bd_flow_record_t *flow_rec = (bd_flow_record_t *)flow->extension;
-    // get packet direction
+
+    // get the flow direction and current direction
+    int flow_dir = bd_flow_get_direction(flow);
     int dir = bd_get_packet_direction(packet);
+
     struct sockaddr_storage src_addr, dst_addr;
     struct sockaddr *src_ip, *dst_ip;
 
@@ -157,11 +155,24 @@ int module_flow_statistics_packet(libtrace_t *trace, libtrace_thread_t *thread,
         src_ip = trace_get_source_address(packet, (struct sockaddr *)&src_addr);
         dst_ip = trace_get_destination_address(packet, (struct sockaddr *)&dst_addr);
         if (src_ip != NULL && dst_ip != NULL) {
-            // insert into source and destination ips into the set
-            proto->src_ips->insert(src_addr);
-            proto->dst_ips->insert(dst_addr);
 
-            
+            // insert into source and destination ips into the set
+            // CHECK THIS
+            if (dir == flow_dir) {
+                proto->src_ips->insert(src_addr);
+                proto->dst_ips->insert(dst_addr);
+
+            } else {
+                proto->src_ips->insert(dst_addr);
+                proto->dst_ips->insert(src_addr);
+            }
+
+            // check if source ip is local
+            if (bd_local_ip(src_ip)) { proto->local_ips->insert(src_addr); }
+            else { proto->remote_ips->insert(src_addr); }
+            // check if destination is local
+            if (bd_local_ip(dst_ip)) { proto->local_ips->insert(dst_addr); }
+            else { proto->remote_ips->insert(dst_addr); }
         }
     }
 

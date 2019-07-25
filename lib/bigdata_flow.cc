@@ -199,3 +199,8 @@ uint64_t bd_flow_get_out_bytes(Flow *flow) {
     bd_flow_record_t *flow_record = (bd_flow_record_t *)flow->extension;
     return flow_record->out_bytes;
 }
+
+int bd_flow_get_direction(Flow *flow) {
+    bd_flow_record_t *flow_record = (bd_flow_record_t *)flow->extension;
+    return flow_record->init_dir;
+}

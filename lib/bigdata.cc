@@ -522,3 +522,55 @@ int bd_get_packet_direction(libtrace_packet_t *packet) {
     return trace_get_direction(packet);
 
 }
+
+// returns 1 is ip is local, else 0
+int bd_local_ip(struct sockaddr *ip) {
+
+    // iterate over all local ips
+    for (int i=0; i<global_data->config->local_subnets_count; i++) {
+        bd_network_t *network = global_data->config->local_subnets[i];
+
+        struct sockaddr *address = (struct sockaddr *)&(network->address);
+        struct sockaddr *mask = (struct sockaddr *)&(network->mask);
+
+        if (address->sa_family == ip->sa_family) {
+            if (ip->sa_family == AF_INET) {
+                struct sockaddr_in *ip_in = (struct sockaddr_in *)ip;
+                struct sockaddr_in *network_in = (struct sockaddr_in *)address;
+                struct sockaddr_in *mask_in = (struct sockaddr_in *)mask;
+
+                struct in_addr *ip_addr = (struct in_addr *)&(ip_in->sin_addr);
+                struct in_addr *network_addr = (struct in_addr *)&(network_in->sin_addr);
+                struct in_addr *mask_addr = (struct in_addr *)&(mask_in->sin_addr);
+
+                // check if the supplied ip is within the current network
+                if ((ip_addr->s_addr & mask_addr->s_addr) == network_addr->s_addr) {
+                    return 1;
+                }
+            }
+
+            if (ip->sa_family == AF_INET6) {
+                struct sockaddr_in6 *ip_in = (struct sockaddr_in6 *)ip;
+                struct sockaddr_in6 *network_in = (struct sockaddr_in6 *)address;
+                struct sockaddr_in6 *mask_in = (struct sockaddr_in6 *)mask;
+
+                struct in6_addr *ip_addr = (struct in6_addr *)&(ip_in->sin6_addr);
+                struct in6_addr *network_addr = (struct in6_addr *)&(network_in->sin6_addr);
+                struct in6_addr *mask_addr = (struct in6_addr *)&(mask_in->sin6_addr);
+
+                uint8_t tmp[16];
+                bool match = 1;
+                for (int i = 0; i < 16; i++) {
+                    tmp[i] = ip_addr->s6_addr[i] & mask_addr->s6_addr[i];
+                    if (tmp[i] != network_addr->s6_addr[i]) {
+                        match = 0;
+                    }
+                }
+                if (match) { return 1; }
+            }
+        }
+    }
+
+    // got this far no match
+    return 0;
+}
