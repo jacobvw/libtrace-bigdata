@@ -89,6 +89,8 @@ typedef int (*cb_tick) (libtrace_t *trace, libtrace_thread_t *thread,
 
 typedef int (*cb_config) (yaml_parser_t *parser, yaml_event_t *event, int *level);
 
+typedef int (*cb_clear) (void *mls);
+
 typedef struct bigdata_callback_set bd_cb_set;
 typedef struct bigdata_callback_set {
     // module ID
@@ -109,11 +111,13 @@ typedef struct bigdata_callback_set {
     // tick timer callbacks
     cb_tick tick_cb;
     size_t tickrate;               // base tickrate
-    uint64_t c_tickrate;           // tickrate for next report
+    //uint64_t c_tickrate;           // tickrate for next report
     // filter for the module
     libtrace_filter_t *filter;
     // config callback
     cb_config config_cb;
+    // clear callback to clear any counters the module has
+    cb_clear clear_cb;
     bd_cb_set *next;
 } bd_cb_set;
 

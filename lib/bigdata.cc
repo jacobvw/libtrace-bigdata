@@ -75,10 +75,14 @@ static void *start_processing(libtrace_t *trace, libtrace_thread_t *thread,
     }
 
     // create storage space for each modules countdown tickrate
-    local->c_tickrate = (uint64_t *)calloc(1, sizeof(uint64_t) * g_data->callback_count);
+    local->c_tickrate = (uint64_t *)malloc(sizeof(uint64_t) * g_data->callback_count);
     if (local->c_tickrate == NULL) {
         fprintf(stderr, "Unable to allocate memory. func. start_processing()\n");
         exit(BD_OUTOFMEMORY);
+    }
+    // initialise the current tickrates
+    for (int i = 0; i < g_data->callback_count; i++) {
+        local->c_tickrate[i] = 0;
     }
 
     return local;
@@ -171,12 +175,15 @@ static void per_tick(libtrace_t *trace, libtrace_thread_t *thread, void *global,
                 // 12:00, 12:01, 12:02 etc.
                 if ((timestamp_seconds % cbs->tickrate) == 0) {
                     l_data->c_tickrate[cb_counter] = timestamp_seconds + cbs->tickrate;
+                    // if the module has a clear callback call it to reset any counters
+                    if (cbs->clear_cb != NULL) {
+                        cbs->clear_cb(l_data->mls[cb_counter]);
+                    }
                 }
-            }
 
             // if the current module is due a tick
             // note: modules receive tick time in seconds
-            if (l_data->c_tickrate[cb_counter] <= timestamp_seconds) {
+            } else if (l_data->c_tickrate[cb_counter] <= timestamp_seconds) {
                 cbs->tick_cb(trace, thread, tls, l_data->mls[cb_counter], timestamp_seconds);
                 l_data->c_tickrate[cb_counter] = timestamp_seconds + cbs->tickrate;
             }
@@ -387,7 +394,6 @@ bd_cb_set *bd_create_cb_set(const char *module_name) {
 
     // assign default tickrate.
     cbset->tickrate = BIGDATA_TICKRATE;
-    cbset->c_tickrate = BIGDATA_TICKRATE;
 
     return cbset;
 }
@@ -428,7 +434,6 @@ int bd_add_filter_to_cb_set(bd_cb_set *cbset, const char *filter) {
 }
 int bd_add_tickrate_to_cb_set(bd_cb_set *cbset, size_t tickrate) {
     cbset->tickrate = tickrate;
-    cbset->c_tickrate = 0;
     return 0;
 }
 
