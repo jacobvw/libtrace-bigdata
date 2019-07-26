@@ -229,6 +229,14 @@ int module_flow_statistics_tick(libtrace_t *trace, libtrace_thread_t *thread,
     return 0;
 }
 
+int module_flow_statistics_clear(void *mls) {
+    mod_flow_stats_t *stats = (mod_flow_stats_t *)mls;
+
+    for (int i = 0; i < LPI_PROTO_LAST; i++) {
+        module_flow_statistics_clear_proto_stats(&(stats->proto_stats[i]));
+    }
+}
+
 void *module_flow_statistics_reporter_start(void *tls) {
     // create structure to hold tallies
     mod_flow_stats_t *tally = (mod_flow_stats_t *)
@@ -428,6 +436,7 @@ int module_flow_statistics_config(yaml_parser_t *parser, yaml_event_t *event, in
             module_flow_statistics_combiner;
         config->callbacks->reporter_stop_cb = (cb_reporter_stop)
             module_flow_statistics_reporter_stop;
+        config->callbacks->clear_cb = (cb_clear)module_flow_statistics_clear;
     }
 
     return 0;
