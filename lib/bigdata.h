@@ -111,7 +111,6 @@ typedef struct bigdata_callback_set {
     // tick timer callbacks
     cb_tick tick_cb;
     size_t tickrate;               // base tickrate
-    //uint64_t c_tickrate;           // tickrate for next report
     // filter for the module
     libtrace_filter_t *filter;
     // config callback
