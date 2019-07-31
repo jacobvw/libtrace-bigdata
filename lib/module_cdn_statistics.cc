@@ -2,7 +2,8 @@
 
 typedef struct module_cdn_statictics_address {
     char *cdn_name;
-    char **addresses;
+    char **address;
+    int address_count;
 } mod_cdn_stats_addr_conf_t;
 
 typedef struct module_cdn_statistics_config {
@@ -77,8 +78,23 @@ int module_cdn_statistics_config(yaml_parser_t *parser, yaml_event_t *event, int
 
                      // for each cdn name supplied
                      while (event->type != YAML_MAPPING_END_EVENT) {
+
+                        if (config->cdn_count == 0) {
+                            config->cdn = (mod_cdn_stats_addr_conf_t **)malloc(
+                                sizeof(mod_cdn_stats_addr_conf_t *));
+                        } else {
+                            config->cdn = (mod_cdn_stats_addr_conf_t **)realloc(config->cdn,
+                                 (config->cdn_count + 1) * sizeof(mod_cdn_stats_addr_conf_t *));
+                        }
+
+                        // create structure for the current cdn
+                        mod_cdn_stats_addr_conf_t *cdn = (mod_cdn_stats_addr_conf_t *)
+                            malloc(sizeof(mod_cdn_stats_addr_conf_t));
+                        cdn->address_count = 0;
+
                         // next item should be a cdn name
-                        fprintf(stderr, "cdn %s\n", (char *)event->data.scalar.value);
+                        cdn->cdn_name = strdup((char *)event->data.scalar.value);
+
                         // consume cdn name event and sequence start event
                         consume_event(parser, event, level);
 
@@ -91,13 +107,26 @@ int module_cdn_statistics_config(yaml_parser_t *parser, yaml_event_t *event, int
 
                         // loop over each cdn address
                         while (event->type != YAML_SEQUENCE_END_EVENT) {
-                            fprintf(stderr, "\tvalue %s\n", (char *)event->data.scalar.value);
+
+                            if (cdn->address_count == 0) {
+                                cdn->address = (char **)malloc(sizeof(char *));
+                            } else {
+                                cdn->address = (char **)realloc(cdn->address,
+                                    (cdn->address_count + 1) * sizeof(char *));
+                            }
+
+                            cdn->address[cdn->address_count] = strdup((char *)event->data.scalar.value);
+                            cdn->address_count += 1;
+
                             consume_event(parser, event, level);
                         }
 
                         if (event->type == YAML_SEQUENCE_END_EVENT) {
                             consume_event(parser, event, level);
                         }
+
+                        config->cdn[config->cdn_count] = cdn;
+                        config->cdn_count += 1;
                     }
                     break;
                 }
@@ -106,6 +135,16 @@ int module_cdn_statistics_config(yaml_parser_t *parser, yaml_event_t *event, int
                 break;
         }
     }
+
+    /*
+    for (int i = 0; i < config->cdn_count; i++) {
+
+         fprintf(stderr, "cdn name %s\n", config->cdn[i]->cdn_name);
+
+        for (int k = 0; k <config->cdn[i]->address_count; k++) {
+             fprintf(stderr, "\tvalue %s\n", config->cdn[i]->address[k]);
+         }
+    }*/
 }
 
 int module_cdn_statistics_init() {
@@ -117,8 +156,9 @@ int module_cdn_statistics_init() {
         exit(BD_OUTOFMEMORY);
     }
 
-    //config->enabled = 0;
-    //config->output_interval = 10000;
+    config->enabled = 0;
+    config->output_interval = 10000;
+    config->cdn_count = 0;
 
     config->callbacks = bd_create_cb_set("cdn_statistics");
     config->callbacks->config_cb = (cb_config)module_cdn_statistics_config;
