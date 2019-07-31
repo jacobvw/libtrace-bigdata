@@ -33,6 +33,7 @@ typedef struct bigdata_global bd_global_t;
 #include "module_port.h"
 #include "module_statistics.h"
 #include "module_flow_statistics.h"
+#include "module_cdn_statistics.h"
 
 #define BD_OUTOFMEMORY 1
 

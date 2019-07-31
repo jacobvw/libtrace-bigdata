@@ -5,5 +5,6 @@
 
 bd_conf_t *parse_config(char *filename, bd_global_t *g_data);
 void consume_event(yaml_parser_t *parser, yaml_event_t *event);
+void print_event(yaml_event_t *event, int *level);
 
 #endif

@@ -106,6 +106,21 @@ bd_network_t *get_local_network(char *network_string) {
 	return network;
 }
 
+void print_event(yaml_event_t *event, int *level) {
+    switch(event->type) {
+        case YAML_STREAM_START_EVENT: fprintf(stderr, "YAML_STREAM_START_EVENT %d\n", *level); break;
+        case YAML_STREAM_END_EVENT: fprintf(stderr, "YAML_STREAM_END_EVENT %d\n", *level); break;
+        case YAML_DOCUMENT_START_EVENT: fprintf(stderr, "YAML_DOCUMENT_START_EVENT %d\n", *level); break;
+        case YAML_DOCUMENT_END_EVENT: fprintf(stderr, "YAML_DOCUMENT_END_EVENT %d\n", *level); break;
+        case YAML_SEQUENCE_START_EVENT: fprintf(stderr, "YAML_SEQUENCE_START_EVENT %d\n", *level); break;
+        case YAML_SEQUENCE_END_EVENT: fprintf(stderr, "YAML_SEQUENCE_END_EVENT %d\n", *level); break;
+        case YAML_MAPPING_START_EVENT: fprintf(stderr, "YAML_MAPPING_START_EVENT %d\n", *level); break;
+        case YAML_MAPPING_END_EVENT: fprintf(stderr, "YAML_MAPPING_END_EVENT %d\n", *level); break;
+        case YAML_SCALAR_EVENT: fprintf(stderr, "YAML_SCALAR_EVENT %d\n", *level); break;
+        case YAML_ALIAS_EVENT: fprintf(stderr, "YAML_ALIAS_EVENT %d\n", *level); break;
+    }
+}
+
 void update_level(yaml_event_t *event, int *level) {
     switch(event->type) {
         case YAML_STREAM_START_EVENT: *level += 1; break;
