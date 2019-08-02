@@ -47,11 +47,15 @@ foreach:
 
   # statistics module
   statistics:
-    enabled: 0
+    enabled: 1
     output_interval: 60
     metrics:
       - byte_count
       - packet_count
+      - ip4_packet_count
+      - ip6_packet_count
+      - tcp_packet_count
+      - udp_packet_count
 
   # cdn statistics
   cdn_statistics:
