@@ -215,7 +215,7 @@ int module_statistics_combiner(bd_bigdata_t *bigdata, void *mls,
         }
 
         // insert timestamp into result
-        bd_result_set_insert_timestamp(result_set, tally->lastkey);
+        bd_result_set_insert_timestamp(result_set, tick);
         // insert time interval
         bd_result_set_insert_int(result_set, "interval", config->output_interval);
         // send the result to any output modules
