@@ -1,7 +1,10 @@
 #include "module_cdn_statistics.h"
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
 
 typedef struct module_cdn_statictics_address {
-    char *cdn_name;
+    char *name;
     char **address;
     int address_count;
 } mod_cdn_stats_addr_conf_t;
@@ -16,35 +19,81 @@ typedef struct module_cdn_statistics_config {
 } mod_cdn_stats_conf_t;
 
 typedef struct module_cdb_statistics_cdn {
-    char *cdn_address;
-    struct sockaddr *address;
+    char *name;
+    char *address;
+    struct addrinfo *socket;
 } mod_cdn_stats_cdn_t;
 
 // main processing thread cdns with storage
 typedef struct module_cdn_statistics_storage {
-    mod_cdn_stats_cdn_t **cdns;
+    mod_cdn_stats_cdn_t **cdn;
     int cdn_count;
 } mod_cdn_stats_stor_t;
 
 static mod_cdn_stats_conf_t *config;
 
-int module_cdn_statisitics_lookup_hostname(const char *hostname) {
+struct addrinfo *module_cdn_statistics_lookup_hostname(char *addr) {
+    struct addrinfo hints, *res;
+    int ret;
 
+    memset(&hints, 0, sizeof(struct addrinfo));
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+
+    // lookup IPs for each provided DNS name. If lookup fails set to NULL
+    if ((ret = getaddrinfo(addr, NULL, &hints, &res)) != 0) {
+        return NULL;
+    }
+
+    return res;
 }
 
-int module_cdn_statistics_starting() {
+void *module_cdn_statistics_starting(void *tls) {
+
     mod_cdn_stats_stor_t *storage = (mod_cdn_stats_stor_t *)malloc(
         sizeof(mod_cdn_stats_stor_t));
+    if (storage == NULL) {
+        fprintf(stderr, "Unable to allocate memory. func. "
+            "module_cdn_statsistics_starting()\n");
+        exit(BD_OUTOFMEMORY);
+    }
+    storage->cdn_count = 0;
 
-    //storage->cdns = NULL;
-   // storage->cdn_count = 0;
+    // for each cdn
+    for (int i = 0; i < config->cdn_count; i++) {
+        // for each cdn address
+        for (int k = 0; k < config->cdn[i]->address_count; k++) {
 
-   // getaddrinfo(NULL, "", &hints, &storage->facebook);
+             // create structure for this cdn address
+             mod_cdn_stats_cdn_t *cdn = (mod_cdn_stats_cdn_t *)malloc(
+                 sizeof(mod_cdn_stats_cdn_t));
+             if (cdn == NULL) {
+                 fprintf(stderr, "Unable to allocate memory. func. "
+                     "module_cdn_statistics_starting()\n");
+                 exit(BD_OUTOFMEMORY);
+             }
+             cdn->name = config->cdn[i]->name;
+             cdn->address = config->cdn[i]->address[k];
+             cdn->socket = module_cdn_statistics_lookup_hostname(cdn->address);
+             if (cdn->socket == NULL) {
+                 fprintf(stdout, "module cdn statistics: %s %s address resolution failed\n",
+                     cdn->name, cdn->address);
+             }
 
-    // for each cdn address provided
-    //for (int i = 0; i < config->address_count; i++) {
+             if (storage->cdn_count == 0) {
+                 storage->cdn = (mod_cdn_stats_cdn_t **)malloc(sizeof(
+                     mod_cdn_stats_cdn_t *));
+             } else {
+                 storage->cdn = (mod_cdn_stats_cdn_t **)realloc(storage->cdn,
+                     (storage->cdn_count + 1) * sizeof(mod_cdn_stats_cdn_t *));
+             }
 
-    //}
+             storage->cdn[storage->cdn_count] = cdn;
+             storage->cdn_count += 1;
+        }
+    }
+
+    return storage;
 }
 
 int module_cdn_statistics_packet() {
@@ -64,6 +113,17 @@ int module_cdn_statistics_config(yaml_parser_t *parser, yaml_event_t *event, int
         first_pass = 0;
         switch(event->type) {
             case YAML_SCALAR_EVENT:
+                if (strcmp((char *)event->data.scalar.value, "enabled") == 0) {
+                    consume_event(parser, event, level);
+                    if (strcmp((char *)event->data.scalar.value, "1") == 0 ||
+                        strcmp((char *)event->data.scalar.value, "yes") == 0 ||
+                        strcmp((char *)event->data.scalar.value, "true") == 0 ||
+                        strcmp((char *)event->data.scalar.value, "t") == 0) {
+
+                        config->enabled = 1;
+                    }
+                    break;
+                }
                 if (strcmp((char *)event->data.scalar.value, "byte_count") == 0) {
                     consume_event(parser, event, level);
                     //config->byte_count = 1;
@@ -93,7 +153,7 @@ int module_cdn_statistics_config(yaml_parser_t *parser, yaml_event_t *event, int
                         cdn->address_count = 0;
 
                         // next item should be a cdn name
-                        cdn->cdn_name = strdup((char *)event->data.scalar.value);
+                        cdn->name = strdup((char *)event->data.scalar.value);
 
                         // consume cdn name event and sequence start event
                         consume_event(parser, event, level);
@@ -145,6 +205,9 @@ int module_cdn_statistics_config(yaml_parser_t *parser, yaml_event_t *event, int
              fprintf(stderr, "\tvalue %s\n", config->cdn[i]->address[k]);
          }
     }*/
+    if (config->enabled) {
+        config->callbacks->start_cb = (cb_start)module_cdn_statistics_starting;
+    }
 }
 
 int module_cdn_statistics_init() {
