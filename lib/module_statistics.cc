@@ -158,7 +158,6 @@ int module_statistics_tick(libtrace_t *trace, libtrace_thread_t *thread,
 
     // send results to the combiner function
     bd_result_combine(trace, thread, combine, tick, config->callbacks->id);
-    fprintf(stderr, "posted result to combine stats id = %d\n", config->callbacks->id);
 
     return 0;
 }
