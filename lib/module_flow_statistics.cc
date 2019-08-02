@@ -341,7 +341,7 @@ int module_flow_statistics_combiner(bd_bigdata_t *bigdata, void *mls,
     }
 
     // free the result passed to combiner
-    free(result);
+    free(res);
 }
 
 int module_flow_statistics_reporter_stop(void *tls, void *mls) {
