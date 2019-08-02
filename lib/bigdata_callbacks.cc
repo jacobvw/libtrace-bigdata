@@ -46,7 +46,7 @@ int bd_callback_trigger_combiner(bd_bigdata_t *bigdata, bd_result_set_wrap_t *re
     for (; cbs != NULL; cbs = cbs->next) {
         if (cbs->reporter_combiner_cb != NULL) {
             // if this result if for the current module
-            if (res->module_id = cbs->id) {
+            if (res->module_id == cbs->id) {
                 ret = cbs->reporter_combiner_cb(bigdata, l_data->mls[cb_counter],
                     res->key, (void *)res->value);
             }
