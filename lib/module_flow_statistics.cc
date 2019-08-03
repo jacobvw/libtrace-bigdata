@@ -128,6 +128,11 @@ void *module_flow_statistics_starting(void *tls) {
 int module_flow_statistics_packet(libtrace_t *trace, libtrace_thread_t *thread,
     Flow *flow, libtrace_packet_t *packet, void *tls, void *mls) {
 
+    // module only deals with traffic associated with a flow
+    if (flow == NULL) {
+        return 0;
+    }
+
     // get the module local storage
     mod_flow_stats_t *stats = (mod_flow_stats_t *)mls;
     // get the flow record
