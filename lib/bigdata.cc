@@ -103,21 +103,18 @@ libtrace_packet_t *per_packet(libtrace_t *trace, libtrace_thread_t *thread,
     // pass packet into the flow manager
     flow = flow_per_packet(trace, thread, packet, global, tls);
 
-    // if a flow was not found something has gone wrong
-    if (flow) {
-        bd_cb_set *cbs = g_data->callbacks;
-        for (; cbs != NULL; cbs = cbs->next) {
-            if (cbs->packet_cb != NULL) {
-                if (cbs->filter != NULL) {
-                    if (trace_apply_filter(cbs->filter, packet)) {
-                        cbs->packet_cb(trace, thread, flow, packet, tls, l_data->mls[cb_counter]);
-                    }
-                } else {
+    bd_cb_set *cbs = g_data->callbacks;
+    for (; cbs != NULL; cbs = cbs->next) {
+        if (cbs->packet_cb != NULL) {
+            if (cbs->filter != NULL) {
+                if (trace_apply_filter(cbs->filter, packet)) {
                     cbs->packet_cb(trace, thread, flow, packet, tls, l_data->mls[cb_counter]);
                 }
+            } else {
+                cbs->packet_cb(trace, thread, flow, packet, tls, l_data->mls[cb_counter]);
             }
-            cb_counter += 1;
         }
+        cb_counter += 1;
     }
 
     // Expire all suitably idle flows.
