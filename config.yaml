@@ -27,12 +27,18 @@ foreach:
 
   # dns module
   dns:
-    enabled: 0
-    #metrics:
-    #  - question
-    #  - question_type
-    #  - answer
-    #  - rtt
+    enabled: 1
+    # question types to capture
+    questions:
+       - A
+       - AAAA
+       - CNAME
+       - MX
+       - NS
+       - PTR
+       - SPF
+       - TXT
+       - SOA
 
   # flow stats module
   flow_statistics:
