@@ -65,7 +65,7 @@ int bd_callback_trigger_protocol(bd_bigdata_t *bigdata, lpi_protocol_t protocol)
     // get access to global data
     bd_global_t *global = bigdata->global;
     // gain access to thread storage
-    bd_rthread_local_t *l_data = (bd_rthread_local_t *)bigdata->tls;
+    bd_thread_local_t *l_data = (bd_thread_local_t *)bigdata->tls;
 
     // get the first callback set
     bd_cb_set *cbs = global->callbacks;
