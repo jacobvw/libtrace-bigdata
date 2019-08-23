@@ -103,6 +103,22 @@ libtrace_packet_t *per_packet(libtrace_t *trace, libtrace_thread_t *thread,
     // pass packet into the flow manager
     flow = flow_per_packet(trace, thread, packet, global, tls);
 
+    // create bigdata structure
+    bd_bigdata_t bigdata;
+    bigdata.trace = trace;
+    bigdata.thread = thread;
+    bigdata.packet = packet;
+    bigdata.flow = flow;
+    bigdata.global = (bd_global_t *)global;
+    bigdata.tls = tls;
+
+    // If a protocol was found trigger protocol event
+    if (flow != NULL) {
+        bd_flow_record_t *flow_record = (bd_flow_record_t *)flow->extension;
+        bd_callback_trigger_protocol(&bigdata, flow_record->lpi_module->protocol);
+    }
+
+    // trigger packet event
     bd_cb_set *cbs = g_data->callbacks;
     for (; cbs != NULL; cbs = cbs->next) {
         if (cbs->packet_cb != NULL) {
@@ -392,6 +408,11 @@ bd_cb_set *bd_create_cb_set(const char *module_name) {
 
     // assign default tickrate.
     cbset->tickrate = BIGDATA_TICKRATE;
+
+    // clear protocol callbacks
+    for (int i = 0; i < LPI_PROTO_LAST; i++) {
+        cbset->protocol_cb[i] = NULL;
+    }
 
     return cbset;
 }

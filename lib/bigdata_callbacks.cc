@@ -56,3 +56,30 @@ int bd_callback_trigger_combiner(bd_bigdata_t *bigdata, bd_result_set_wrap_t *re
 
     return ret;
 }
+
+int bd_callback_trigger_protocol(bd_bigdata_t *bigdata, lpi_protocol_t protocol) {
+
+    int ret;
+    int cb_counter = 0;
+
+    // get access to global data
+    bd_global_t *global = bigdata->global;
+    // gain access to thread storage
+    bd_rthread_local_t *l_data = (bd_rthread_local_t *)bigdata->tls;
+
+    // get the first callback set
+    bd_cb_set *cbs = global->callbacks;
+
+    for (; cbs != NULL; cbs = cbs->next) {
+        if (cbs->protocol_cb[protocol] != NULL) {
+            ret = cbs->protocol_cb[protocol](bigdata->trace, bigdata->thread, bigdata->flow, bigdata->packet,
+                bigdata->tls, l_data->mls[cb_counter]);
+        }
+        cb_counter += 1;
+    }
+
+    return ret;
+}
+int bd_register_protocol_event(bd_cb_set *cbset, cb_protocol callback, lpi_protocol_t protocol) {
+    cbset->protocol_cb[protocol] = callback;
+}

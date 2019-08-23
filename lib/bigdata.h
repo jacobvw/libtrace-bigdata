@@ -4,12 +4,6 @@
 // base tickrate
 #define BIGDATA_TICKRATE 1000 // milliseconds
 
-typedef struct bigdata_config bd_conf_t;
-typedef struct bigdata_global bd_global_t;
-typedef struct bigdata_network bd_network_t;
-typedef struct bigdata bd_bigdata_t;
-typedef struct bigdata_global bd_global_t;
-
 // external libraries
 #include <libtrace_parallel.h>
 #include <libprotoident.h>
@@ -19,6 +13,16 @@ typedef struct bigdata_global bd_global_t;
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
+
+typedef struct bigdata_config bd_conf_t;
+typedef struct bigdata_global bd_global_t;
+typedef struct bigdata_network bd_network_t;
+typedef struct bigdata bd_bigdata_t;
+typedef struct bigdata_global bd_global_t;
+typedef struct bigdata_callback_set bd_cb_set;
+
+typedef int (*cb_protocol) (libtrace_t *trace, libtrace_thread_t *thread,
+    Flow *flow, libtrace_packet_t *packet, void *tls, void *mls);
 
 // internal libraries
 #include "bigdata_parser.h"
@@ -92,6 +96,9 @@ typedef int (*cb_config) (yaml_parser_t *parser, yaml_event_t *event, int *level
 
 typedef int (*cb_clear) (void *mls);
 
+typedef int (*cb_protocol) (libtrace_t *trace, libtrace_thread_t *thread,
+    Flow *flow, libtrace_packet_t *packet, void *tls, void *mls);
+
 typedef struct bigdata_callback_set bd_cb_set;
 typedef struct bigdata_callback_set {
     // module ID
@@ -118,6 +125,7 @@ typedef struct bigdata_callback_set {
     cb_config config_cb;
     // clear callback to clear any counters the module has
     cb_clear clear_cb;
+    cb_protocol protocol_cb[LPI_PROTO_LAST];
     bd_cb_set *next;
 } bd_cb_set;
 
