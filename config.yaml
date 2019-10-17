@@ -2,7 +2,7 @@
 hostname: host1
 
 # network interface to capture data on. 
-interface: eno4
+interface: ens18
 
 # number of packet processing threads
 threads: 4
@@ -28,6 +28,10 @@ foreach:
   # dns module
   dns:
     enabled: 1
+    # timeout to flush old request that have not received a response
+    timeout_request: 20
+    # how often to check for timed out requests with no response
+    timeout_check: 20
     # question types to capture
     questions:
        - A

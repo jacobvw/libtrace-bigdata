@@ -50,6 +50,8 @@ static const char MODULE_DNS_SCHEMA[] =
 
 struct module_dns_conf {
     bd_cb_set *callbacks;
+    int timeout_request;
+    int timeout_check;
     bool enabled;
 };
 static struct module_dns_conf *config;
@@ -252,6 +254,37 @@ int module_dns_packet(libtrace_t *trace, libtrace_thread_t *thread,
     return 0;
 }
 
+// Used to remove timed out requests that not have received a response packet from
+// the map of requests
+int module_dns_tick(libtrace_t *trace, libtrace_thread_t *thread,
+    void *tls, void *mls, uint64_t tick) {
+
+    // Gain access to module local storage and thread local storage
+    struct module_dns_local *m_local = (struct module_dns_local *)mls;
+
+    // Gain access to the map
+    std::unordered_map<uint16_t, struct module_dns_req *> *map = m_local->reqs;
+
+    // create iterator
+    std::unordered_map<uint16_t, struct module_dns_req *>::iterator itr = map->begin();
+    for (itr = map->begin(); itr != map->end(); ) {
+        struct module_dns_req *cur = (struct module_dns_req *)itr->second;
+
+        // remove from hashmap if timeout has been reached
+        if (tick >= (cur->start_ts + config->timeout_request)) {
+            map->erase(itr++);
+            // should not be allocated for only a request so should not need to free
+            // keeping here to make it clear
+            //free(cur->src_ip);
+            //free(cur->dst_ip);
+            free(cur);
+        // else move on to next element
+        } else {
+            ++itr;
+        }
+    }
+}
+
 int module_dns_ending(void *tls, void *mls) {
     module_dns_local *storage = (module_dns_local *)mls;
 
@@ -321,6 +354,24 @@ int module_dns_config(yaml_parser_t *parser, yaml_event_t *event, int *level) {
                     }
                     break;
                 }
+                if (strcmp((char *)event->data.scalar.value, "timeout_request") == 0) {
+                    consume_event(parser, event, level);
+                    config->timeout_request = atoi((char *)event->data.scalar.value);
+                    if (config->timeout_request == 0) {
+                        fprintf(stderr, "Invalid timeout_request value. "
+                            "module_dns. setting to default 20 seconds\n");
+                        config->timeout_request = 20;
+                    }
+                }
+                if (strcmp((char *)event->data.scalar.value, "timeout_check") == 0) {
+                    consume_event(parser, event, level);
+                    config->timeout_check = atoi((char *)event->data.scalar.value);
+                    if (config->timeout_check == 0) {
+                        fprintf(stderr, "Invalid timeout_check value. "
+                            "module_dns. setting to default 20 seconds\n");
+                        config->timeout_check = 20;
+                    }
+                }
             default:
                 consume_event(parser, event, level);
                 break;
@@ -331,6 +382,12 @@ int module_dns_config(yaml_parser_t *parser, yaml_event_t *event, int *level) {
         config->callbacks->config_cb = (cb_config)module_dns_config;
         config->callbacks->start_cb = (cb_start)module_dns_starting;
         config->callbacks->packet_cb = (cb_packet)module_dns_packet;
+
+        // set tick event to check for timed out requests
+        config->callbacks->tick_cb = (cb_tick)module_dns_tick;
+        // set timeout check interval
+        bd_add_tickrate_to_cb_set(config->callbacks, config->timeout_check);
+
         config->callbacks->stop_cb = (cb_stop)module_dns_ending;
         bd_add_filter_to_cb_set(config->callbacks, "port 53");
     }
@@ -348,6 +405,9 @@ int module_dns_init() {
 
     // initialise the config structure
     config->enabled = 0;
+
+    config->timeout_request = 20;
+    config->timeout_check = 20;
 
     config->callbacks = bd_create_cb_set("dns");
     config->callbacks->config_cb = (cb_config)module_dns_config;
