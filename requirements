@@ -5,3 +5,4 @@ libtrace
 libyaml - https://github.com/yaml/libyaml
 libm
 lstdc++
+librdkafka

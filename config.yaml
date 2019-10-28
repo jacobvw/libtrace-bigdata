@@ -93,3 +93,8 @@ where:
     database: libtrace
     username: admin
     password: admin
+
+  kafka:
+    enabled: 0
+    brokers: 192.168.20.20:9092
+    topic: bigdata
