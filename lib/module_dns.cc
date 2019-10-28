@@ -247,10 +247,6 @@ int module_dns_packet(libtrace_t *trace, libtrace_thread_t *thread,
 
     }
 
-
-    // TODO: remove requests that have not received a response??
-
-
     return 0;
 }
 
