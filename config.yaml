@@ -14,10 +14,10 @@ local_networks:
   - 192.168.20.0/24
   - 2406:1E00:B910:2600::/56
 
-# Disable libtrace HASHER_BIDIRECTIONAL hasher.
-# Only disable this option if you have another mechanism for assigning packets
-# of the same flow to the same thread.
-enable_bidirectional_hasher: 1
+# Enable libtrace HASHER_BIDIRECTIONAL hasher.
+# Only enable if you do NOT have another mechanism for assigning packets
+# for the same flow to the same Libtrace thread.
+enable_bidirectional_hasher: 0
 
 # Enable debug output to stderr
 debug: 1
