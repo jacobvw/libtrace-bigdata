@@ -151,20 +151,10 @@ typedef struct bigdata_thread_reporter_local {
 } bd_rthread_local_t;
 
 /* event prototypes */
-bd_cb_set *bd_create_cb_set(const char *module_name);
 int bd_register_cb_set(bd_cb_set *cbset);
-int bd_add_filter_to_cb_set(bd_cb_set *cbset, const char *filter);
-int bd_add_tickrate_to_cb_set(bd_cb_set *cbset, size_t tickrate);
-
 
 int bd_get_packet_direction(libtrace_packet_t *packet);
 int bd_local_ip(struct sockaddr *ip);
-
-/* Flow function prototypes */
-Flow *flow_per_packet(libtrace_t *trace, libtrace_packet_t *packet, void *global, void *tls);
-int flow_init_metrics(libtrace_packet_t *packet, Flow *flow, uint8_t dir, double ts);
-int flow_process_metrics(libtrace_packet_t *packet, Flow *flow, double dir, double ts);
-int flow_expire(libtrace_t *trace, libtrace_packet_t *packet, void *global, void *tls);
 
 /* API functions */
 void consume_event(yaml_parser_t *parser, yaml_event_t *event, int *level);

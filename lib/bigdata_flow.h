@@ -22,6 +22,10 @@ typedef struct bigdata_flow_record {
 Flow *flow_per_packet(libtrace_t *trace, libtrace_thread_t *thread,
     libtrace_packet_t *packet, void *global, void *tls);
 
+int flow_init_metrics(libtrace_packet_t *packet, Flow *flow, uint8_t dir, double ts);
+
+int flow_process_metrics(libtrace_packet_t *packet, Flow *flow, double dir, double ts);
+
 int flow_expire(libtrace_t *trace, libtrace_thread_t *thread,libtrace_packet_t *packet,
     void *global, void *tls);
 

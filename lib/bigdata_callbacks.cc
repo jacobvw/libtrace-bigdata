@@ -1,5 +1,37 @@
 #include "bigdata_callbacks.h"
 
+bd_cb_set *bd_create_cb_set(const char *module_name) {
+    bd_cb_set *cbset = (bd_cb_set *)calloc(1, sizeof(bd_cb_set));
+    if (cbset == NULL) {
+        fprintf(stderr, "Unable to create callback set. func. "
+            "bd_create_cb_set()\n");
+        exit(BD_OUTOFMEMORY);
+    }
+
+    // assign the module name
+    cbset->name = strdup(module_name);
+
+    // assign default tickrate.
+    cbset->tickrate = BIGDATA_TICKRATE;
+
+    // clear protocol callbacks
+    for (int i = 0; i < LPI_PROTO_LAST; i++) {
+        cbset->protocol_cb[i] = NULL;
+    }
+
+    return cbset;
+}
+
+int bd_add_filter_to_cb_set(bd_cb_set *cbset, const char *filter) {
+    cbset->filter = trace_create_filter(filter);
+    return 0;
+}
+
+int bd_add_tickrate_to_cb_set(bd_cb_set *cbset, size_t tickrate) {
+    cbset->tickrate = tickrate;
+    return 0;
+}
+
 int bd_callback_trigger_output(bd_bigdata_t *bigdata, bd_result_set_t *result) {
 
     int ret;

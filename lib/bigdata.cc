@@ -161,9 +161,6 @@ static void stop_processing(libtrace_t *trace, libtrace_thread_t *thread, void *
     if (l_data != NULL) { free(l_data); }
 }
 
-
-
-
 static void per_tick(libtrace_t *trace, libtrace_thread_t *thread, void *global,
     void *tls, uint64_t tick) {
 
@@ -214,9 +211,6 @@ static void per_tick(libtrace_t *trace, libtrace_thread_t *thread, void *global,
         free(stats);
     }
 }
-
-
-
 
 static void *reporter_starting(libtrace_t *trace, libtrace_thread_t *thread,
     void *global) {
@@ -396,27 +390,6 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 
-bd_cb_set *bd_create_cb_set(const char *module_name) {
-    bd_cb_set *cbset = (bd_cb_set *)calloc(1, sizeof(bd_cb_set));
-    if (cbset == NULL) {
-        fprintf(stderr, "Unable to create callback set. func. bd_create_cb_set()\n");
-        exit(BD_OUTOFMEMORY);
-    }
-
-    // assign the module name
-    cbset->name = strdup(module_name);
-
-    // assign default tickrate.
-    cbset->tickrate = BIGDATA_TICKRATE;
-
-    // clear protocol callbacks
-    for (int i = 0; i < LPI_PROTO_LAST; i++) {
-        cbset->protocol_cb[i] = NULL;
-    }
-
-    return cbset;
-}
-
 /* Registers a modules callback functions against libtrace-bigdata
  * params:
  *     bd_cb_set - modules callback set
@@ -446,14 +419,6 @@ int bd_register_cb_set(bd_cb_set *cbset) {
     pthread_mutex_unlock(&global_data->lock);
 
     return cbset->id;
-}
-int bd_add_filter_to_cb_set(bd_cb_set *cbset, const char *filter) {
-    cbset->filter = trace_create_filter(filter);
-    return 0;
-}
-int bd_add_tickrate_to_cb_set(bd_cb_set *cbset, size_t tickrate) {
-    cbset->tickrate = tickrate;
-    return 0;
 }
 
 int bd_get_packet_direction(libtrace_packet_t *packet) {
