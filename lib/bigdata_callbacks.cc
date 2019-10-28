@@ -31,6 +31,12 @@ int bd_add_tickrate_to_cb_set(bd_cb_set *cbset, size_t tickrate) {
     cbset->tickrate = tickrate;
     return 0;
 }
+// Register callback for a protocol event
+int bd_register_protocol_event(bd_cb_set *cbset, cb_protocol callback, lpi_protocol_t protocol) {
+    cbset->protocol_cb[protocol] = callback;
+    return 0;
+}
+
 
 int bd_callback_trigger_output(bd_bigdata_t *bigdata, bd_result_set_t *result) {
 
@@ -111,7 +117,4 @@ int bd_callback_trigger_protocol(bd_bigdata_t *bigdata, lpi_protocol_t protocol)
     }
 
     return ret;
-}
-int bd_register_protocol_event(bd_cb_set *cbset, cb_protocol callback, lpi_protocol_t protocol) {
-    cbset->protocol_cb[protocol] = callback;
 }
