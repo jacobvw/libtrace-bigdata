@@ -75,6 +75,7 @@ foreach:
 where:
 
   influxdb:
+    enabled: 1
     # Enable certificate verification
     ssl_verify_peer: 1
     host: http://192.168.20.40 
@@ -84,6 +85,6 @@ where:
     password: admin
 
   kafka:
-    enabled: 0
-    brokers: 192.168.20.20:9092
-    topic: bigdata
+    enabled: 1
+    brokers: 127.0.0.1:9092
+    topic: testTopic

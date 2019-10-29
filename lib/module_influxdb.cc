@@ -6,6 +6,8 @@
 #define INFLUX_LINE_LEN 4000
 
 struct module_influxdb_conf {
+    bd_cb_set *callbacks;
+    bool enabled;
     char *host;
     int port;
     char *db;
@@ -175,15 +177,6 @@ void *module_influxdb_stopping(void *tls, void *mls) {
 }
 
 int module_influxdb_config(yaml_parser_t *parser, yaml_event_t *event, int *level) {
-    config = (struct module_influxdb_conf *)malloc(sizeof(
-        struct module_influxdb_conf));
-
-    config->host = NULL;
-    config->port = 8086;
-    config->db = NULL;
-    config->usr = NULL;
-    config->pwd = NULL;
-    config->ssl_verifypeer = 1;
 
     int enter_level = *level;
     bool first_pass = 1;
@@ -192,6 +185,17 @@ int module_influxdb_config(yaml_parser_t *parser, yaml_event_t *event, int *leve
         first_pass = 0;
         switch(event->type) {
             case YAML_SCALAR_EVENT:
+                if (strcmp((char *)event->data.scalar.value, "enabled") == 0) {
+                    consume_event(parser, event, level);
+                    if (strcmp((char *)event->data.scalar.value, "1") == 0 ||
+                        strcmp((char *)event->data.scalar.value, "yes") == 0 ||
+                        strcmp((char *)event->data.scalar.value, "true") == 0 ||
+                        strcmp((char *)event->data.scalar.value, "t") == 0) {
+
+                        config->enabled = 1;
+                    }
+                    break;
+                }
                 if (strcmp((char *)event->data.scalar.value, "host") == 0) {
                     consume_event(parser, event, level);
                     config->host = strdup((char *)event->data.scalar.value);
@@ -235,18 +239,42 @@ int module_influxdb_config(yaml_parser_t *parser, yaml_event_t *event, int *leve
 
         }
     }
+
+    if (config->enabled) {
+        // Because this is a output only module we register callbacks against
+        // the reporter thread.
+        config->callbacks->reporter_start_cb =(cb_reporter_start)module_influxdb_starting;
+        config->callbacks->reporter_output_cb = (cb_reporter_output)module_influxdb_post;
+        config->callbacks->reporter_stop_cb = (cb_reporter_stop)module_influxdb_stopping;
+
+        fprintf(stdout, "InfluxDB Plugin Enabled\n");
+    }
 }
 
 int module_influxdb_init() {
 
-    bd_cb_set *callbacks = bd_create_cb_set("influxdb");
+    config = (struct module_influxdb_conf *)malloc(sizeof(
+        struct module_influxdb_conf));
+    if (config == NULL) {
+        fprintf(stderr, "Unable to allocate memory. func. "
+            "module_influxdb_init()\n");
+        exit(BD_OUTOFMEMORY);
+    }
 
-    // Because this is a output only module we register callbacks against
-    // the reporter thread.
-    callbacks->config_cb = (cb_config)module_influxdb_config;
-    callbacks->reporter_start_cb =(cb_reporter_start)module_influxdb_starting;
-    callbacks->reporter_output_cb = (cb_reporter_output)module_influxdb_post;
-    callbacks->reporter_stop_cb = (cb_reporter_stop)module_influxdb_stopping;
+    config->enabled = 0;
+    config->host = NULL;
+    config->port = 8086;
+    config->db = NULL;
+    config->usr = NULL;
+    config->pwd = NULL;
+    config->ssl_verifypeer = 1;
 
-    bd_register_cb_set(callbacks);
+    // create callback set
+    config->callbacks = bd_create_cb_set("influxdb");
+
+    // define config callback
+    config->callbacks->config_cb = (cb_config)module_influxdb_config;
+
+    // register the callback set
+    bd_register_cb_set(config->callbacks);
 }
