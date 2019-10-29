@@ -36,7 +36,7 @@ typedef int (*cb_protocol) (libtrace_t *trace, libtrace_thread_t *thread,
 #include "module_influxdb.h"
 #include "module_port.h"
 #include "module_statistics.h"
-#include "module_flow_statistics.h"
+#include "module_protocol_statistics.h"
 #include "module_cdn_statistics.h"
 
 #define BD_OUTOFMEMORY 1

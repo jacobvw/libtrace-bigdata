@@ -1,7 +1,7 @@
 CC=gcc
 
 # LINK EVERYTHING TOGETHER
-main: module_dns_spcdns_codec.o module_dns_spcdns_mappings.o module_dns.o bigdata_flow.o module_http.o module_influxdb.o bigdata.o module_statistics.o module_flow_statistics.o bigdata_parser.o bigdata_resultset.o bigdata_callbacks.o module_cdn_statistics.o
+main: module_dns_spcdns_codec.o module_dns_spcdns_mappings.o module_dns.o bigdata_flow.o module_http.o module_influxdb.o bigdata.o module_statistics.o module_protocol_statistics.o bigdata_parser.o bigdata_resultset.o bigdata_callbacks.o module_cdn_statistics.o
 	$(CC) lib/module_dns_spcdns_codec.o lib/module_dns_spcdns_mappings.o \
 		lib/module_dns.o \
 		lib/bigdata_flow.o \
@@ -9,7 +9,7 @@ main: module_dns_spcdns_codec.o module_dns_spcdns_mappings.o module_dns.o bigdat
 		lib/module_influxdb.o \
 		lib/bigdata.o \
 		lib/module_statistics.o \
-		lib/module_flow_statistics.o \
+		lib/module_protocol_statistics.o \
 		lib/bigdata_parser.o \
 		lib/bigdata_resultset.o \
 		lib/bigdata_callbacks.o \
@@ -40,9 +40,9 @@ module_influxdb.o: lib/module_influxdb.cc lib/module_influxdb.h
 module_statistics.o: lib/module_statistics.cc lib/module_statistics.h
 	$(CC) lib/module_statistics.cc -c -o lib/module_statistics.o -g
 
-# FLOW STATISTICS MODULE
-module_flow_statistics.o: lib/module_flow_statistics.cc lib/module_flow_statistics.h
-	$(CC) lib/module_flow_statistics.cc -c -o lib/module_flow_statistics.o -g
+# PROTOCOL STATISTICS MODULE
+module_protocol_statistics.o: lib/module_protocol_statistics.cc lib/module_protocol_statistics.h
+	$(CC) lib/module_protocol_statistics.cc -c -o lib/module_protocol_statistics.o -g
 
 # CDN STATISTICS MODULE
 module_cdn_statistics.o: lib/module_cdn_statistics.cc lib/module_cdn_statistics.h

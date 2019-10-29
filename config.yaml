@@ -28,24 +28,13 @@ foreach:
   # dns module
   dns:
     enabled: 1
-    # timeout to flush old request that have not received a response
+    # timeout to flush old requests that have not received a response
     timeout_request: 20
     # how often to check for timed out requests with no response
     timeout_check: 20
-    # question types to capture
-    questions:
-       - A
-       - AAAA
-       - CNAME
-       - MX
-       - NS
-       - PTR
-       - SPF
-       - TXT
-       - SOA
 
-  # flow stats module
-  flow_statistics:
+  # protocol statistics module
+  protocol_statistics:
     enabled: 1
     # how often to output results in seconds
     output_interval: 60
