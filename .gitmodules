@@ -1,6 +1,1 @@
-[submodule "librdkafka"]
-	path = librdkafka
-	url = https://github.com/edenhill/librdkafka
-[submodule "libyaml"]
-	path = libyaml
-	url = https://github.com/yaml/libyaml
+
