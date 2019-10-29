@@ -12,6 +12,7 @@ void init_modules() {
     module_dns_init();
     module_influxdb_init();
     module_cdn_statistics_init();
+    module_kafka_init();
 }
 
 void libtrace_cleanup(libtrace_t *trace, libtrace_callback_set_t *processing,

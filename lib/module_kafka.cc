@@ -1,4 +1,6 @@
 #include "module_kafka.h"
+
+#include <librdkafka/rdkafka.h>
 #include <stdio.h>
 #include <signal.h>
 #include <string.h>
@@ -12,7 +14,7 @@ struct module_kafka_conf {
     const char *brokers;
     const char *topic;
 };
-struct module_kafka_conf *config;
+static struct module_kafka_conf *config;
 
 typedef struct module_kafka_options {
     rd_kafka_t *rk;          // producer instance handle
@@ -48,7 +50,7 @@ void *module_kafka_starting(void *tls) {
         opts->errstr, sizeof(opts->errstr)) != RD_KAFKA_CONF_OK) {
 
         fprintf(stderr, "Kafka error: %s\n", opts->errstr);
-        exit(DB_INIT_OUTPUT);
+        exit(OUTPUT_INIT);
     }
 
     // set delivery report callback
@@ -57,10 +59,10 @@ void *module_kafka_starting(void *tls) {
     // create producer instance
     opts->rk = rd_kafka_new(RD_KAFKA_PRODUCER, opts->conf, opts->errstr,
         sizeof(opts->errstr));
-    if (!rk) {
+    if (!opts->rk) {
         fprintf(stderr, "Kafka error: Failed to create new producer: %s\n",
             opts->errstr);
-        exit(BD_INIT_OUTPUT);
+        exit(OUTPUT_INIT);
     }
 
     return opts;
@@ -139,7 +141,7 @@ int module_kafka_post(bd_bigdata_t *bigdata, void *mls, bd_result_set *result) {
             first_pass = false;
         } else if (result->results[i].type == BD_TYPE_UINT) {
             if (!first_pass) strcat(str, ",");
-            snprintf(buf, INFLUX_BUF_LEN, "%" PRIu64, result->results[i].value.data_uint);
+            snprintf(buf, KAFKA_BUF_LEN, "%" PRIu64, result->results[i].value.data_uint);
             strcat(str, result->results[i].key);
             strcat(str, "=");
             strcat(str, buf);
@@ -202,7 +204,7 @@ void module_kafka_stopping(void *tls, void *mls) {
 
     // check output queue is empty
     if (rd_kafka_outq_len(opts->rk) > 0) {
-        fprintf(stderr, "Kafka message(s) were not delivered\n",
+        fprintf(stderr, "%d Kafka message(s) were not delivered\n",
             rd_kafka_outq_len(opts->rk));
     }
 
@@ -258,6 +260,8 @@ int module_kafka_config(yaml_parser_t *parser, yaml_event_t *event, int *level) 
             (cb_reporter_output)module_kafka_post;
         config->callbacks->reporter_stop_cb =
             (cb_reporter_stop)module_kafka_stopping;
+
+        fprintf(stdout, "Kafka plugin enabled\n");
     }
 
     return 0;

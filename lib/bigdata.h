@@ -30,16 +30,21 @@ typedef int (*cb_protocol) (libtrace_t *trace, libtrace_thread_t *thread,
 #include "bigdata_resultset.h"
 #include "bigdata_callbacks.h"
 
-// Capture modules
+// Input Plugins
 #include "module_dns.h"
 #include "module_http.h"
-#include "module_influxdb.h"
 #include "module_port.h"
 #include "module_statistics.h"
 #include "module_protocol_statistics.h"
 #include "module_cdn_statistics.h"
 
+// Output Plugins
+#include "module_influxdb.h"
+#include "module_kafka.h"
+
 #define BD_OUTOFMEMORY 1
+#define OUTPUT_INIT 2
+#define INPUT_INIT 3
 
 typedef struct bigdata {
     libtrace_t *trace;

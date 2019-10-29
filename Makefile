@@ -1,7 +1,7 @@
 CC=gcc
 
 # LINK EVERYTHING TOGETHER
-main: module_dns_spcdns_codec.o module_dns_spcdns_mappings.o module_dns.o bigdata_flow.o module_http.o module_influxdb.o bigdata.o module_statistics.o module_protocol_statistics.o bigdata_parser.o bigdata_resultset.o bigdata_callbacks.o module_cdn_statistics.o
+main: module_dns_spcdns_codec.o module_dns_spcdns_mappings.o module_dns.o bigdata_flow.o module_http.o module_influxdb.o bigdata.o module_statistics.o module_protocol_statistics.o bigdata_parser.o bigdata_resultset.o bigdata_callbacks.o module_cdn_statistics.o module_kafka.o
 	$(CC) lib/module_dns_spcdns_codec.o lib/module_dns_spcdns_mappings.o \
 		lib/module_dns.o \
 		lib/bigdata_flow.o \
@@ -14,7 +14,8 @@ main: module_dns_spcdns_codec.o module_dns_spcdns_mappings.o module_dns.o bigdat
 		lib/bigdata_resultset.o \
 		lib/bigdata_callbacks.o \
 		lib/module_cdn_statistics.o \
-		-ltrace -lflowmanager -lyaml -lprotoident -lm -lstdc++ -lcurl\
+		lib/module_kafka.o \
+		-ltrace -lflowmanager -lyaml -lprotoident -lm -lstdc++ -lcurl -lrdkafka\
 		-o bigdata -g
 
 
@@ -35,6 +36,10 @@ module_http.o: lib/module_http.cc lib/module_http.h
 # INFLUXDB MODULE
 module_influxdb.o: lib/module_influxdb.cc lib/module_influxdb.h
 	$(CC) lib/module_influxdb.cc -c -o lib/module_influxdb.o -g
+
+# KAFKA MODULE
+module_kafka.o: lib/module_kafka.cc lib/module_kafka.h
+	$(CC) lib/module_kafka.cc -c -o lib/module_kafka.o -g
 
 # STATISTICS MODULE
 module_statistics.o: lib/module_statistics.cc lib/module_statistics.h
