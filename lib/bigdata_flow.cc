@@ -54,15 +54,15 @@ Flow *flow_per_packet(libtrace_t *trace, libtrace_thread_t *thread,
         bd_cb_set *cbs = global_data->callbacks;
         for (; cbs != NULL; cbs = cbs->next) {
             if (cbs->flowstart_cb != NULL) {
-                cbs->flowstart_cb();
+                cbs->flowstart_cb((bd_flow_record_t *)flow->extension);
             }
         }
     }
 
-    /* update metrics for the flow */
+    // update metrics for the flow
     flow_process_metrics(packet, flow, dir, ts);
 
-    /* Tell libflowmanager to update the expiry time for this flow */
+    // update expiry time for this flow
     local_data->flow_manager->updateFlowExpiry(flow, packet, dir, ts);
 
     return flow;
@@ -137,29 +137,10 @@ int flow_expire(libtrace_t *trace, libtrace_thread_t *thread,
         // Gain access to the flow metrics
         bd_flow_record_t *flow_record = (bd_flow_record_t *)expired_flow->extension;
 
-        // Get the protocol name
-        /*flow_record->proto = strdup(flow_record->lpi_module->name);
-
-        // create resultset for flow record and output
-        bd_result_set_t *result_set = bd_result_set_create("flow");
-        bd_result_set_insert_double(result_set, "start_ts", flow_record->start_ts);
-        bd_result_set_insert_double(result_set, "end_ts", flow_record->end_ts);
-        bd_result_set_insert_tag(result_set, "protocol", flow_record->proto);
-        bd_result_set_insert_string(result_set, "src_ip", flow_record->src_ip);
-        bd_result_set_insert_string(result_set, "dst_ip", flow_record->dst_ip);
-        bd_result_set_insert_uint(result_set, "src_port", (uint64_t)flow_record->src_port);
-        bd_result_set_insert_uint(result_set, "dst_port", (uint64_t)flow_record->dst_port);
-        bd_result_set_insert_uint(result_set, "in_packets", flow_record->in_packets);
-        bd_result_set_insert_uint(result_set, "out_packets", flow_record->out_packets);
-        bd_result_set_insert_uint(result_set, "in_bytes", flow_record->in_bytes);
-        bd_result_set_insert_uint(result_set, "out_bytes", flow_record->out_bytes);
-        // output the result set
-        bd_result_set_publish(trace, thread, result_set); */
-
         // call all callbacks registered to flowend events
         for (; cbs != NULL; cbs = cbs->next) {
             if (cbs->flowend_cb != NULL) {
-                cbs->flowend_cb();
+                cbs->flowend_cb(flow_record);
             }
         }
 

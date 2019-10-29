@@ -20,7 +20,7 @@ typedef struct bigdata_network bd_network_t;
 typedef struct bigdata bd_bigdata_t;
 typedef struct bigdata_global bd_global_t;
 typedef struct bigdata_callback_set bd_cb_set;
-
+typedef struct bigdata_flow_record bd_flow_record_t;
 typedef int (*cb_protocol) (libtrace_t *trace, libtrace_thread_t *thread,
     Flow *flow, libtrace_packet_t *packet, void *tls, void *mls);
 
@@ -86,8 +86,8 @@ typedef int (*cb_reporter_combiner) (bd_bigdata_t *bigdata, void *mls,
 typedef int (*cb_reporter_stop) (void *tls, void *mls);
 
 
-typedef int (*cb_flowend) ();
-typedef int (*cb_flowstart) ();
+typedef int (*cb_flowend) (bd_flow_record_t *flow_record);
+typedef int (*cb_flowstart) (bd_flow_record_t *flow_record);
 
 typedef int (*cb_tick) (libtrace_t *trace, libtrace_thread_t *thread,
     void *tls, void *mls, uint64_t tick);
@@ -125,6 +125,7 @@ typedef struct bigdata_callback_set {
     cb_config config_cb;
     // clear callback to clear any counters the module has
     cb_clear clear_cb;
+    // protocol callbacks
     cb_protocol protocol_cb[LPI_PROTO_LAST];
     bd_cb_set *next;
 } bd_cb_set;
