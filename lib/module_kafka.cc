@@ -172,10 +172,11 @@ int module_kafka_post(bd_bigdata_t *bigdata, void *mls, bd_result_set *result) {
     }
 
 
+retry:
     // post the result to the kafka topic
     err = rd_kafka_producev(opts->rk,
                       RD_KAFKA_V_TOPIC(config->topic),
-                      RD_KAFKA_V_MSGFLAGS(RD_KAFKA_MSG_F_COPY),
+                      RD_KAFKA_V_MSGFLAGS(RD_KAFKA_MSG_F_FREE),
                       RD_KAFKA_V_VALUE(str, strlen(str)),
                       RD_KAFKA_V_OPAQUE(NULL),
                       RD_KAFKA_V_END);
@@ -183,14 +184,29 @@ int module_kafka_post(bd_bigdata_t *bigdata, void *mls, bd_result_set *result) {
     if (err) {
         fprintf(stderr, "Kafka failed to produce to topic %s: %s\n",
             config->topic, rd_kafka_err2str(err));
-        free(str);
-        return 1;
+
+        if (err == RD_KAFKA_RESP_ERR__QUEUE_FULL) {
+            /* If the internal queue is full, wait for
+             * messages to be delivered and then retry.
+             * The internal queue represents both
+             * messages to be sent and messages that have
+             * been sent or failed, awaiting their
+             * delivery report callback to be called.
+             *
+             * The internal queue is limited by the
+             * configuration property
+             * queue.buffering.max.messages
+             */
+            rd_kafka_poll(opts->rk, 1000/*block for max 1000ms*/);
+            goto retry;
+        }
     }
 
     // serve the delivery report queue. posibly add this to tick event?
     rd_kafka_poll(opts->rk, 0);
 
-    free(str);
+    // libkafka is set to free str when it is done with it
+    //free(str);
 
     return 0;
 }

@@ -15,7 +15,7 @@ struct module_influxdb_conf {
     char *pwd;
     bool ssl_verifypeer;
 };
-struct module_influxdb_conf *config;
+static struct module_influxdb_conf *config;
 
 typedef struct module_influxdb_options {
     CURL *curl;
