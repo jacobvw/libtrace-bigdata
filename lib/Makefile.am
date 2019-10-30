@@ -1,0 +1,29 @@
+CFLAGS =
+LDFLAGS =
+
+if HAVE_LIBRDKAFKA
+KAFKASOURCE = module_kafka.cc module_kafka.h
+else
+KAFKASOURCE =
+endif
+
+if HAVE_LIBCURL
+INFLUXDBSOUCE = module_influxdb.cc module_influxdb.h
+else
+INFLUXDBSOUCE =
+endif
+
+bin_PROGRAMS = bigdata
+bigdata_SOURCES = bigdata.cc bigdata.h \
+		bigdata_callbacks.cc bigdata_callbacks.h \
+		bigdata_flow.cc bigdata_flow.h \
+		bigdata_parser.cc bigdata_parser.h \
+		bigdata_resultset.cc bigdata_resultset.h \
+		module_cdn_statistics.cc module_cdn_statistics.h \
+		module_dns.cc module_dns.h module_dns_spcdns.h module_dns_spcdns_codec.c \
+		module_dns_spcdns_mappings.c module_dns_spcdns_mappings.h \
+		module_http.cc module_http.h \
+		module_protocol_statistics.cc module_protocol_statistics.h \
+		module_statistics.cc module_statistics.h \
+		$(KAFKASOURCE) \
+		$(INFLUXDBSOUCE)
