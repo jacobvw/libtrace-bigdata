@@ -72,9 +72,7 @@ int module_MODULENAME_tick(libtrace_t *trace, libtrace_thread_t *thread, void *t
     /* regain access to the module storage defined in the starting function */
     struct module_MODULENAME_storage *stor = (struct module_MODULENAME_storage *)mls;
 
-    /* if this result needs to be combined with results from other processing threads
-     * the result is copied and passed back to the application core
-     */
+    /* the result can now be combined with results from other processing threads */
     /* first create a structure to copy the result to */
     struct module_MODULENAME_storage *res = (struct module_MODULENAME_storage *)
         malloc(sizeof(struct module_MODULENAME_storage));
@@ -84,7 +82,7 @@ int module_MODULENAME_tick(libtrace_t *trace, libtrace_thread_t *thread, void *t
     /* now post the result to be combined */
     bd_result_combine(trace, thread, res, tick, config->callbacks->id);
 
-    // clear the module storage for the next round
+    /* clear the module storage for the next round */
     stor->bytes = 0;
     stor->http_packets = 0;
 
@@ -130,6 +128,7 @@ int module_MODULENAME_reporter_combiner(bigdata_t *bigdata, void *mls, uint64_t 
      * When a tick is seen greater than the previous all partial results for that
      * period have been received and the result can be output.
      */
+
     /* last_tick will only be 0 on the first pass so assign to the current tick */
     if (totals->last_tick == 0) {
         totals->last_tick = tick;
@@ -179,7 +178,8 @@ int module_MODULENAME_reporter_stopping(void *tls, void *mls) {
 int module_MODULENAME_config(yaml_parser_t *parser, yaml_event_t *event, int *level) {
 
     /* parse the plugins configuration from the configuration file. Currently this
-     * plugin only supports the enabled parameter */
+     * plugin only supports the enabled parameter
+     */
     int enter_level = *level;
     bool first_pass = 1;
 
