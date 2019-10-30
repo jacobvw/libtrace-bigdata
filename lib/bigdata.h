@@ -4,6 +4,9 @@
 // base tickrate
 #define BIGDATA_TICKRATE 1000 // milliseconds
 
+// compiler defines
+#include "config.h"
+
 // external libraries
 #include <libtrace_parallel.h>
 #include <libprotoident.h>
@@ -39,8 +42,12 @@ typedef int (*cb_protocol) (libtrace_t *trace, libtrace_thread_t *thread,
 #include "module_cdn_statistics.h"
 
 // Output Plugins
-#include "module_influxdb.h"
-#include "module_kafka.h"
+#ifdef HAVE_LIBCURL
+    #include "module_influxdb.h"
+#endif
+#ifdef HAVE_LIBRDKAFKA
+    #include "module_kafka.h"
+#endif
 
 #define BD_OUTOFMEMORY 1
 #define OUTPUT_INIT 2

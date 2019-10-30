@@ -56,7 +56,6 @@
 
 #ifdef __cplusplus
 #  define class dclass
-#  define restrict
    extern "C" {
 #endif
 

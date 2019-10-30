@@ -10,9 +10,14 @@ void init_modules() {
     module_statistics_init();
     module_protocol_statistics_init();
     module_dns_init();
+#ifdef HAVE_LIBCURL
     module_influxdb_init();
+    fprintf(stderr, "Enable influx\n");
+#endif
     module_cdn_statistics_init();
+#ifdef HAVE_LIBRDKAFKA
     module_kafka_init();
+#endif
 }
 
 void libtrace_cleanup(libtrace_t *trace, libtrace_callback_set_t *processing,
