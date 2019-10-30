@@ -1,7 +1,7 @@
 libflowmanager
 libprotoident
 libtrace
-
+libcurl
 libyaml - https://github.com/yaml/libyaml
 libm
 lstdc++
