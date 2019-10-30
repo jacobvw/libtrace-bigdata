@@ -26,11 +26,14 @@ AC_CHECK_LIB([protoident], [lpi_init_library],,[AC_MSG_ERROR(Libprotoident is re
 AC_CHECK_LIB([yaml], [yaml_parser_initialize],,[AC_MSG_ERROR(Libyaml is required to compile Libtrace-bigdata)])
 AC_CHECK_LIB([flowmanager], [lfm_version_three],,[AC_MSG_ERROR(Libflowmanager 3.0.0 or greater is required to compile Libtrace-bigdata)])
 
-bigdata_rdkafka=true
-AC_CHECK_LIB([rdkafka], [rd_kafka_conf_new],,[bigdata_rdkafka=false])
+# check for librdkafka
+rdkafkafound=true
+AC_CHECK_LIB([rdkafka], [rd_kafka_conf_new],,[rdkafkafound=false])
 
-bigdata_curl=true
-AC_CHECK_LIB([curl], [curl_global_init],,[bigdata_curl=false])
+# check for libcurl
+curlfound=true
+AC_CHECK_LIB([curl], [curl_global_init],,[curlfound=false])
+
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_CHECK_HEADER_STDBOOL
@@ -49,7 +52,7 @@ AC_FUNC_REALLOC
 AC_FUNC_STRTOD
 AC_CHECK_FUNCS([memchr memset modf pow strdup])
 
-AC_OUTPUT(Makefile lib/Makefile)
+AM_CONDITIONAL([HAVE_LIBRDKAFKA], [test "x$rdkafkafound" = xtrue])
+AM_CONDITIONAL([HAVE_LIBCURL], [test "x$curlfound" = xtrue])
 
-AM_CONDITIONAL([HAVE_LIBRDKAFKA], [test "bigdata_rdkafka" = true])
-AM_CONDITIONAL([HAVE_LIBCURL], [test "bigdata_curl" = true])
+AC_OUTPUT(Makefile lib/Makefile)

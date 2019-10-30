@@ -1,16 +1,14 @@
-CFLAGS =
-LDFLAGS =
 
 if HAVE_LIBRDKAFKA
 KAFKASOURCE = module_kafka.cc module_kafka.h
 else
-KAFKASOURCE =
+KAFKASOURCE=
 endif
 
 if HAVE_LIBCURL
 INFLUXDBSOUCE = module_influxdb.cc module_influxdb.h
 else
-INFLUXDBSOUCE =
+INFLUXDBSOUCE=
 endif
 
 bin_PROGRAMS = bigdata
