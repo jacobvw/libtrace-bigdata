@@ -29,10 +29,16 @@ AC_CHECK_LIB([flowmanager], [lfm_version_three],,[AC_MSG_ERROR(Libflowmanager 3.
 # check for librdkafka
 rdkafkafound=true
 AC_CHECK_LIB([rdkafka], [rd_kafka_conf_new],,[rdkafkafound=false])
+if test "x$rdkafkafound" = xfalse; then
+    AC_MSG_WARN(Librdkafka not found. Kafka plugin will not be compiled)
+fi
 
 # check for libcurl
 curlfound=true
 AC_CHECK_LIB([curl], [curl_global_init],,[curlfound=false])
+if test "x$curlfound" = xfalse; then
+    AC_MSG_WARN(Libcurl not found. InfluxDB plugin will not be compiled)
+fi
 
 
 # Checks for typedefs, structures, and compiler characteristics.
