@@ -52,6 +52,7 @@ typedef int (*cb_protocol) (libtrace_t *trace, libtrace_thread_t *thread,
 #define BD_OUTOFMEMORY 1
 #define OUTPUT_INIT 2
 #define INPUT_INIT 3
+#define BD_INVALID_CONFIG 4
 
 typedef struct bigdata {
     libtrace_t *trace;

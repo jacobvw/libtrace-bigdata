@@ -12,7 +12,6 @@ void init_modules() {
     module_dns_init();
 #ifdef HAVE_LIBCURL
     module_influxdb_init();
-    fprintf(stderr, "Enable influx\n");
 #endif
     module_cdn_statistics_init();
 #ifdef HAVE_LIBRDKAFKA
@@ -334,6 +333,10 @@ int main(int argc, char *argv[]) {
 
     // parse configuration
     global_data->config = parse_config(argv[1], global_data);
+    if (global_data->config == NULL) {
+        fprintf(stderr, "Usage: ./bigdata config.yaml\n");
+        exit(BD_INVALID_CONFIG);
+    }
 
     libtrace_t *trace = NULL;
     libtrace_callback_set_t *processing = NULL;
