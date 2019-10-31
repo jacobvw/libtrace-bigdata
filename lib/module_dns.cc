@@ -386,6 +386,8 @@ int module_dns_config(yaml_parser_t *parser, yaml_event_t *event, int *level) {
 
         config->callbacks->stop_cb = (cb_stop)module_dns_ending;
         bd_add_filter_to_cb_set(config->callbacks, "port 53");
+
+        fprintf(stdout, "DNS Plugin Enabled\n");
     }
 }
 

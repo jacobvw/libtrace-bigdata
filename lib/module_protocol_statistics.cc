@@ -442,6 +442,8 @@ int module_protocol_statistics_config(yaml_parser_t *parser, yaml_event_t *event
         config->callbacks->reporter_stop_cb = (cb_reporter_stop)
             module_protocol_statistics_reporter_stop;
         config->callbacks->clear_cb = (cb_clear)module_protocol_statistics_clear;
+
+        fprintf(stdout, "Protocol Statistics Plugin Enabled\n");
     }
 
     return 0;

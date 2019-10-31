@@ -191,7 +191,7 @@ int module_statistics_combiner(bd_bigdata_t *bigdata, void *mls,
 
     // if a new result is due
     if (tally->lastkey <  tick) {
-        bd_result_set_t *result_set = bd_result_set_create("stats");
+        bd_result_set_t *result_set = bd_result_set_create("statistics");
         bd_result_set_insert_uint(result_set, "in_bytes", tally->c_in_bytes);
         bd_result_set_insert_uint(result_set, "out_bytes", tally->c_out_bytes);
         bd_result_set_insert_uint(result_set, "in_packets", tally->c_in_packets);
@@ -339,6 +339,8 @@ int module_statistics_config(yaml_parser_t *parser, yaml_event_t *event, int *le
             module_statistics_reporter_stop;
 
         config->callbacks->clear_cb = (cb_clear)module_statistics_clear;
+
+        fprintf(stderr, "Statistics Plugin Enabled\n");
     }
 
     return 0;

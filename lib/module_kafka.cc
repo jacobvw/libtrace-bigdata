@@ -277,7 +277,7 @@ int module_kafka_config(yaml_parser_t *parser, yaml_event_t *event, int *level) 
         config->callbacks->reporter_stop_cb =
             (cb_reporter_stop)module_kafka_stopping;
 
-        fprintf(stdout, "Kafka plugin enabled\n");
+        fprintf(stdout, "Kafka Plugin Enabled\n");
     }
 
     return 0;
