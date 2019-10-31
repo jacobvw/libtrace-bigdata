@@ -32,7 +32,7 @@ int module_MODULENAME_post(bd_bigdata_t *bigdata, void *mls, bd_result_set *resu
     /* gain access to module storage */
     struct module_MODULENAME_storage *stor = (struct module_MODULENAME_storage *)mls;
 
-    /* This is where you convert the result set into the output plugin native
+    /* This is where you convert the result set into the output plugins native
      * format. Check the InfluxDB or Kafka plugins for some examples of working
      * solutions
      */

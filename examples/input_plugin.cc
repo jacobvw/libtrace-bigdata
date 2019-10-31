@@ -36,8 +36,10 @@ void *module_MODULENAME_starting(void *tls) {
 }
 
 /* define a function to receive all packets */
-int module_MODULENAME_packet(libtrace_t *trace, libtrace_thread_t *thread, Flow *flow,
-    libtrace_packet_t *packet, void *tls, void *mls) {
+int module_MODULENAME_packet(bd_bigdata_t *bigdata, void *tls, void *mls) {
+
+    /* get access to the packet */
+    libtrace_packet_t *packet = bd_get_packet(bigdata);
 
     /* regain access to the module storage defined in the starting function */
     struct module_MODULENAME_storage *stor = (struct module_MODULENAME_storage *)mls;
@@ -52,8 +54,7 @@ int module_MODULENAME_packet(libtrace_t *trace, libtrace_thread_t *thread, Flow 
 }
 
 /* define a function to receive only HTTP packets */
-int module_MODULENAME_http_packet(libtrace_t *trace, libtrace_thread_t *thread, Flow *flow,
-    libtrace_packet_t *packet, void *tls, void *mls) {
+int module_MODULENAME_http_packet(bd_bigdata_t *bigdata, void *tls, void *mls) {
 
     /* regain access to the module storage defined in the starting function */
     struct module_MODULENAME_storage *stor = (struct module_MODULENAME_storage *)mls;
@@ -66,8 +67,7 @@ int module_MODULENAME_http_packet(libtrace_t *trace, libtrace_thread_t *thread, 
 
 /* define a tick function to output the results for each processing thread.
  * Note: each processing thread calls this independantly. */
-int module_MODULENAME_tick(libtrace_t *trace, libtrace_thread_t *thread, void *tls,
-    void *mls, uint64_t tick) {
+int module_MODULENAME_tick(bd_bigdata_t *bigdata, void *mls, uint64_t tick) {
 
     /* regain access to the module storage defined in the starting function */
     struct module_MODULENAME_storage *stor = (struct module_MODULENAME_storage *)mls;
@@ -145,10 +145,8 @@ int module_MODULENAME_reporter_combiner(bigdata_t *bigdata, void *mls, uint64_t 
         /* insert the timestamp into the result set */
         bd_result_set_insert_timestamp(resultset, tick);
 
-        /* send result set to the output event */
-        bd_callback_trigger_output(bigdata, resultset);
-        /* free the result set */
-        bd_result_set_free(resultset);
+        /* send result set to be published */
+        bd_result_set_publish(bigdata, resultset, tick);
 
         /* clear totals for next round of results */
         totals->bytes = 0;

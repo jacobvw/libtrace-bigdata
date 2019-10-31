@@ -86,4 +86,4 @@ where:
   kafka:
     enabled: 0
     brokers: 127.0.0.1:9092
-    topic: topic
+    topic: topicname
