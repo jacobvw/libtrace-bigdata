@@ -76,10 +76,17 @@ int flow_init_metrics(libtrace_packet_t *packet, Flow *flow, uint8_t dir, double
         exit(BD_OUTOFMEMORY);
     }
 
-    struct sockaddr *src_ip, *dst_ip;
+    // Make sure to set the ss_family if no source or destination address was found
+    if (trace_get_source_address(packet, (struct sockaddr *)
+        &(flow_record->src_ip)) == NULL) {
 
-    src_ip = trace_get_source_address(packet, (struct sockaddr *)&(flow_record->src_ip));
-    dst_ip = trace_get_destination_address(packet, (struct sockaddr *)&(flow_record->dst_ip));
+        flow_record->src_ip.ss_family = AF_UNSPEC;
+    }
+    if (trace_get_destination_address(packet, (struct sockaddr *)
+        &(flow_record->dst_ip)) == NULL) {
+
+        flow_record->dst_ip.ss_family = AF_UNSPEC;
+    }
 
     flow_record->src_port = trace_get_source_port(packet);
     flow_record->dst_port = trace_get_destination_port(packet);
