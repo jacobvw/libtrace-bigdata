@@ -76,8 +76,13 @@ void *module_statistics_starting(void *tls) {
     return stats;
 }
 
-int module_statistics_packet(libtrace_t *trace, libtrace_thread_t *thread,
-    Flow *flow, libtrace_packet_t *packet, void *tls, void *mls) {
+int module_statistics_packet(bd_bigdata_t *bigdata, void *mls) {
+
+    libtrace_t *trace = bigdata->trace;
+    libtrace_thread_t *thread = bigdata->thread;
+    libtrace_packet_t *packet = bigdata->packet;
+    Flow *flow = bigdata->flow;
+    void *tls = bigdata->tls;
 
     // get the module local storage
     mod_stats_t *stats = (mod_stats_t *)mls;

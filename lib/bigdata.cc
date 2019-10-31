@@ -98,14 +98,12 @@ libtrace_packet_t *per_packet(libtrace_t *trace, libtrace_thread_t *thread,
     void *global, void *tls, libtrace_packet_t *packet) {
 
     Flow *flow = NULL;
-    int ret = 0;
-    int cb_counter = 0;
 
     // Get global and thread local data
     bd_global_t *g_data = (bd_global_t *)global;
     bd_thread_local_t *l_data = (bd_thread_local_t *)tls;
 
-    // pass packet into the flow manager
+    // pass packet into the flow manager to get flow
     flow = flow_per_packet(trace, thread, packet, global, tls);
 
     // create bigdata structure
@@ -124,19 +122,7 @@ libtrace_packet_t *per_packet(libtrace_t *trace, libtrace_thread_t *thread,
     }
 
     // trigger packet event
-    bd_cb_set *cbs = g_data->callbacks;
-    for (; cbs != NULL; cbs = cbs->next) {
-        if (cbs->packet_cb != NULL) {
-            if (cbs->filter != NULL) {
-                if (trace_apply_filter(cbs->filter, packet)) {
-                    cbs->packet_cb(trace, thread, flow, packet, tls, l_data->mls[cb_counter]);
-                }
-            } else {
-                cbs->packet_cb(trace, thread, flow, packet, tls, l_data->mls[cb_counter]);
-            }
-        }
-        cb_counter += 1;
-    }
+    bd_callback_trigger_packet(&bigdata);
 
     // Expire all suitably idle flows.
     flow_expire(trace, thread, packet, global, tls);

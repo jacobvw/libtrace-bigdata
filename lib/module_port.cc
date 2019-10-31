@@ -21,7 +21,13 @@ void *module_port_starting(void *tls) {
     return storage;
 }
 
-int module_port_packet(libtrace_t *trace, libtrace_packet_t *packet, Flow *flow, void *tls, void *mls) {
+int module_port_packet(bd_bigdata_t *bigdata, void *mls) {
+
+    libtrace_t *trace = bigdata->trace;
+    libtrace_thread_t *thread = bigdata->thread;
+    libtrace_packet_t *packet = bigdata->packet;
+    Flow *flow = bigdata->flow
+    void *tls = bigdata->tls;
 
     uint16_t ethertype;
     uint32_t remaining;

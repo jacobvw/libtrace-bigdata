@@ -24,8 +24,7 @@ typedef struct bigdata bd_bigdata_t;
 typedef struct bigdata_global bd_global_t;
 typedef struct bigdata_callback_set bd_cb_set;
 typedef struct bigdata_flow_record bd_flow_record_t;
-typedef int (*cb_protocol) (libtrace_t *trace, libtrace_thread_t *thread,
-    Flow *flow, libtrace_packet_t *packet, void *tls, void *mls);
+typedef int (*cb_protocol) (bd_bigdata_t *bigdata, void *mls);
 
 // internal libraries
 #include "bigdata_parser.h"
@@ -83,8 +82,8 @@ typedef struct bigdata_network {
 
 // events
 typedef void* (*cb_start) (void *tls);
-typedef int (*cb_packet) (libtrace_t *trace, libtrace_thread_t *thread,
-    Flow *flow, libtrace_packet_t *packet, void *tls, void *mls);
+typedef int (*cb_packet) (bd_bigdata_t *bigdata, void *mls);
+typedef int (*cb_protocol) (bd_bigdata_t *bigdata, void *mls);
 typedef int (*cb_stop) (void *tls, void *mls);
 
 
@@ -108,9 +107,6 @@ typedef int (*cb_tick) (libtrace_t *trace, libtrace_thread_t *thread,
 typedef int (*cb_config) (yaml_parser_t *parser, yaml_event_t *event, int *level);
 
 typedef int (*cb_clear) (void *mls);
-
-typedef int (*cb_protocol) (libtrace_t *trace, libtrace_thread_t *thread,
-    Flow *flow, libtrace_packet_t *packet, void *tls, void *mls);
 
 typedef struct bigdata_callback_set bd_cb_set;
 typedef struct bigdata_callback_set {

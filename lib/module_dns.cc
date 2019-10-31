@@ -88,8 +88,13 @@ void *module_dns_starting(void *tls) {
     return storage;
 }
 
-int module_dns_packet(libtrace_t *trace, libtrace_thread_t *thread,
-    Flow *flow, libtrace_packet_t *packet, void *tls, void *mls) {
+int module_dns_packet(bd_bigdata_t *bigdata, void *mls) {
+
+    libtrace_t *trace = bigdata->trace;
+    libtrace_thread_t *thread = bigdata->thread;
+    libtrace_packet_t *packet = bigdata->packet;
+    Flow *flow = bigdata->flow;
+    void *tls = bigdata->tls;
 
     // Gain access to module local storage and thread local storage
     struct module_dns_local *m_local = (struct module_dns_local *)mls;
