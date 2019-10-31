@@ -1,8 +1,8 @@
 # host
-hostname: host1
+hostname: hostname
 
 # network interface to capture data on. 
-interface: ens18
+interface: eth0
 
 # number of packet processing threads
 threads: 4
@@ -11,8 +11,7 @@ threads: 4
 local_networks_as_direction: 1
 
 local_networks:
-  - 192.168.20.0/24
-  - 2406:1E00:B910:2600::/56
+  - 192.168.1.0/24
 
 # Enable libtrace HASHER_BIDIRECTIONAL hasher.
 # Only enable if you do NOT have another mechanism for assigning packets
@@ -20,14 +19,14 @@ local_networks:
 enable_bidirectional_hasher: 0
 
 # Enable debug output to stderr
-debug: 1
+debug: 0
 
 # capture modules
 foreach:
 
   # dns module
   dns:
-    enabled: 1
+    enabled: 0
     # timeout to flush old requests that have not received a response
     timeout_request: 20
     # how often to check for timed out requests with no response
@@ -35,7 +34,7 @@ foreach:
 
   # protocol statistics module
   protocol_statistics:
-    enabled: 1
+    enabled: 0
     # how often to output results in seconds
     output_interval: 60
     metrics:
@@ -46,7 +45,7 @@ foreach:
 
   # statistics module
   statistics:
-    enabled: 1
+    enabled: 0
     output_interval: 60
     metrics:
       - byte_count
@@ -75,16 +74,16 @@ foreach:
 where:
 
   influxdb:
-    enabled: 1
+    enabled: 0
     # Enable certificate verification
     ssl_verify_peer: 1
-    host: http://192.168.20.40 
+    host: http://127.0.0.1
     port: 8086
-    database: libtrace
-    username: admin
-    password: admin
+    database: database
+    username: user
+    password: password
 
   kafka:
-    enabled: 1
+    enabled: 0
     brokers: 127.0.0.1:9092
-    topic: testTopic
+    topic: topic
