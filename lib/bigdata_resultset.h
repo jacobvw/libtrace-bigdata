@@ -80,11 +80,9 @@ int bd_result_set_insert_timestamp(bd_result_set_t *result_set, uint64_t timesta
 int bd_result_set_insert_tag(bd_result_set_t *result_set, const char *tag,
     const char *value);
 
-int bd_result_set_publish(libtrace_t *trace, libtrace_thread_t *thread,
-    bd_result_set_t *result, uint64_t key);
+int bd_result_set_publish(bd_bigdata_t *bigdata, bd_result_set_t *result, uint64_t key);
 
-int bd_result_combine(libtrace_t *trace, libtrace_thread_t *thread,
-    void *result, uint64_t key, int module_id);
+int bd_result_combine(bd_bigdata_t *bigdata, void *result, uint64_t key, int module_id);
 
 int bd_result_set_free(bd_result_set_t *result_set);
 

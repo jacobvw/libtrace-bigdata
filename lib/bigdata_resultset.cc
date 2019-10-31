@@ -128,37 +128,45 @@ int bd_result_set_insert_tag(bd_result_set_t *result_set, const char *tag,
 
 // to send a result set to any registered output modules. Should
 // only be called by processing threads
-int bd_result_set_publish(libtrace_t *trace, libtrace_thread_t *thread,
-    bd_result_set_t *result, uint64_t key) {
+int bd_result_set_publish(bd_bigdata_t *bigdata, bd_result_set_t *result, uint64_t key) {
 
     if (result == NULL) {
         fprintf(stderr, "NULL result set. func. bd_result_set_output()\n");
         return -1;
     }
 
-    bd_result_set_wrap_t *res = (bd_result_set_wrap_t *)
-        malloc(sizeof(bd_result_set_wrap_t));
-    if (res == NULL) {
-        fprintf(stderr, "Unable to allocate memory. func. bd_result_set_publish()\n");
-        exit(BD_OUTOFMEMORY);
+    /* If the current thread is not a processing thread, trigger the output event
+       directly */
+    if (trace_get_perpkt_thread_id(bigdata->thread) == -1) {
+
+        bd_callback_trigger_output(bigdata, result);
+
+    /* Otherwise post to the reporter thread */
+    } else {
+
+        bd_result_set_wrap_t *res = (bd_result_set_wrap_t *)
+            malloc(sizeof(bd_result_set_wrap_t));
+        if (res == NULL) {
+            fprintf(stderr, "Unable to allocate memory. func. bd_result_set_publish()\n");
+            exit(BD_OUTOFMEMORY);
+        }
+        res->type = BD_RESULT_PUBLISH;
+        res->value = (void *)result;
+        res->module_id = 0;
+        res->key = key;
+
+        libtrace_generic_t gen;
+        gen.ptr = (void *)res;
+
+        trace_publish_result(bigdata->trace, bigdata->thread, key, gen, RESULT_USER);
     }
-    res->type = BD_RESULT_PUBLISH;
-    res->value = (void *)result;
-    res->module_id = 0;
-    res->key = key;
-
-    libtrace_generic_t gen;
-    gen.ptr = (void *)res;
-
-    trace_publish_result(trace, thread, key, gen, RESULT_USER);
 
     return 0;
 }
 
 // to send a result to the registered combine callback for the supplied module id.
 // Should only be called from a processing thread.
-int bd_result_combine(libtrace_t *trace, libtrace_thread_t *thread,
-    void *result, uint64_t key, int module_id) {
+int bd_result_combine(bd_bigdata_t *bigdata, void *result, uint64_t key, int module_id) {
 
     if (result == NULL) {
         fprintf(stderr, "NULL result set. func. bd_result_set_combine()\n");
@@ -179,7 +187,17 @@ int bd_result_combine(libtrace_t *trace, libtrace_thread_t *thread,
     libtrace_generic_t gen;
     gen.ptr = (void *)res;
 
-    trace_publish_result(trace, thread, key, gen, RESULT_USER);
+    /* If the current thread is not a processing thread, trigger the combiner event
+       directly */
+    if (trace_get_perpkt_thread_id(bigdata->thread) == -1) {
+
+        bd_callback_trigger_combiner(bigdata, res);
+
+    } else {
+
+        trace_publish_result(bigdata->trace, bigdata->thread, key, gen, RESULT_USER);
+    }
+
 
     return 0;
 }

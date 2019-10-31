@@ -134,8 +134,11 @@ int module_statistics_stopping(void *tls, void *mls) {
     free(stats);
 }
 
-int module_statistics_tick(libtrace_t *trace, libtrace_thread_t *thread,
-    void *tls, void *mls, uint64_t tick) {
+int module_statistics_tick(bd_bigdata_t *bigdata, void *mls, uint64_t tick) {
+
+    libtrace_t *trace = bigdata->trace;
+    libtrace_thread_t *thread = bigdata->thread;
+    void *tls = bigdata->tls;
 
     // gain access to the stats
     mod_stats_t *stats = (mod_stats_t *)mls;
@@ -162,7 +165,7 @@ int module_statistics_tick(libtrace_t *trace, libtrace_thread_t *thread,
     module_statistics_clear_stor(stats);
 
     // send results to the combiner function
-    bd_result_combine(trace, thread, combine, tick, config->callbacks->id);
+    bd_result_combine(bigdata, combine, tick, config->callbacks->id);
 
     return 0;
 }
@@ -222,10 +225,9 @@ int module_statistics_combiner(bd_bigdata_t *bigdata, void *mls,
         bd_result_set_insert_timestamp(result_set, tick);
         // insert time interval
         bd_result_set_insert_int(result_set, "interval", config->output_interval);
-        // send the result to any output modules
-        bd_callback_trigger_output(bigdata, result_set);
-        // clear the result set
-        bd_result_set_free(result_set);
+
+        // post the result
+        bd_result_set_publish(bigdata, result_set, tick);
 
         // clear the tally
         module_statistics_clear_stor(tally);

@@ -65,6 +65,9 @@ int bd_callback_trigger_output(bd_bigdata_t *bigdata, bd_result_set_t *result) {
         cb_counter += 1;
     }
 
+    /* result has now be passed to all output plugins, free the result */
+    bd_result_set_free(result);
+
     return ret;
 }
 
@@ -142,6 +145,61 @@ int bd_callback_trigger_packet(bd_bigdata_t *bigdata) {
             }
         }
         cb_counter += 1;
+    }
+
+    return ret;
+}
+
+int bd_callback_trigger_tick(bd_bigdata_t *bigdata, uint64_t tick) {
+
+    int ret = 0;
+    int cb_counter = 0;
+
+    // get the global data
+    bd_global_t *global = (bd_global_t *)bigdata->global;
+    // get global configuration
+    bd_conf_t *config = global->config;
+
+    // get the thread local data
+    bd_thread_local_t *l_data = (bd_thread_local_t *)bigdata->tls;
+
+    // convert ERF timestamp to seconds
+    uint64_t timestamp_seconds = tick >> 32;
+
+    bd_cb_set *cbs = global->callbacks;
+    for (; cbs != NULL; cbs = cbs->next) {
+        if (cbs->tick_cb != NULL) {
+
+            // c_tickrate will be 0 on the first pass.
+            if (l_data->c_tickrate[cb_counter] == 0) {
+                // Align the output to nearest boundary.
+                // E.G. output interval of 60 seconds will be on the minute boundary:
+                // 12:00, 12:01, 12:02 etc.
+                if ((timestamp_seconds % cbs->tickrate) == 0) {
+                    l_data->c_tickrate[cb_counter] = timestamp_seconds + cbs->tickrate;
+                    // if the module has a clear callback call it to reset any counters
+                    if (cbs->clear_cb != NULL) {
+                        ret = cbs->clear_cb(l_data->mls[cb_counter]);
+                    }
+                }
+
+            // if the current module is due a tick
+            // note: modules receive tick time in seconds
+            } else if (l_data->c_tickrate[cb_counter] <= timestamp_seconds) {
+                ret = cbs->tick_cb(bigdata, l_data->mls[cb_counter], timestamp_seconds);
+                l_data->c_tickrate[cb_counter] = timestamp_seconds + cbs->tickrate;
+            }
+        }
+        cb_counter += 1;
+    }
+
+    // output some libtrace stats if debug is enabled
+    if (config->debug) {
+        libtrace_stat_t *stats = trace_create_statistics();
+        trace_get_statistics(bigdata->trace, stats);
+        fprintf(stderr, "Accepted %lu packets, Dropped %lu packets\n",
+            stats->accepted, stats->dropped);
+        free(stats);
     }
 
     return ret;

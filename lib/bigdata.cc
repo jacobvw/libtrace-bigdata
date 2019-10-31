@@ -155,52 +155,18 @@ static void stop_processing(libtrace_t *trace, libtrace_thread_t *thread, void *
 static void per_tick(libtrace_t *trace, libtrace_thread_t *thread, void *global,
     void *tls, uint64_t tick) {
 
-    int cb_counter = 0;
-    // get the global data
-    bd_global_t *g_data = (bd_global_t *)global;
-    // get global configuration
-    bd_conf_t *config = g_data->config;
-    // get the thread local data
-    bd_thread_local_t *l_data = (bd_thread_local_t *)tls;
+    // create bigdata structure
+    bd_bigdata_t bigdata;
+    bigdata.trace = trace;
+    bigdata.thread = thread;
+    bigdata.packet = NULL;
+    bigdata.flow = NULL;
+    bigdata.global = (bd_global_t *)global;
+    bigdata.tls = tls;
 
-    // convert ERF timestamp to seconds
-    uint64_t timestamp_seconds = tick >> 32;
+    // trigger the tick events
+    bd_callback_trigger_tick(&bigdata, tick);
 
-    bd_cb_set *cbs = g_data->callbacks;
-    for (; cbs != NULL; cbs = cbs->next) {
-        if (cbs->tick_cb != NULL) {
-
-            // c_tickrate will be 0 on the first pass.
-            if (l_data->c_tickrate[cb_counter] == 0) {
-                // Align the output to nearest boundary.
-                // E.G. output interval of 60 seconds will be on the minute boundary:
-                // 12:00, 12:01, 12:02 etc.
-                if ((timestamp_seconds % cbs->tickrate) == 0) {
-                    l_data->c_tickrate[cb_counter] = timestamp_seconds + cbs->tickrate;
-                    // if the module has a clear callback call it to reset any counters
-                    if (cbs->clear_cb != NULL) {
-                        cbs->clear_cb(l_data->mls[cb_counter]);
-                    }
-                }
-
-            // if the current module is due a tick
-            // note: modules receive tick time in seconds
-            } else if (l_data->c_tickrate[cb_counter] <= timestamp_seconds) {
-                cbs->tick_cb(trace, thread, tls, l_data->mls[cb_counter], timestamp_seconds);
-                l_data->c_tickrate[cb_counter] = timestamp_seconds + cbs->tickrate;
-            }
-        }
-        cb_counter += 1;
-    }
-
-    // output some libtrace stats if debug is enabled
-    if (config->debug) {
-        libtrace_stat_t *stats = trace_create_statistics();
-        trace_get_statistics(trace, stats);
-        fprintf(stderr, "Accepted %lu packets, Dropped %lu packets\n",
-            stats->accepted, stats->dropped);
-        free(stats);
-    }
 }
 
 static void *reporter_starting(libtrace_t *trace, libtrace_thread_t *thread,
@@ -239,9 +205,6 @@ static void *reporter_starting(libtrace_t *trace, libtrace_thread_t *thread,
 static void reporter_result(libtrace_t *trace, libtrace_thread_t *thread,
     void *global, void *tls, libtrace_result_t *res) {
 
-    int ret;
-    int cb_counter = 0;
-
     // get the generic structure holding the result
     libtrace_generic_t gen = res->value;
     // cast back to a result wrapper
@@ -259,7 +222,7 @@ static void reporter_result(libtrace_t *trace, libtrace_thread_t *thread,
     // if the result needs to be sent to the modules combiner do that
     if (result->type == BD_RESULT_COMBINE) {
        // trigger combiner callback
-       bd_callback_trigger_combiner(&bigdata, (bd_result_set_wrap_t *)result);
+       bd_callback_trigger_combiner(&bigdata, result);
     } else if (result->type == BD_RESULT_PUBLISH) {
        // trigger output callback
        bd_callback_trigger_output(&bigdata, (bd_result_set_t *)result->value);
@@ -557,4 +520,20 @@ int bd_local_ip(struct sockaddr *ip) {
 
     // got this far no match
     return 0;
+}
+
+libtrace_t *bd_get_trace(bd_bigdata_t *bigdata) {
+    return bigdata->trace;
+}
+
+libtrace_thread_t *bd_get_thread(bd_bigdata_t *bigdata) {
+    return bigdata->thread;
+}
+
+Flow *bd_get_flow(bd_bigdata_t *bigdata) {
+     return bigdata->flow;
+}
+
+libtrace_packet_t *bd_get_packet(bd_bigdata_t *bigdata) {
+    return bigdata->packet;
 }

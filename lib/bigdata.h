@@ -80,33 +80,26 @@ typedef struct bigdata_network {
 } bd_network_t;
 
 
-// events
+/* configuration event */
+typedef int (*cb_config) (yaml_parser_t *parser, yaml_event_t *event, int *level);
+
+/* processing events - packet processing thread */
 typedef void* (*cb_start) (void *tls);
 typedef int (*cb_packet) (bd_bigdata_t *bigdata, void *mls);
 typedef int (*cb_protocol) (bd_bigdata_t *bigdata, void *mls);
+typedef int (*cb_tick) (bd_bigdata_t *bigdata, void *mls, uint64_t tick);
 typedef int (*cb_stop) (void *tls, void *mls);
+typedef int (*cb_clear) (void *mls);
 
-
+/* result related events - Reporter thread */
 typedef void* (*cb_reporter_start) (void *tls);
-
-typedef int (*cb_reporter_output) (bd_bigdata_t *bigdata, void *mls,
-    bd_result_set *result);
-
-typedef int (*cb_reporter_combiner) (bd_bigdata_t *bigdata, void *mls,
-    uint64_t tick, void *result);
-
+typedef int (*cb_reporter_output) (bd_bigdata_t *bigdata, void *mls, bd_result_set *result);
+typedef int (*cb_reporter_combiner) (bd_bigdata_t *bigdata, void *mls, uint64_t tick, void *result);
 typedef int (*cb_reporter_stop) (void *tls, void *mls);
 
-
+/* flow related events - packet processing thread */
 typedef int (*cb_flowend) (bd_flow_record_t *flow_record);
 typedef int (*cb_flowstart) (bd_flow_record_t *flow_record);
-
-typedef int (*cb_tick) (libtrace_t *trace, libtrace_thread_t *thread,
-    void *tls, void *mls, uint64_t tick);
-
-typedef int (*cb_config) (yaml_parser_t *parser, yaml_event_t *event, int *level);
-
-typedef int (*cb_clear) (void *mls);
 
 typedef struct bigdata_callback_set bd_cb_set;
 typedef struct bigdata_callback_set {
@@ -160,14 +153,20 @@ typedef struct bigdata_thread_reporter_local {
     void **mls;                 // array of pointers for module storage
 } bd_rthread_local_t;
 
-/* event prototypes */
+
+
+/* API functions */
+
+/* Registers a callback set against the application core */
 int bd_register_cb_set(bd_cb_set *cbset);
 
 int bd_get_packet_direction(libtrace_packet_t *packet);
 int bd_local_ip(struct sockaddr *ip);
 
-/* API functions */
 void consume_event(yaml_parser_t *parser, yaml_event_t *event, int *level);
-
+libtrace_t *bd_get_trace(bd_bigdata_t *bigdata);
+libtrace_thread_t *bd_get_thread(bd_bigdata_t *bigdata);
+Flow *bd_get_flow(bd_bigdata_t *bigdata);
+libtrace_packet_t *bd_get_packet(bd_bigdata_t *bigdata);
 
 #endif

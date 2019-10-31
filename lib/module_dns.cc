@@ -242,7 +242,7 @@ int module_dns_packet(bd_bigdata_t *bigdata, void *mls) {
         bd_result_set_insert_timestamp(result_set, tv.tv_sec);
 
         // send resultset to reporter thread
-        bd_result_set_publish(trace, thread, result_set, tv.tv_sec);
+        bd_result_set_publish(bigdata, result_set, tv.tv_sec);
 
         // remove request from map and free memory for request and response
         map->erase(identifier);
@@ -257,8 +257,11 @@ int module_dns_packet(bd_bigdata_t *bigdata, void *mls) {
 
 // Used to remove timed out requests that not have received a response packet from
 // the map of requests
-int module_dns_tick(libtrace_t *trace, libtrace_thread_t *thread,
-    void *tls, void *mls, uint64_t tick) {
+int module_dns_tick(bd_bigdata_t *bigdata, void *mls, uint64_t tick) {
+
+    libtrace_t *trace = bigdata->trace;
+    libtrace_thread_t *thread = bigdata->thread;
+    void *tls = bigdata->tls;
 
     // Gain access to module local storage and thread local storage
     struct module_dns_local *m_local = (struct module_dns_local *)mls;
