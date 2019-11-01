@@ -161,6 +161,14 @@ typedef struct bigdata_thread_reporter_local {
 int bd_register_cb_set(bd_cb_set *cbset);
 
 int bd_get_packet_direction(libtrace_packet_t *packet);
+
+/** Checks if the supplied IP address is part of one of the local networks
+ *
+ * @param	sockaddr structure for the IP to check
+ * @returns	1 if the IP is a local IP
+ *      	0 if the IP is not a local IP
+ *         	-1 if the supplied IP is not IP4 or IP6
+ */
 int bd_local_ip(struct sockaddr *ip);
 
 void consume_event(yaml_parser_t *parser, yaml_event_t *event, int *level);

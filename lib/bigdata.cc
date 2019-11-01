@@ -481,6 +481,10 @@ int bd_local_ip(struct sockaddr *ip) {
         struct sockaddr *mask = (struct sockaddr *)&(network->mask);
 
         if (address->sa_family == ip->sa_family) {
+            if (ip->sa_family != AF_INET && ip->sa_family != AF_INET6) {
+                return -1;
+            }
+
             if (ip->sa_family == AF_INET) {
                 struct sockaddr_in *ip_in = (struct sockaddr_in *)ip;
                 struct sockaddr_in *network_in = (struct sockaddr_in *)address;
@@ -518,7 +522,7 @@ int bd_local_ip(struct sockaddr *ip) {
         }
     }
 
-    // got this far no match
+    // got this far, no match
     return 0;
 }
 

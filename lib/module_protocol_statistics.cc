@@ -166,17 +166,19 @@ int module_protocol_statistics_packet(bd_bigdata_t *bigdata, void *mls) {
         bd_flow_get_source_ip(flow, &src_addr);
         bd_flow_get_destination_ip(flow, &dst_addr);
 
-        // check if source ip is local/internal or external
-        if (bd_local_ip((struct sockaddr *)&src_addr)) {
+        /* bd_local_ip return 1 if local, 0 is external and -1 if not IPv4 or IPv6 */
+        int src_is_local = bd_local_ip((struct sockaddr *)&src_addr);
+        int dst_is_local = bd_local_ip((struct sockaddr *)&dst_addr);
+
+        if (src_is_local == 1) {
             proto->isrc_ips->insert(src_addr);
-        } else {
+        } else if (src_is_local == 0) {
             proto->esrc_ips->insert(src_addr);
         }
 
-        // check if destination ip is local/internal or external
-        if (bd_local_ip((struct sockaddr *)&dst_addr)) {
+        if (dst_is_local == 1) {
             proto->idst_ips->insert(dst_addr);
-        } else {
+        } else if (dst_is_local == 0) {
             proto->edst_ips->insert(dst_addr);
         }
     }
