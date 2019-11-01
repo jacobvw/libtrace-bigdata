@@ -23,5 +23,6 @@ bigdata_SOURCES = bigdata.cc bigdata.h \
 		module_http.cc module_http.h \
 		module_protocol_statistics.cc module_protocol_statistics.h \
 		module_statistics.cc module_statistics.h \
+                module_flow_statistics.cc module_flow_statistics.h \
 		$(KAFKASOURCE) \
 		$(INFLUXDBSOUCE)

@@ -39,6 +39,7 @@ typedef int (*cb_protocol) (bd_bigdata_t *bigdata, void *mls);
 #include "module_statistics.h"
 #include "module_protocol_statistics.h"
 #include "module_cdn_statistics.h"
+#include "module_flow_statistics.h"
 
 // Output Plugins
 #ifdef HAVE_LIBCURL
@@ -98,8 +99,8 @@ typedef int (*cb_reporter_combiner) (bd_bigdata_t *bigdata, void *mls, uint64_t 
 typedef int (*cb_reporter_stop) (void *tls, void *mls);
 
 /* flow related events - packet processing thread */
-typedef int (*cb_flowend) (bd_flow_record_t *flow_record);
-typedef int (*cb_flowstart) (bd_flow_record_t *flow_record);
+typedef int (*cb_flowstart) (bd_bigdata_t *bigdata, void *mls, bd_flow_record_t *flow_record);
+typedef int (*cb_flowend) (bd_bigdata_t *bigdata, void *mls, bd_flow_record_t *flow_record);
 
 typedef struct bigdata_callback_set bd_cb_set;
 typedef struct bigdata_callback_set {

@@ -147,6 +147,56 @@ int bd_callback_trigger_packet(bd_bigdata_t *bigdata) {
     return ret;
 }
 
+int bd_callback_trigger_flowstart(bd_bigdata_t *bigdata) {
+
+    int ret;
+    int cb_counter = 0;
+
+    // gain access to global data
+    bd_global_t *global = bigdata->global;
+    // gain access to thread storage
+    bd_thread_local_t *l_data = (bd_thread_local_t *)bigdata->tls;
+
+    // gain access to callbacks
+    bd_cb_set *cbs = global->callbacks;
+
+    // invoke each callback
+    for (; cbs != NULL; cbs = cbs->next) {
+        if (cbs->flowstart_cb != NULL) {
+            ret = cbs->flowstart_cb(bigdata, l_data->mls[cb_counter],
+                (bd_flow_record_t *)bigdata->flow->extension);
+        }
+        cb_counter += 1;
+    }
+
+    return ret;
+}
+
+int bd_callback_trigger_flowend(bd_bigdata_t *bigdata) {
+
+    int ret;
+    int cb_counter = 0;
+
+    // gain access to global data
+    bd_global_t *global = bigdata->global;
+    // gain access to thread storage
+    bd_thread_local_t *l_data = (bd_thread_local_t *)bigdata->tls;
+
+    // gain access to callbacks
+    bd_cb_set *cbs = global->callbacks;
+
+    // invoke each callback
+    for (; cbs != NULL; cbs = cbs->next) {
+        if (cbs->flowend_cb != NULL) {
+            ret = cbs->flowend_cb(bigdata, l_data->mls[cb_counter],
+                (bd_flow_record_t *)bigdata->flow->extension);
+        }
+        cb_counter += 1;
+    }
+
+    return ret;
+}
+
 int bd_callback_trigger_tick(bd_bigdata_t *bigdata, uint64_t tick) {
 
     int ret = 0;

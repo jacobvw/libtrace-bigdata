@@ -51,12 +51,25 @@ Flow *flow_per_packet(libtrace_t *trace, libtrace_thread_t *thread,
     if (is_new) {
         flow_init_metrics(packet, flow, dir, ts);
 
-        bd_cb_set *cbs = global_data->callbacks;
-        for (; cbs != NULL; cbs = cbs->next) {
-            if (cbs->flowstart_cb != NULL) {
-                cbs->flowstart_cb((bd_flow_record_t *)flow->extension);
-            }
-        }
+    }
+
+    // update metrics for the flow
+    flow_process_metrics(packet, flow, dir, ts);
+
+    /* This looks messy but before triggering the flowstart event
+     * the metrics need to be processed
+     */
+    if (is_new) {
+        /* create bigdata structure for the flowstart event */
+        bd_bigdata_t bigdata;
+        bigdata.trace = trace;
+        bigdata.thread = thread;
+        bigdata.packet = packet;
+        bigdata.flow = flow;
+        bigdata.global = (bd_global_t *)global;
+        bigdata.tls = tls;
+        /* Trigger the flowstart event */
+        bd_callback_trigger_flowstart(&bigdata);
     }
 
     // update metrics for the flow
@@ -140,16 +153,24 @@ int flow_expire(libtrace_t *trace, libtrace_thread_t *thread,
 
     Flow *expired_flow;
 
+    /* create bigdata structure for expired flow event */
+    bd_bigdata_t bigdata;
+    bigdata.trace = trace;
+    bigdata.thread = thread;
+    bigdata.packet = NULL;
+    bigdata.flow = NULL;
+    bigdata.global = (bd_global_t *)global;
+    bigdata.tls = tls;
+
     while ((expired_flow = fm->expireNextFlow(trace_get_seconds(packet), false)) != NULL) {
         // Gain access to the flow metrics
         bd_flow_record_t *flow_record = (bd_flow_record_t *)expired_flow->extension;
 
-        // call all callbacks registered to flowend events
-        for (; cbs != NULL; cbs = cbs->next) {
-            if (cbs->flowend_cb != NULL) {
-                cbs->flowend_cb(flow_record);
-            }
-        }
+        /* update the flow in the bigdata structure for the current flow */
+        bigdata.flow = expired_flow;
+
+        /* trigger the flowend event */
+        bd_callback_trigger_flowend(&bigdata);
 
         // Free the metrics structure and release the flow to libflowmanager
         free(flow_record);
@@ -213,3 +234,52 @@ struct sockaddr_storage *bd_flow_get_destination_ip(Flow *flow,
 
     return dst;
 }
+
+lpi_protocol_t bd_get_protocol(bd_bigdata_t *bigdata) {
+
+    if (bigdata == NULL) {
+        return LPI_PROTO_UNKNOWN;
+    }
+
+    if (bigdata->flow == NULL) {
+        return LPI_PROTO_UNKNOWN;
+    }
+
+    if (bigdata->flow->extension == NULL) {
+        return LPI_PROTO_UNKNOWN;
+    }
+
+    /* If flow is not null we should have a flow record */
+    bd_flow_record_t *flow_rec = (bd_flow_record_t *)
+        (bigdata->flow->extension);
+
+    return flow_rec->lpi_module->protocol;
+}
+
+FlowManager *bd_get_flowmanager(bd_bigdata_t *bigdata) {
+
+    if (bigdata == NULL) {
+        fprintf(stderr, "NULL bigdata structure passed into. func "
+            "bd_get_flowmanager()\n");
+        return NULL;
+    }
+
+    /* first ensure this is a processing thread. The flowmanager is not
+     *  available from the reporting thread.
+     */
+    if (trace_get_perpkt_thread_id(bigdata->thread) == -1) {
+        fprintf(stderr, "Flowmanager is only available from the "
+            "processing threads\n");
+        return NULL;
+    }
+
+    // get thread local storage
+    bd_thread_local_t *local = (bd_thread_local_t *)bigdata->tls;
+
+    return local->flow_manager;
+}
+
+Flow *bd_get_flow(bd_bigdata_t *bigdata) {
+     return bigdata->flow;
+}
+

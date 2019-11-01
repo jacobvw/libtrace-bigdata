@@ -17,6 +17,7 @@ void init_modules() {
 #ifdef HAVE_LIBRDKAFKA
     module_kafka_init();
 #endif
+    module_flow_statistics_init();
 }
 
 void libtrace_cleanup(libtrace_t *trace, libtrace_callback_set_t *processing,
@@ -532,10 +533,6 @@ libtrace_t *bd_get_trace(bd_bigdata_t *bigdata) {
 
 libtrace_thread_t *bd_get_thread(bd_bigdata_t *bigdata) {
     return bigdata->thread;
-}
-
-Flow *bd_get_flow(bd_bigdata_t *bigdata) {
-     return bigdata->flow;
 }
 
 libtrace_packet_t *bd_get_packet(bd_bigdata_t *bigdata) {

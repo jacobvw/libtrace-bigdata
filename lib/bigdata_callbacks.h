@@ -14,6 +14,8 @@ int bd_callback_trigger_combiner(bd_bigdata_t *bigdata, bd_result_set_wrap_t *re
 int bd_callback_trigger_protocol(bd_bigdata_t *bigdata, lpi_protocol_t protocol);
 int bd_callback_trigger_packet(bd_bigdata_t *bigdata);
 int bd_callback_trigger_tick(bd_bigdata_t *bigdata, uint64_t tick);
+int bd_callback_trigger_flowstart(bd_bigdata_t *bigdata);
+int bd_callback_trigger_flowend(bd_bigdata_t *bigdata);
 
 int bd_register_protocol_event(bd_cb_set *cbset, cb_protocol callback, lpi_protocol_t protocol);
 
