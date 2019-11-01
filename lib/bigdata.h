@@ -87,10 +87,14 @@ typedef int (*cb_config) (yaml_parser_t *parser, yaml_event_t *event, int *level
 /* processing events - packet processing thread */
 typedef void* (*cb_start) (void *tls);
 typedef int (*cb_packet) (bd_bigdata_t *bigdata, void *mls);
-typedef int (*cb_protocol) (bd_bigdata_t *bigdata, void *mls);
 typedef int (*cb_tick) (bd_bigdata_t *bigdata, void *mls, uint64_t tick);
 typedef int (*cb_stop) (void *tls, void *mls);
 typedef int (*cb_clear) (void *mls);
+
+/*protocol events - packet processing thread */
+typedef int (*cb_protocol) (bd_bigdata_t *bigdata, void *mls);
+typedef int (*cb_protocol_updated) (bd_bigdata_t *bigdata, void *mls, lpi_protocol_t old_protocol,
+    lpi_protocol_t new_protocol);
 
 /* result related events - Reporter thread */
 typedef void* (*cb_reporter_start) (void *tls);
@@ -130,6 +134,7 @@ typedef struct bigdata_callback_set {
     cb_clear clear_cb;
     // protocol callbacks
     cb_protocol protocol_cb[LPI_PROTO_LAST];
+    cb_protocol_updated protocol_updated_cb;
     bd_cb_set *next;
 } bd_cb_set;
 

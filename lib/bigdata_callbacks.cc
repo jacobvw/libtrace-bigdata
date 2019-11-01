@@ -118,6 +118,30 @@ int bd_callback_trigger_protocol(bd_bigdata_t *bigdata, lpi_protocol_t protocol)
     return ret;
 }
 
+int bd_callback_trigger_protocol_updated(bd_bigdata_t *bigdata, lpi_protocol_t oldproto,
+    lpi_protocol_t newproto) {
+
+    int ret;
+    int cb_counter = 0;
+
+    // get access to global data
+    bd_global_t *global = bigdata->global;
+    // gain access to thread storage
+    bd_thread_local_t *l_data = (bd_thread_local_t *)bigdata->tls;
+
+    // get the first callback set
+    bd_cb_set *cbs = global->callbacks;
+
+    for (; cbs != NULL; cbs = cbs->next) {
+        if (cbs->protocol_updated_cb != NULL) {
+            ret = cbs->protocol_updated_cb(bigdata, l_data->mls[cb_counter], oldproto, newproto);
+        }
+        cb_counter += 1;
+    }
+
+    return ret;
+}
+
 int bd_callback_trigger_packet(bd_bigdata_t *bigdata) {
 
     int ret;

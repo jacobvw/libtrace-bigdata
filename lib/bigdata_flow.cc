@@ -2,9 +2,11 @@
 #include "bigdata.h"
 #include <netinet/in.h>
 #include <arpa/inet.h>
+
 /* private prototypes */
 int flow_init_metrics(libtrace_packet_t *packet, Flow *flow, uint8_t dir, double ts);
-int flow_process_metrics(libtrace_packet_t *packet, Flow *flow, double dir, double ts);
+int flow_process_metrics(libtrace_t *trace, libtrace_thread_t *thread, libtrace_packet_t *packet,
+    Flow *flow, void *global, void *tls, double dir, double ts);
 
 Flow *flow_per_packet(libtrace_t *trace, libtrace_thread_t *thread,
     libtrace_packet_t *packet, void *global, void *tls) {
@@ -54,26 +56,7 @@ Flow *flow_per_packet(libtrace_t *trace, libtrace_thread_t *thread,
     }
 
     // update metrics for the flow
-    flow_process_metrics(packet, flow, dir, ts);
-
-    /* This looks messy but before triggering the flowstart event
-     * the metrics need to be processed
-     */
-    if (is_new) {
-        /* create bigdata structure for the flowstart event */
-        bd_bigdata_t bigdata;
-        bigdata.trace = trace;
-        bigdata.thread = thread;
-        bigdata.packet = packet;
-        bigdata.flow = flow;
-        bigdata.global = (bd_global_t *)global;
-        bigdata.tls = tls;
-        /* Trigger the flowstart event */
-        bd_callback_trigger_flowstart(&bigdata);
-    }
-
-    // update metrics for the flow
-    flow_process_metrics(packet, flow, dir, ts);
+    flow_process_metrics(trace, thread, packet, flow, global, tls, dir, ts);
 
     // update expiry time for this flow
     local_data->flow_manager->updateFlowExpiry(flow, packet, dir, ts);
@@ -119,7 +102,9 @@ int flow_init_metrics(libtrace_packet_t *packet, Flow *flow, uint8_t dir, double
     return 0;
 }
 
-int flow_process_metrics(libtrace_packet_t *packet, Flow *flow, double dir, double ts) {
+int flow_process_metrics(libtrace_t *trace, libtrace_thread_t *thread, libtrace_packet_t *packet,
+    Flow *flow, void *global, void *tls, double dir, double ts) {
+
     bd_flow_record_t *flow_record = (bd_flow_record_t *)flow->extension;
 
     flow_record->end_ts = ts;
@@ -135,9 +120,50 @@ int flow_process_metrics(libtrace_packet_t *packet, Flow *flow, double dir, doub
 
     /* update libprotoident */
     lpi_updated = lpi_update_data(packet, &flow_record->lpi, flow_record->init_dir);
-    /* guess the protocol if its not known or was updated */
-    if (flow_record->lpi_module == NULL || lpi_updated) {
+
+    /* the lpi_module is only NULL when this is a new flow */
+    if (flow_record->lpi_module == NULL) {
+        /* try guess the protocol for the flow */
         flow_record->lpi_module = lpi_guess_protocol(&flow_record->lpi);
+
+        /* create bigdata structure for the flowstart event */
+        bd_bigdata_t bigdata;
+        bigdata.trace = trace;
+        bigdata.thread = thread;
+        bigdata.packet = packet;
+        bigdata.flow = flow;
+        bigdata.global = (bd_global_t *)global;
+        bigdata.tls = tls;
+
+        /* Trigger the flowstart event */
+        bd_callback_trigger_flowstart(&bigdata);
+
+    /* Otherwise if this is not a new flow but lpi has updated */
+    } else if (lpi_updated) {
+
+        /* keep track of the old protocol */
+        lpi_protocol_t oldproto = flow_record->lpi_module->protocol;
+
+        /* Now guess the new protocol with the newly supplied information */
+        flow_record->lpi_module = lpi_guess_protocol(&flow_record->lpi);
+
+        /* If the protocol has changed generate a protocol updated event */
+        if (oldproto != flow_record->lpi_module->protocol) {
+
+            /* Create bigdata structure for the protocol updated event */
+            bd_bigdata_t bigdata;
+            bigdata.trace = trace;
+            bigdata.thread = thread;
+            bigdata.packet = packet;
+            bigdata.flow = flow;
+            bigdata.global = (bd_global_t *)global;
+            bigdata.tls = tls;
+
+            /* Trigger the event */
+            bd_callback_trigger_protocol_updated(&bigdata, oldproto,
+                flow_record->lpi_module->protocol);
+
+        }
     }
 
     return 0;
