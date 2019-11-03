@@ -168,10 +168,14 @@ bd_conf_t *parse_config(char *filename, bd_global_t *g_data) {
     }
 
     /* Initialize parser */
-    if(!yaml_parser_initialize(&parser))
-        fputs("Failed to initialize parser!\n", stderr);
-    if(fd == NULL)
-        fputs("Failed to open file!\n", stderr);
+    if(!yaml_parser_initialize(&parser)) {
+        fprintf(stderr, "Failed to initialize parser!\n");
+        return NULL;
+    }
+    if(fd == NULL){
+        fprintf(stderr, "Failed to open file!\n");
+        return NULL;
+    }
 
     /* Set input file */
     yaml_parser_set_input_file(&parser, fd);
