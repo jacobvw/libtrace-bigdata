@@ -229,7 +229,7 @@ static void reporter_result(libtrace_t *trace, libtrace_thread_t *thread,
        bd_callback_trigger_output(&bigdata, (bd_result_set_t *)result->value);
     }
 
-    // cleanup the resultset
+    // cleanup the result wrapper
     bd_result_set_wrap_free(result);
 }
 

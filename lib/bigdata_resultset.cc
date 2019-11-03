@@ -206,9 +206,9 @@ int bd_result_set_free(bd_result_set_t *result_set) {
 
     int i;
 
+    /* result set already cleared */
     if (result_set == NULL) {
-        fprintf(stderr, "NULL result set. func. bd_result_set_free()\n");
-        return -1;;
+        return 0;
     }
 
     if (result_set->results != NULL) {
@@ -241,6 +241,9 @@ int bd_result_set_wrap_free(bd_result_set_wrap_t *r) {
         return -1;
     }
 
+    /* ensure BD_RESULT_PUBLISH type, BD_RESULT_COMBINE contains a pointer to a
+     * unknown datatype.
+     */
     if (r->type == BD_RESULT_PUBLISH) {
         ret = bd_result_set_free((bd_result_set_t *)r->value);
     }
