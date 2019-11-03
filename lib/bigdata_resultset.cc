@@ -141,6 +141,11 @@ int bd_result_set_publish(bd_bigdata_t *bigdata, bd_result_set_t *result, uint64
 
         bd_callback_trigger_output(bigdata, result);
 
+        /* and the result set now needs to be free'd when not running through
+         * libtrace_public_result.
+         */
+        bd_result_set_free(result);
+
     /* Otherwise post to the reporter thread */
     } else {
 
@@ -192,6 +197,12 @@ int bd_result_combine(bd_bigdata_t *bigdata, void *result, uint64_t key, int mod
     if (trace_get_perpkt_thread_id(bigdata->thread) == -1) {
 
         bd_callback_trigger_combiner(bigdata, res);
+
+        /* and the result wrapper now needs to be free'd when not running through
+         * libtrace_public_result. The result value should have been free'd by the
+         * plugins combining function.
+         */
+        bd_result_set_wrap_free(res);
 
     } else {
 

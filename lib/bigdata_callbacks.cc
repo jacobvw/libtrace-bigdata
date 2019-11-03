@@ -65,9 +65,6 @@ int bd_callback_trigger_output(bd_bigdata_t *bigdata, bd_result_set_t *result) {
         cb_counter += 1;
     }
 
-    // cleanup the resultset
-    bd_result_set_free(result);
-
     return ret;
 }
 
