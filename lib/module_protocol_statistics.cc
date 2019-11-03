@@ -316,7 +316,7 @@ int module_protocol_statistics_combiner(bd_bigdata_t *bigdata, void *mls,
                     proto->flow_ids->size());
             }
             // set the timestamp for the result
-            bd_result_set_insert_timestamp(result_set, tick);
+            bd_result_set_insert_timestamp(result_set, tally->lastkey);
             // add interval
             bd_result_set_insert_int(result_set, "interval", config->output_interval);
 
