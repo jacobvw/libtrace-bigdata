@@ -8,6 +8,7 @@ interface: eth0
 threads: 4
 
 # Use local_networks to determine if a packet is inbound or outbound.
+# Falls back to trace_get_direction() if disabled.
 local_networks_as_direction: 1
 
 local_networks:
@@ -16,7 +17,7 @@ local_networks:
 # Enable libtrace HASHER_BIDIRECTIONAL hasher.
 # Only enable if you do NOT have another mechanism for assigning packets
 # for the same flow to the same Libtrace thread.
-enable_bidirectional_hasher: 0
+enable_bidirectional_hasher: 1
 
 # Enable debug output to stderr
 debug: 0
@@ -42,6 +43,15 @@ foreach:
       - packet_count
       - flow_count
       - ip_count
+
+  # flow statistics
+  flow_statistics:
+    enabled: 0
+    # protocols to output individual flow information for
+    protocols:
+      - HTTP
+      - SSH
+      - HTTPS
 
   # statistics module
   statistics:
@@ -79,9 +89,9 @@ where:
     ssl_verify_peer: 1
     host: http://127.0.0.1
     port: 8086
-    database: database
-    username: user
-    password: password
+    database: dbname
+    username: dbusername
+    password: dbpassword
 
   kafka:
     enabled: 0
