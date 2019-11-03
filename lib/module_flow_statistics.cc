@@ -10,36 +10,17 @@ struct module_flow_statistics_config {
 /* global varible used to read from module configuration */
 static struct module_flow_statistics_config *config;
 
-struct module_flow_statistics_storage {
-
-};
-
-struct module_flow_statistics_reporter_storage {
-    uint64_t last_tick;
-};
-
-
-
-/* function to apply to each active flow */
-int module_flow_statistics_output_long_lived_flows(Flow *f, void *data) {
-
-}
-
-int module_flow_statistics_flowstart(bd_bigdata_t *bigdata, void *mls, bd_flow_record_t *flow_record) {
-
-}
-
 int module_flow_statistics_protocol_updated(bd_bigdata_t *bigdata, void *mls, lpi_protocol_t oldproto,
     lpi_protocol_t newproto) {
 
-    if (newproto == LPI_PROTO_HTTP) {
+    if (config->protocol[newproto]) {
 
-        /* generate flow start result - This is done here because the flowstart event does not
-         * correctly guess the protocol on with only the first packet
+        /* This is done here because the flowstart event does not yet
+         * have the correct protocol with only the first packet
          */
         bd_result_set_t *res = bd_result_set_create("flow_statistics");
         bd_result_set_insert_uint(res, "flow_id", bigdata->flow->id.get_id_num());
-        bd_result_set_insert_string(res, "protocol", lpi_print(newproto));
+        bd_result_set_insert_tag(res, "protocol", lpi_print(newproto));
         bd_result_set_insert_string(res, "type", "flow_start");
 
         char *src_ip = (char *)malloc(INET6_ADDRSTRLEN);
@@ -58,9 +39,7 @@ int module_flow_statistics_protocol_updated(bd_bigdata_t *bigdata, void *mls, lp
 }
 
 int module_flow_statistics_flowend(bd_bigdata_t *bigdata, void *mls, bd_flow_record_t *flow_record) {
-    if (bd_get_protocol(bigdata) == LPI_PROTO_HTTP) {
-        fprintf(stderr, "HTTP flow ended\n");
-    }
+
 }
 
 /* define the configuration function */
@@ -87,6 +66,36 @@ int module_flow_statistics_config(yaml_parser_t *parser, yaml_event_t *event, in
                     }
                     break;
                 }
+                if (strcmp((char *)event->data.scalar.value, "protocols") == 0) {
+                    /* consume protocols event */
+                    consume_event(parser, event, level);
+
+                    /* must be a yaml_sequence_start_event or conf is malformed */
+                    if (event->type != YAML_SEQUENCE_START_EVENT) {
+                        fprintf(stderr, "Malformed configuration: Section flow_statistics/protocols\n");
+                        exit(BD_MALFORMED_CONF);
+                    }
+
+                    // consume yaml_mapping_start event
+                    consume_event(parser, event, level);
+
+                    // for each protocol supplied
+                    while (event->type != YAML_SEQUENCE_END_EVENT) {
+
+                        /* somehow convert libprotoident event string to enum? */
+
+                        /* consume the event */
+                        consume_event(parser, event, level);
+                    }
+
+                    /* consume the final sequence end event */
+                    if (event->type == YAML_SEQUENCE_END_EVENT) {
+                        consume_event(parser, event, level);
+                    }
+
+                    break;
+
+                }
             default:
                 consume_event(parser, event, level);
                 break;
@@ -95,21 +104,11 @@ int module_flow_statistics_config(yaml_parser_t *parser, yaml_event_t *event, in
 
     /* if the plugin was enabled define its callback functions for each event */
     if (config->enabled) {
-        /* define the packet processing thread callback functions */
-        //config->callbacks->start_cb = (cb_start)module_flow_statistics_starting;
-        //config->callbacks->stop_cb = (cb_stop)module_flow_statistics_stopping;
 
-        config->callbacks->flowstart_cb = (cb_flowstart)module_flow_statistics_flowstart;
-        config->callbacks->flowend_cb = (cb_flowend)module_flow_statistics_flowend;
         config->callbacks->protocol_updated_cb = (cb_protocol_updated)
             module_flow_statistics_protocol_updated;
 
-        // enable http
-        config->protocol[LPI_PROTO_HTTP] = 1;
-
-        //config->callbacks->tick_cb = (cb_tick)module_flow_statistics_tick;
-        /* set the tick interval to 60 seconds */
-        //bd_add_tickrate_to_cb_set(config->callbacks, 60);
+        config->callbacks->flowend_cb = (cb_flowend)module_flow_statistics_flowend;
 
         fprintf(stdout, "Flow Statistics Plugin Enabled\n");
     }

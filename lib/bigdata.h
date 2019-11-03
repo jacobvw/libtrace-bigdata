@@ -53,6 +53,7 @@ typedef int (*cb_protocol) (bd_bigdata_t *bigdata, void *mls);
 #define OUTPUT_INIT 2
 #define INPUT_INIT 3
 #define BD_INVALID_CONFIG 4
+#define BD_MALFORMED_CONF 5
 
 typedef struct bigdata {
     libtrace_t *trace;
