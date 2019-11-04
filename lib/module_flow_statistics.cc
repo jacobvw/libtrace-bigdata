@@ -10,10 +10,65 @@ struct module_flow_statistics_config {
 /* global varible used to read from module configuration */
 static struct module_flow_statistics_config *config;
 
+struct module_flow_statistics_flow {
+    bd_bigdata_t *bigdata;
+    module_flow_statistics_config *c;
+};
+
+/* function to apply to each flow */
+int module_flow_statistics_foreach_flow(Flow *flow, void *data) {
+    /* gain access to the flow record */
+    bd_flow_record_t *flow_rec = (bd_flow_record_t *)flow->extension;
+
+    /* gain access to the configuration structure */
+    struct module_flow_statistics_flow *f = (struct module_flow_statistics_flow *)
+        data;
+
+    /* ensure lpi_module is not NULL */
+    if (flow_rec->lpi_module != NULL) {
+        /* check the protocol is a wanted one */
+        if (f->c->protocol[flow_rec->lpi_module->protocol]) {
+
+            bd_result_set_t *res = bd_result_set_create("flow_statistics");
+            bd_result_set_insert_uint(res, "flow_id", flow->id.get_id_num());
+            bd_result_set_insert_tag(res, "protocol", lpi_print(flow_rec->lpi_module->protocol));
+            bd_result_set_insert_string(res, "type", "flow_interval");
+
+            bd_result_set_insert_double(res, "start_ts", flow_rec->start_ts);
+            bd_result_set_insert_double(res, "duration", flow_rec->end_ts - flow_rec->start_ts);
+            bd_result_set_insert_int(res, "src_port", flow_rec->src_port);
+            bd_result_set_insert_int(res, "dst_port", flow_rec->dst_port);
+
+            bd_result_set_publish(f->bigdata, res, 0);
+        }
+    }
+
+    return 1;
+}
+
+int module_flow_statistics_tick(bd_bigdata_t *bigdata, void *mls, uint64_t tick) {
+
+    struct module_flow_statistics_flow f;
+    f.bigdata = bigdata;
+    f.c = config;
+
+    FlowManager *fm = bd_flow_get_flowmanager(bigdata);
+
+    if (fm->foreachFlow(module_flow_statistics_foreach_flow, &f) == -1) {
+        fprintf(stderr, "Error applying foreach flow funcion. func. "
+            "module_flow_statistics_tick()\n");
+    }
+
+}
+
 int module_flow_statistics_protocol_updated(bd_bigdata_t *bigdata, void *mls, lpi_protocol_t oldproto,
     lpi_protocol_t newproto) {
 
+    bd_flow_record_t *flow_rec;
+
     if (config->protocol[newproto]) {
+
+        flow_rec = bd_flow_get_record(bigdata);
 
         /* This is done here because the flowstart event does not yet
          * have the correct protocol with only the first packet
@@ -23,23 +78,31 @@ int module_flow_statistics_protocol_updated(bd_bigdata_t *bigdata, void *mls, lp
         bd_result_set_insert_tag(res, "protocol", lpi_print(newproto));
         bd_result_set_insert_string(res, "type", "flow_start");
 
-        char *src_ip = (char *)malloc(INET6_ADDRSTRLEN);
-        src_ip = trace_get_source_address_string(bigdata->packet, src_ip, INET6_ADDRSTRLEN);
-        bd_result_set_insert_string(res, "src_ip", src_ip);
-
-        char *dst_ip = (char *)malloc(INET6_ADDRSTRLEN);
-        dst_ip = trace_get_destination_address_string(bigdata->packet, dst_ip, INET6_ADDRSTRLEN);
-        bd_result_set_insert_string(res, "dst_ip", dst_ip);
+        bd_result_set_insert_double(res, "start_ts", flow_rec->start_ts);
+        bd_result_set_insert_double(res, "duration", flow_rec->end_ts - flow_rec->start_ts);
+        bd_result_set_insert_int(res, "src_port", flow_rec->src_port);
+        bd_result_set_insert_int(res, "dst_port", flow_rec->dst_port);
 
         bd_result_set_publish(bigdata, res, 0);
-
-        free(src_ip);
-        free(dst_ip);
     }
 }
 
 int module_flow_statistics_flowend(bd_bigdata_t *bigdata, void *mls, bd_flow_record_t *flow_record) {
 
+    if(config->protocol[bd_flow_get_protocol(bigdata)]) {
+        bd_result_set_t *res = bd_result_set_create("flow_statistics");
+        bd_result_set_insert_uint(res, "flow_id", bigdata->flow->id.get_id_num());
+        bd_result_set_insert_tag(res, "protocol", lpi_print(bd_flow_get_protocol(bigdata)));
+        bd_result_set_insert_string(res, "type", "flow_end");
+
+        bd_result_set_insert_double(res, "start_ts", flow_record->start_ts);
+        bd_result_set_insert_double(res, "duration", flow_record->end_ts - flow_record->start_ts);
+        bd_result_set_insert_double(res, "end_ts", flow_record->end_ts);
+        bd_result_set_insert_int(res, "src_port", flow_record->src_port);
+        bd_result_set_insert_int(res, "dst_port", flow_record->dst_port);
+
+        bd_result_set_publish(bigdata, res, 0);
+    }
 }
 
 /* define the configuration function */
@@ -108,7 +171,13 @@ int module_flow_statistics_config(yaml_parser_t *parser, yaml_event_t *event, in
         config->callbacks->protocol_updated_cb = (cb_protocol_updated)
             module_flow_statistics_protocol_updated;
 
+
+        config->callbacks->tick_cb = (cb_tick)module_flow_statistics_tick;
+        bd_add_tickrate_to_cb_set(config->callbacks, 30);
+
         config->callbacks->flowend_cb = (cb_flowend)module_flow_statistics_flowend;
+
+        config->protocol[LPI_PROTO_ZERO_FACEBOOK] = 1;
 
         fprintf(stdout, "Flow Statistics Plugin Enabled\n");
     }
