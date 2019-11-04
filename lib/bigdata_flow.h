@@ -37,8 +37,10 @@ int bd_flow_get_direction(Flow *flow);
 struct sockaddr_storage *bd_flow_get_source_ip(Flow *flow, struct sockaddr_storage *src);
 struct sockaddr_storage *bd_flow_get_destination_ip(Flow *flow, struct sockaddr_storage *dst);
 
-lpi_protocol_t bd_get_protocol(bd_bigdata_t *bigdata);
-FlowManager *bd_get_flowmanager(bd_bigdata_t *bigdata);
-Flow *bd_get_flow(bd_bigdata_t *bigdata);
+lpi_protocol_t bd_flow_get_protocol(bd_bigdata_t *bigdata);
+FlowManager *bd_flow_get_flowmanager(bd_bigdata_t *bigdata);
+Flow *bd_flow_get(bd_bigdata_t *bigdata);
+bd_flow_record_t *bd_flow_get_record(bd_bigdata_t *bigdata);
+double bd_flow_get_duration(bd_bigdata_t *bigdata);
 
 #endif

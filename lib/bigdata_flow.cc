@@ -261,7 +261,7 @@ struct sockaddr_storage *bd_flow_get_destination_ip(Flow *flow,
     return dst;
 }
 
-lpi_protocol_t bd_get_protocol(bd_bigdata_t *bigdata) {
+lpi_protocol_t bd_flow_get_protocol(bd_bigdata_t *bigdata) {
 
     if (bigdata == NULL) {
         return LPI_PROTO_UNKNOWN;
@@ -282,7 +282,7 @@ lpi_protocol_t bd_get_protocol(bd_bigdata_t *bigdata) {
     return flow_rec->lpi_module->protocol;
 }
 
-FlowManager *bd_get_flowmanager(bd_bigdata_t *bigdata) {
+FlowManager *bd_flow_get_flowmanager(bd_bigdata_t *bigdata) {
 
     if (bigdata == NULL) {
         fprintf(stderr, "NULL bigdata structure passed into. func "
@@ -305,7 +305,32 @@ FlowManager *bd_get_flowmanager(bd_bigdata_t *bigdata) {
     return local->flow_manager;
 }
 
-Flow *bd_get_flow(bd_bigdata_t *bigdata) {
+Flow *bd_flow_get(bd_bigdata_t *bigdata) {
      return bigdata->flow;
 }
 
+bd_flow_record_t *bd_flow_get_record(bd_bigdata_t *bigdata) {
+
+    if (bigdata == NULL) {
+        fprintf(stderr, "NULL bigdata structure passed into. func "
+            "bd_get_flow_record()\n");
+        return NULL;
+    }
+
+    Flow *f;
+    if ((f = bd_flow_get(bigdata)) != NULL) {
+        return (bd_flow_record_t *)f->extension;
+    }
+
+    return NULL;
+}
+
+double bd_flow_get_duration(bd_bigdata_t *bigdata) {
+
+    bd_flow_record_t *rec;
+    if ((bd_flow_get_record(bigdata)) != NULL) {
+        return rec->end_ts - rec->start_ts;
+    }
+
+    return 0;
+}
