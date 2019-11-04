@@ -31,7 +31,7 @@ union bd_record_value {
 };
 
 typedef struct bd_result {
-    const char *key;
+    char *key;
     enum bd_record_type type;
     union bd_record_value value;
 } bd_result_t;
@@ -54,30 +54,30 @@ typedef struct bd_result_set_wrapper {
 /* output result set prototypes */
 bd_result_set_t *bd_result_set_create(const char *mod);
 
-int bd_result_set_insert(bd_result_set_t *result_set, const char *key,
+int bd_result_set_insert(bd_result_set_t *result_set, char *key,
     bd_record_type dtype, bd_record_value value);
 
-int bd_result_set_insert_string(bd_result_set_t *result_set, const char *key,
+int bd_result_set_insert_string(bd_result_set_t *result_set, char const *key,
     const char *value);
 
-int bd_result_set_insert_float(bd_result_set_t *result_set, const char *key,
+int bd_result_set_insert_float(bd_result_set_t *result_set, char const *key,
     float value);
 
-int bd_result_set_insert_double(bd_result_set_t *result_set, const char *key,
+int bd_result_set_insert_double(bd_result_set_t *result_set, char const *key,
     double value);
 
-int bd_result_set_insert_int(bd_result_set_t *result_set, const char *key,
+int bd_result_set_insert_int(bd_result_set_t *result_set, char const *key,
     int64_t value);
 
-int bd_result_set_insert_uint(bd_result_set_t *result_set, const char *key,
+int bd_result_set_insert_uint(bd_result_set_t *result_set, char const *key,
     uint64_t value);
 
-int bd_result_set_insert_bool(bd_result_set_t *result_set, const char *key,
+int bd_result_set_insert_bool(bd_result_set_t *result_set, char const *key,
     bool value);
 
 int bd_result_set_insert_timestamp(bd_result_set_t *result_set, uint64_t timestamp);
 
-int bd_result_set_insert_tag(bd_result_set_t *result_set, const char *tag,
+int bd_result_set_insert_tag(bd_result_set_t *result_set, char const *tag,
     const char *value);
 
 int bd_result_set_publish(bd_bigdata_t *bigdata, bd_result_set_t *result, uint64_t key);

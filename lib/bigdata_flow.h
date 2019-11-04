@@ -1,3 +1,4 @@
+
 #ifndef BIGDATA_FLOW_H
 #define BIGDATA_FLOW_H
 
@@ -42,5 +43,6 @@ FlowManager *bd_flow_get_flowmanager(bd_bigdata_t *bigdata);
 Flow *bd_flow_get(bd_bigdata_t *bigdata);
 bd_flow_record_t *bd_flow_get_record(bd_bigdata_t *bigdata);
 double bd_flow_get_duration(bd_bigdata_t *bigdata);
+uint64_t bd_flow_get_id(bd_bigdata_t *bigdata);
 
 #endif

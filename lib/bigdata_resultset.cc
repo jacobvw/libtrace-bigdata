@@ -21,7 +21,7 @@ bd_result_set_t *bd_result_set_create(const char *mod) {
 
     return res;
 }
-int bd_result_set_insert(bd_result_set_t *result_set, const char *key, bd_record_type dtype,
+int bd_result_set_insert(bd_result_set_t *result_set, char const *key, bd_record_type dtype,
     bd_record_value value) {
 
     if (result_set == NULL) {
@@ -40,7 +40,7 @@ int bd_result_set_insert(bd_result_set_t *result_set, const char *key, bd_record
         }
     }
 
-    result_set->results[result_set->num_results].key = key;
+    result_set->results[result_set->num_results].key = strdup(key);
     result_set->results[result_set->num_results].type = dtype;
     result_set->results[result_set->num_results].value = value;
 
@@ -49,7 +49,7 @@ int bd_result_set_insert(bd_result_set_t *result_set, const char *key, bd_record
     return 0;
 
 }
-int bd_result_set_insert_string(bd_result_set_t *result_set, const char *key,
+int bd_result_set_insert_string(bd_result_set_t *result_set, char const *key,
     const char *value) {
 
     union bd_record_value val;
@@ -63,7 +63,7 @@ int bd_result_set_insert_string(bd_result_set_t *result_set, const char *key,
 
     return 0;
 }
-int bd_result_set_insert_float(bd_result_set_t *result_set, const char *key,
+int bd_result_set_insert_float(bd_result_set_t *result_set, char const *key,
     float value) {
 
     union bd_record_value val;
@@ -72,7 +72,7 @@ int bd_result_set_insert_float(bd_result_set_t *result_set, const char *key,
 
     return 0;
 }
-int bd_result_set_insert_double(bd_result_set_t *result_set, const char *key,
+int bd_result_set_insert_double(bd_result_set_t *result_set, char const *key,
     double value) {
 
     union bd_record_value val;
@@ -81,7 +81,7 @@ int bd_result_set_insert_double(bd_result_set_t *result_set, const char *key,
 
     return 0;
 }
-int bd_result_set_insert_int(bd_result_set_t *result_set, const char *key,
+int bd_result_set_insert_int(bd_result_set_t *result_set, char const *key,
     int64_t value) {
 
     union bd_record_value val;
@@ -90,7 +90,7 @@ int bd_result_set_insert_int(bd_result_set_t *result_set, const char *key,
 
     return 0;
 }
-int bd_result_set_insert_uint(bd_result_set_t *result_set, const char *key,
+int bd_result_set_insert_uint(bd_result_set_t *result_set, char const *key,
     uint64_t value) {
 
     union bd_record_value val;
@@ -99,7 +99,7 @@ int bd_result_set_insert_uint(bd_result_set_t *result_set, const char *key,
 
     return 0;
 }
-int bd_result_set_insert_bool(bd_result_set_t *result_set, const char *key,
+int bd_result_set_insert_bool(bd_result_set_t *result_set, char const *key,
     bool value) {
 
     union bd_record_value val;
@@ -112,7 +112,7 @@ int bd_result_set_insert_timestamp(bd_result_set_t *result_set, uint64_t timesta
     result_set->timestamp = timestamp;
     return 0;
 }
-int bd_result_set_insert_tag(bd_result_set_t *result_set, const char *tag,
+int bd_result_set_insert_tag(bd_result_set_t *result_set, char const *tag,
     const char *value) {
 
     union bd_record_value val;
@@ -231,6 +231,11 @@ int bd_result_set_free(bd_result_set_t *result_set) {
                 if (result_set->results[i].value.data_string != NULL) {
                     free(result_set->results[i].value.data_string);
                     result_set->results[i].value.data_string = NULL;
+                }
+
+                if (result_set->results[i].key != NULL) {
+                    free(result_set->results[i].key);
+                    result_set->results[i].key = NULL;
                 }
             }
         }

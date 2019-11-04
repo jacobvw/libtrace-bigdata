@@ -305,6 +305,7 @@ FlowManager *bd_flow_get_flowmanager(bd_bigdata_t *bigdata) {
     return local->flow_manager;
 }
 
+/* Returns the flow for the current packet */
 Flow *bd_flow_get(bd_bigdata_t *bigdata) {
      return bigdata->flow;
 }
@@ -330,6 +331,16 @@ double bd_flow_get_duration(bd_bigdata_t *bigdata) {
     bd_flow_record_t *rec;
     if ((bd_flow_get_record(bigdata)) != NULL) {
         return rec->end_ts - rec->start_ts;
+    }
+
+    return 0;
+}
+
+uint64_t bd_flow_get_id(bd_bigdata_t *bigdata) {
+
+    Flow *flow;
+    if ((bd_flow_get(bigdata)) != NULL) {
+        return flow->id.get_id_num();
     }
 
     return 0;
