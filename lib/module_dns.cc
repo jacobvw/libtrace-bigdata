@@ -66,12 +66,11 @@ struct module_dns_local {
     std::unordered_map<uint16_t, struct module_dns_req *> *reqs;
 };
 
-int module_dns_answer_to_result_set(bd_result_set_t *result_set, dns_answer_t *ans);
+int module_dns_answer_to_result_set(bd_result_set_t *result_set, dns_answer_t *ans, int num);
 void *module_dns_starting(void *tls);
 int module_dns_packet(libtrace_t *trace, libtrace_thread_t *thread,
     Flow *flow, libtrace_packet_t *packet, void *tls, void *mls);
 int module_dns_ending(void *tls, void *mls);
-int module_dns_answer_to_result_set(bd_result_set_t *result_set, dns_answer_t *ans);
 
 void *module_dns_starting(void *tls) {
 
@@ -209,32 +208,34 @@ int module_dns_packet(bd_bigdata_t *bigdata, void *mls) {
         bd_result_set_insert_tag(result_set, "recursion_desired", resp->rd ? "true" : "false");
         bd_result_set_insert_tag(result_set, "recursion_available", resp->ra ? "true" : "false");
 
+        char buf[30];
+
         // for each question
         for (i=0; i<resp->qdcount; i++) {
-            bd_result_set_insert_string(result_set, "question_name", resp->questions[i].name);
-            //bd_result_set_insert_string(result_set, "question_class",
-            //    dns_class_text(question[i].class));
-            //bd_result_set_insert_string(result_set, "question_type",
-            //    dns_type_text(resp->questions[i].type));
-            bd_result_set_insert_tag(result_set, "question_type",
-                dns_type_text(resp->questions[i].type));
+            snprintf(buf, sizeof(buf), "%s%d%s", "question", i, "_name");
+            bd_result_set_insert_string(result_set, buf, resp->questions[i].name);
 
-            /*if (DEBUG) {
-                fprintf(stderr, "got response %s thread %lu\n",
-                    dns_type_text(resp->questions[i].type), pthread_self());
-            }*/
+            /*snprintf(buf, sizeof(buf), "%s%d%s", "question", i, "_class");
+            bd_result_set_insert_string(result_set, buf,
+                dns_class_text(resp->questions[i].class));*/
+
+            snprintf(buf, sizeof(buf), "%s%d%s", "question", i, "_type");
+            bd_result_set_insert_tag(result_set, buf,
+                dns_type_text(resp->questions[i].type));
         }
         // for each answer
         for (i=0; i<resp->ancount; i++) {
-            module_dns_answer_to_result_set(result_set, &resp->answers[i]);
+            module_dns_answer_to_result_set(result_set, &resp->answers[i], i);
         }
         // for each nameserver
         for (i=0; i<resp->nscount; i++) {
-            module_dns_answer_to_result_set(result_set, &resp->nameservers[i]);
+            module_dns_answer_to_result_set(result_set, &resp->nameservers[i],
+                i+resp->ancount);
         }
         // for each additional
         for (i=0; i<resp->arcount; i++) {
-            module_dns_answer_to_result_set(result_set, &resp->additional[i]);
+            module_dns_answer_to_result_set(result_set, &resp->additional[i],
+                i+resp->ancount+resp->nscount);
         }
 
         // set the timestamp for the result
@@ -295,35 +296,52 @@ int module_dns_ending(void *tls, void *mls) {
     return 0;
 }
 
-int module_dns_answer_to_result_set(bd_result_set_t *result_set, dns_answer_t *ans) {
+int module_dns_answer_to_result_set(bd_result_set_t *result_set, dns_answer_t *ans, int num) {
 
     char buf[100];
+    char buf2[30];
+
+    snprintf(buf2, sizeof(buf2), "%s%d", "answer", num);
 
     switch(ans->generic.type) {
         case RR_NS:
-            bd_result_set_insert_string(result_set, "answer", ans->ns.nsdname);
+            bd_result_set_insert_string(result_set, buf2, ans->ns.nsdname);
             break;
         case RR_A:
             inet_ntop(AF_INET, &ans->a.address, buf, sizeof(buf));
-            bd_result_set_insert_string(result_set, "answer", buf);
+            bd_result_set_insert_string(result_set, buf2, buf);
             break;
         case RR_AAAA:
             inet_ntop(AF_INET6, &ans->aaaa.address, buf, sizeof(buf));
-            bd_result_set_insert_string(result_set, "answer", buf);
+            bd_result_set_insert_string(result_set, buf2, buf);
             break;
         case RR_CNAME:
-            bd_result_set_insert_string(result_set, "answer", ans->cname.cname);
+            bd_result_set_insert_string(result_set, buf2, ans->cname.cname);
             break;
         case RR_MX:
-            snprintf(buf, sizeof(buf), "%d %s", ans->mx.preference, ans->mx.exchange);
-            bd_result_set_insert_string(result_set, "answer", buf);
+            snprintf(buf, sizeof(buf), "%d %s",
+                ans->mx.preference,
+                ans->mx.exchange);
+            bd_result_set_insert_string(result_set, buf2, buf);
             break;
         case RR_PTR:
-            bd_result_set_insert_string(result_set, "answer", ans->ptr.ptr);
+            bd_result_set_insert_string(result_set, buf2, ans->ptr.ptr);
+            break;
+        case RR_HINFO:
+            snprintf(buf, sizeof(buf), "%s %s",
+                ans->hinfo.cpu,
+                ans->hinfo.os);
+            bd_result_set_insert_string(result_set, buf2, buf);
+            break;
+        case RR_MINFO:
+            snprintf(buf, sizeof(buf), "%s %s",
+                ans->minfo.rmailbx,
+                ans->minfo.emailbx);
+            bd_result_set_insert_string(result_set, buf2, buf);
             break;
         case RR_SPF:
         case RR_TXT:
-            bd_result_set_insert_string(result_set, "answer", ans->txt.text);
+            bd_result_set_insert_string(result_set, buf2, ans->txt.text);
             break;
         case RR_SOA:
             snprintf(buf, sizeof(buf), "%u %u %u %u %u",
@@ -332,7 +350,24 @@ int module_dns_answer_to_result_set(bd_result_set_t *result_set, dns_answer_t *a
                 ans->soa.retry,
                 ans->soa.expire,
                 ans->soa.minimum);
-            bd_result_set_insert_string(result_set, "answer", buf);
+            bd_result_set_insert_string(result_set, buf2, buf);
+            break;
+        case RR_LOC:
+            break;
+        case RR_SRV:
+            snprintf(buf, sizeof(buf), "%5d %5d %5d %s",
+                ans->srv.priority,
+                ans->srv.weight,
+                ans->srv.port,
+                ans->srv.target);
+            bd_result_set_insert_string(result_set, buf2, ans->txt.text);
+            break;
+        case RR_OPT:
+            snprintf(buf, sizeof(buf), "%lu %s %lu",
+                (unsigned long)ans->opt.udp_payload,
+                ans->opt.fdo ? "true" : "false",
+                (unsigned long)ans->opt.numopts);
+            bd_result_set_insert_string(result_set, buf2, ans->txt.text);
             break;
         default:
             break;
