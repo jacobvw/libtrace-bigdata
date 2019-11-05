@@ -5,49 +5,6 @@
 #include "module_dns_spcdns.h"
 #include "module_dns_spcdns_mappings.h"
 
-static const char MODULE_DNS_SCHEMA[] =
-  "{\"type\": \"record\",\
-    \"namespace\": \"libtrace-bigdata\",\
-    \"name\": \"module.dns\",\
-    \"fields\": [\
-      {\"name\": \"start_timestamp\", \"type\": \"long\"}, \
-      {\"name\": \"end_timestamp\", \"type\": \"long\"}, \
-      {\"name\": \"src_ip\", \"type\": \"long\"}, \
-      {\"name\": \"dst_ip\", \"type\": \"long\"}, \
-      {\"name\": \"question_count\", \"type\": \"long\"}, \
-      {\"name\": \"answer_count\", \"type\": \"long\"}, \
-      {\"name\": \"nameserver_count\", \"type\": \"long\"}, \
-      {\"name\": \"additional_count\", \"type\": \"long\"}, \
-      {\"name\": \"round_trip_time\", \"type\": \"long\"}, \
-      {\"name\": \"authoritive_result\", \"type\": \"boolean\"}, \
-      {\"name\": \"trucated_result\", \"type\": \"boolean\"}, \
-      {\"name\": \"recursion_desired\", \"type\": \"boolean\"}, \
-      {\"name\": \"recursion_available\", \"type\": \"boolean\"}, \
-      {\"name\": \"questions\", \"type\": {\
-        \"type\": \"array\",\
-        \"items\": {\
-          \"name\": \"question\", \"type\": \"record\", \
-          \"fields\": [\
-            {\"name\": \"question_name\", \"type\": \"string\"}, \
-            {\"name\": \"question_class\", \"type\": \"string\"}, \
-            {\"name\": \"question_type\", \"type\": \"string\"} \
-          ]\
-        }\
-      }}, \
-      {\"name\": \"answers\", \"type\": {\
-        \"type\": \"array\",\
-        \"items\": {\
-          \"name\": \"answer\", \"type\": \"record\", \
-          \"fields\": [\
-            {\"name\": \"answer_name\", \"type\": \"string\"}, \
-            {\"name\": \"answer_class\", \"type\": \"string\"}, \
-            {\"name\": \"answer_type\", \"type\": \"string\"} \
-          ]\
-        }\
-      }}, \
-    ]\
-  }";
-
 struct module_dns_conf {
     bd_cb_set *callbacks;
     int timeout_request;
