@@ -34,8 +34,6 @@ typedef int (*cb_protocol) (bd_bigdata_t *bigdata, void *mls);
 
 // Input Plugins
 #include "module_dns.h"
-#include "module_http.h"
-#include "module_port.h"
 #include "module_statistics.h"
 #include "module_protocol_statistics.h"
 #include "module_cdn_statistics.h"
