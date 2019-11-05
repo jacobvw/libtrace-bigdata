@@ -59,10 +59,12 @@ int module_dns_packet(bd_bigdata_t *bigdata, void *mls) {
 
     libtrace_udp_t *udp;
     libtrace_tcp_t *tcp;
+    bool is_udp;
     uint32_t remaining;
     uint16_t ethertype;
     void *payload;
     int i;
+    char buf[30];
 
     payload = trace_get_layer3(packet, &ethertype, &remaining);
 
@@ -75,8 +77,10 @@ int module_dns_packet(bd_bigdata_t *bigdata, void *mls) {
         if ((tcp = trace_get_tcp(packet)) == NULL) {
             return 1;
         }
+        is_udp = 0;
         payload = trace_get_payload_from_tcp(tcp, &remaining);
     } else {
+        is_udp = 1;
         payload = trace_get_payload_from_udp(udp, &remaining);
     }
     // no payload
@@ -152,10 +156,13 @@ int module_dns_packet(bd_bigdata_t *bigdata, void *mls) {
 
         // create the result set
         bd_result_set_t *result_set = bd_result_set_create("dns");
+
         /* flip source/dst IPs because this is the response packet, want them to match
          * the request packet */
         bd_result_set_insert_string(result_set, "src_ip", req->dst_ip);
         bd_result_set_insert_string(result_set, "dst_ip", req->src_ip);
+        bd_result_set_insert_tag(result_set, "protocol", is_udp ? "udp" : "tcp");
+
         bd_result_set_insert_uint(result_set, "question_count", (uint64_t)resp->qdcount);
         bd_result_set_insert_uint(result_set, "answer_count", (uint64_t)resp->ancount);
         bd_result_set_insert_uint(result_set, "nameserver_count", (uint64_t)resp->nscount);
@@ -167,10 +174,10 @@ int module_dns_packet(bd_bigdata_t *bigdata, void *mls) {
         bd_result_set_insert_tag(result_set, "truncated_result", resp->tc ? "true" : "false");
         bd_result_set_insert_tag(result_set, "recursion_desired", resp->rd ? "true" : "false");
         bd_result_set_insert_tag(result_set, "recursion_available", resp->ra ? "true" : "false");
-
-        bd_result_set_insert_tag(result_set, "response_code", dns_rcode_text(resp->rcode));
-
-        char buf[30];
+        snprintf(buf, sizeof(buf), "%d", resp->rcode);
+        bd_result_set_insert_tag(result_set, "response_code", buf);
+        snprintf(buf, sizeof(buf), "%d", resp->opcode);
+        bd_result_set_insert_tag(result_set, "opcode", buf);
 
         // for each question
         for (i=0; i<resp->qdcount; i++) {
@@ -428,3 +435,4 @@ int module_dns_init() {
 
     return 0;
 }
+
