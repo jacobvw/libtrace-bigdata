@@ -225,6 +225,8 @@ int bd_result_set_free(bd_result_set_t *result_set) {
     if (result_set->results != NULL) {
         // iterate over each clearing any strings
         for (i=0; i<result_set->num_results; i++) {
+
+            /* free the value */
             if (result_set->results[i].type == BD_TYPE_STRING ||
                 result_set->results[i].type == BD_TYPE_TAG) {
 
@@ -233,12 +235,15 @@ int bd_result_set_free(bd_result_set_t *result_set) {
                     result_set->results[i].value.data_string = NULL;
                 }
 
-                if (result_set->results[i].key != NULL) {
-                    free(result_set->results[i].key);
-                    result_set->results[i].key = NULL;
-                }
+            }
+
+            /* free the key */
+            if (result_set->results[i].key != NULL) {
+                free(result_set->results[i].key);
+                result_set->results[i].key = NULL;
             }
         }
+
         free(result_set->results);
         result_set->results = NULL;
     }
