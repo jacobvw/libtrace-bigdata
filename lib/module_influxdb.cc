@@ -24,6 +24,7 @@ typedef struct module_influxdb_options {
 void *module_influxdb_starting(void *tls);
 int module_influxdb_post(bd_bigdata_t *bigdata, void *mls, bd_result_set *result);
 void *module_influxdb_stopping(void *tls, void *mls);
+static char *replaceWord(const char *s, const char *oldW, const char *newW);
 
 void *module_influxdb_starting(void *tls) {
     mod_influxdb_opts_t *opts = (mod_influxdb_opts_t *)malloc(sizeof(mod_influxdb_opts_t));
@@ -77,9 +78,28 @@ int module_influxdb_post(bd_bigdata_t *bigdata, void *mls, bd_result_set *result
     for (i=0; i<result->num_results; i++) {
         if (result->results[i].type == BD_TYPE_TAG) {
             strcat(str, ",");
-            strcat(str, result->results[i].key);
+            /* if the tag key contains a space */
+            if (strstr(result->results[i].key, " ")) {
+                // escape all spaces
+                char *w = replaceWord(result->results[i].key, " ", "\\ ");
+                strcat(str, w);
+                free(w);
+            } else {
+                strcat(str, result->results[i].key);
+            }
+
             strcat(str, "=");
-            strcat(str, result->results[i].value.data_string);
+
+            /* if the tag result contains a space */
+            if (strstr(result->results[i].value.data_string, " ")) {
+                /* escape all spaces */
+                char *w = replaceWord(result->results[i].value.data_string,
+                    " ", "\\ ");
+                strcat(str, w);
+                free(w);
+            } else {
+                strcat(str, result->results[i].value.data_string);
+            }
         }
     }
 
@@ -277,4 +297,45 @@ int module_influxdb_init() {
 
     // register the callback set
     bd_register_cb_set(config->callbacks);
+}
+
+
+/* HELPER FUNCTIONS */
+
+// Function to replace a string with another
+// string
+static char *replaceWord(const char *s, const char *oldW, const char *newW) {
+    char *result;
+    int i, cnt = 0;
+    int newWlen = strlen(newW);
+    int oldWlen = strlen(oldW);
+
+    // Counting the number of times old word
+    // occur in the string
+    for (i = 0; s[i] != '\0'; i++) {
+        if (strstr(&s[i], oldW) == &s[i]) {
+            cnt++;
+
+            // Jumping to index after the old word.
+            i += oldWlen - 1;
+        }
+    }
+
+    // Making new string of enough length
+    result = (char *)malloc(i + cnt * (newWlen - oldWlen) + 1);
+
+    i = 0;
+    while (*s) {
+        // compare the substring with the result
+        if (strstr(s, oldW) == s) {
+            strcpy(&result[i], newW);
+            i += newWlen;
+            s += oldWlen;
+        } else {
+            result[i++] = *s++;
+        }
+    }
+
+    result[i] = '\0';
+    return result;
 }
