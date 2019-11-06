@@ -60,6 +60,21 @@ typedef struct bigdata_callback_set {
     bd_cb_set *next;
 } bd_cb_set;
 
+/* PRIVATE FUNCTION */
+/* callback triggering functions */
+int bd_callback_trigger_output(bd_bigdata_t *bigdata, bd_result_set_t *result);
+int bd_callback_trigger_combiner(bd_bigdata_t *bigdata, bd_result_set_wrap_t *res);
+int bd_callback_trigger_protocol(bd_bigdata_t *bigdata, lpi_protocol_t protocol);
+int bd_callback_trigger_packet(bd_bigdata_t *bigdata);
+int bd_callback_trigger_tick(bd_bigdata_t *bigdata, uint64_t tick);
+int bd_callback_trigger_flowstart(bd_bigdata_t *bigdata);
+int bd_callback_trigger_flowend(bd_bigdata_t *bigdata);
+int bd_callback_trigger_protocol_updated(bd_bigdata_t *bigdata, lpi_protocol_t oldproto,
+    lpi_protocol_t newproto);
+
+
+/* API FUNCTIONS */
+
 /* callback set creation functions */
 
 /* Create a callback set.
@@ -97,23 +112,14 @@ int bd_add_filter_to_cb_set(bd_cb_set *cbset, const char *filter);
  */
 int bd_add_tickrate_to_cb_set(bd_cb_set *cbset, size_t tickrate);
 
-
-/* callback triggering functions */
-int bd_callback_trigger_output(bd_bigdata_t *bigdata, bd_result_set_t *result);
-int bd_callback_trigger_combiner(bd_bigdata_t *bigdata, bd_result_set_wrap_t *res);
-int bd_callback_trigger_protocol(bd_bigdata_t *bigdata, lpi_protocol_t protocol);
-int bd_callback_trigger_packet(bd_bigdata_t *bigdata);
-int bd_callback_trigger_tick(bd_bigdata_t *bigdata, uint64_t tick);
-int bd_callback_trigger_flowstart(bd_bigdata_t *bigdata);
-int bd_callback_trigger_flowend(bd_bigdata_t *bigdata);
-int bd_callback_trigger_protocol_updated(bd_bigdata_t *bigdata, lpi_protocol_t oldproto,
-    lpi_protocol_t newproto);
-
-
-/* callback registering functions */
-
+/* Register a callback function to the packet processing thread start event.
+ *
+ * @params      cbset - Callback set
+ *              callback - The callback function
+ * @returns     0 on success
+ *              -1 on error
+ */
 int bd_register_start_event(bd_cb_set *cbset, cb_start callback);
-
 
 /* Register a callback function to the packet event.
  *
@@ -124,13 +130,34 @@ int bd_register_start_event(bd_cb_set *cbset, cb_start callback);
  */
 int bd_register_packet_event(bd_cb_set *cbset, cb_packet callback);
 
+/* Register a callback function to the tick event.
+ *
+ * @params      cbset - Callback set
+ *              callback - The callback function
+ * @returns     0 on success
+ *              -1 on error
+ */
 int bd_register_tick_event(bd_cb_set *cbset, cb_tick callback);
 
+/* Register a callback function to the packet processing thread stop event.
+ *
+ * @params      cbset - Callback set
+ *              callback - The callback function
+ * @returns     0 on success
+ *              -1 on error
+ */
 int bd_register_stop_event(bd_cb_set *cbset, cb_stop callback);
 
+/* Register a callback function to the clear event.
+ *
+ * @params      cbset - Callback set
+ *              callback - The callback function
+ * @returns     0 on success
+ *              -1 on error
+ */
 int bd_register_clear_event(bd_cb_set *cbset, cb_clear callback);
 
-/* Register a callback function to a protocol event.
+/* Register a callback function to the protocol event.
  * See https://github.com/wanduow/libprotoident/blob/master/lib/libprotoident.h
  * for the supported protocols.
  *
@@ -142,12 +169,40 @@ int bd_register_clear_event(bd_cb_set *cbset, cb_clear callback);
  */
 int bd_register_protocol_event(bd_cb_set *cbset, cb_protocol callback, lpi_protocol_t protocol);
 
+/* Register a callback function to the protocol updated event.
+ *
+ * @params      cbset - Callback set
+ *              callback - The callback function
+ * @returns     0 on success
+ *              -1 on error
+ */
 int bd_register_protocol_updated_event(bd_cb_set *cbset, cb_protocol_updated callback);
 
+/* Register a callback function to the reporter start event.
+ *
+ * @params      cbset - Callback set
+ *              callback - The callback function
+ * @returns     0 on success
+ *              -1 on error
+ */
 int bd_register_reporter_start_event(bd_cb_set *cbset, cb_reporter_start callback);
 
+/* Register a callback function to the reporter output event.
+ *
+ * @params      cbset - Callback set
+ *              callback - The callback function
+ * @returns     0 on success
+ *              -1 on error
+ */
 int bd_register_reporter_output_event(bd_cb_set *cbset, cb_reporter_output callback);
 
+/* Register a callback function to the combiner event
+ *
+ * @params      cbset - Callback set
+ *              callback - The callback function
+ * @returns     0 on success
+ *              -1 on error
+ */
 int bd_register_reporter_combiner_event(bd_cb_set *cbset, cb_reporter_combiner callback);
 
 int bd_register_reporter_stop_event(bd_cb_set *cbset, cb_reporter_stop callback);
