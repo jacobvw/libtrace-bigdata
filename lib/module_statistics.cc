@@ -353,7 +353,7 @@ int module_statistics_config(yaml_parser_t *parser, yaml_event_t *event, int *le
     return 0;
 }
 
-int module_statistics_init() {
+int module_statistics_init(bd_bigdata_t *bigdata) {
     // allocate memory for config structure
     config = (struct module_statistics_conf *)malloc(
         sizeof(struct module_statistics_conf));
@@ -373,9 +373,13 @@ int module_statistics_init() {
     config->tcp_packet_count = 0;
     config->udp_packet_count = 0;
 
+    // create the callback set
     config->callbacks = bd_create_cb_set("statistics");
+
     config->callbacks->config_cb = (cb_config)module_statistics_config;
-    bd_register_cb_set(config->callbacks);
+
+    // register the callback set
+    bd_register_cb_set(bigdata, config->callbacks);
 
     return 0;
 }

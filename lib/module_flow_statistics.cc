@@ -185,7 +185,7 @@ int module_flow_statistics_config(yaml_parser_t *parser, yaml_event_t *event, in
 
 /* define the initialisation function for the plugin, This is called by the application
  * core on startup */
-int module_flow_statistics_init() {
+int module_flow_statistics_init(bd_bigdata_t *bigdata) {
 
     /* create storage for the plugins conf structure */
     config = (struct module_flow_statistics_config *)malloc(sizeof(struct
@@ -211,5 +211,5 @@ int module_flow_statistics_init() {
     config->callbacks->config_cb = (cb_config)module_flow_statistics_config;
 
     /* register the callback set against the application core */
-    bd_register_cb_set(config->callbacks);
+    bd_register_cb_set(bigdata, config->callbacks);
 }

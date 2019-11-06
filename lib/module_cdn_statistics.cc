@@ -210,7 +210,7 @@ int module_cdn_statistics_config(yaml_parser_t *parser, yaml_event_t *event, int
     }
 }
 
-int module_cdn_statistics_init() {
+int module_cdn_statistics_init(bd_bigdata_t *bigdata) {
     // allocate memory for config structure
     config = (mod_cdn_stats_conf_t *)malloc(sizeof(mod_cdn_stats_conf_t));
     if (config == NULL) {
@@ -225,8 +225,9 @@ int module_cdn_statistics_init() {
 
     config->callbacks = bd_create_cb_set("cdn_statistics");
     config->callbacks->config_cb = (cb_config)module_cdn_statistics_config;
-    bd_register_cb_set(config->callbacks);
+
+    /* register the callback set */
+    bd_register_cb_set(bigdata, config->callbacks);
 
     return 0;
-
 }

@@ -17,7 +17,6 @@
 #include <stdlib.h>
 #include <errno.h>
 
-
 typedef struct bigdata_config bd_conf_t;
 typedef struct bigdata_global bd_global_t;
 typedef struct bigdata_network bd_network_t;
@@ -25,10 +24,6 @@ typedef struct bigdata bd_bigdata_t;
 typedef struct bigdata_global bd_global_t;
 typedef struct bigdata_callback_set bd_cb_set;
 typedef struct bigdata_flow_record bd_flow_record_t;
-
-typedef int (*cb_packet) (bd_bigdata_t *bigdata, void *mls);
-typedef int (*cb_protocol) (bd_bigdata_t *bigdata, void *mls);
-
 
 // internal libraries
 #include "bigdata_resultset.h"
@@ -84,64 +79,6 @@ typedef struct bigdata_network {
     struct sockaddr_storage mask;
 } bd_network_t;
 
-
-/* configuration event prototype */
-typedef int (*cb_config) (yaml_parser_t *parser, yaml_event_t *event, int *level);
-
-/* packet processing processing event prototypes - packet processing thread */
-typedef void* (*cb_start) (void *tls);
-typedef int (*cb_packet) (bd_bigdata_t *bigdata, void *mls);
-typedef int (*cb_tick) (bd_bigdata_t *bigdata, void *mls, uint64_t tick);
-typedef int (*cb_stop) (void *tls, void *mls);
-typedef int (*cb_clear) (void *mls);
-
-/*protocol event prototypes - packet processing thread */
-typedef int (*cb_protocol) (bd_bigdata_t *bigdata, void *mls);
-typedef int (*cb_protocol_updated) (bd_bigdata_t *bigdata, void *mls, lpi_protocol_t old_protocol,
-    lpi_protocol_t new_protocol);
-
-/* result event prototypes - Reporter thread */
-typedef void* (*cb_reporter_start) (void *tls);
-typedef int (*cb_reporter_output) (bd_bigdata_t *bigdata, void *mls, bd_result_set *result);
-typedef int (*cb_reporter_combiner) (bd_bigdata_t *bigdata, void *mls, uint64_t tick, void *result);
-typedef int (*cb_reporter_stop) (void *tls, void *mls);
-
-/* flow event prototypes - packet processing thread */
-typedef int (*cb_flowstart) (bd_bigdata_t *bigdata, void *mls, bd_flow_record_t *flow_record);
-typedef int (*cb_flowend) (bd_bigdata_t *bigdata, void *mls, bd_flow_record_t *flow_record);
-
-typedef struct bigdata_callback_set bd_cb_set;
-typedef struct bigdata_callback_set {
-    // module ID
-    int id;
-    char *name;
-    // processing thread callbacks
-    cb_start start_cb;
-    cb_packet packet_cb;
-    cb_stop stop_cb;
-    // reporter thread callbacks
-    cb_reporter_start reporter_start_cb;
-    cb_reporter_output reporter_output_cb;
-    cb_reporter_combiner reporter_combiner_cb;
-    cb_reporter_stop reporter_stop_cb;
-    // flow callbacks
-    cb_flowstart flowstart_cb;
-    cb_flowend flowend_cb;
-    // tick timer callbacks
-    cb_tick tick_cb;
-    size_t tickrate;               // base tickrate
-    // filter for the module
-    libtrace_filter_t *filter;
-    // config callback
-    cb_config config_cb;
-    // clear callback to clear any counters the module has
-    cb_clear clear_cb;
-    // protocol callbacks
-    cb_protocol protocol_cb[LPI_PROTO_LAST];
-    cb_protocol_updated protocol_updated_cb;
-    bd_cb_set *next;
-} bd_cb_set;
-
 /* Global configuration structure */
 typedef struct bigdata_global {
     pthread_mutex_t lock;
@@ -165,16 +102,15 @@ typedef struct bigdata_thread_reporter_local {
 } bd_rthread_local_t;
 
 
+/* private function */
+static bd_bigdata_t *init_bigdata(bd_bigdata_t *bigdata, libtrace_t *trace, libtrace_thread_t *thread,
+    libtrace_packet_t *packet, Flow *flow, bd_global_t *global, void *tls);
+static void init_modules(bd_bigdata_t *bigdata);
+static void libtrace_cleanup(libtrace_t *trace, libtrace_callback_set_t *processing,
+    libtrace_callback_set_t *reporter);
+
 
 /* API functions */
-
-/* Registers a callback set against the application core.
- *
- * @param	callback set created via bd_create_cb_set()
- * @returns	int ID for the plugin
- *		-1 on error
- */
-int bd_register_cb_set(bd_cb_set *cbset);
 
 /* Get the direction the packet is travelling. If configuration
  * option local_networks_as_direction is enabled this will be used

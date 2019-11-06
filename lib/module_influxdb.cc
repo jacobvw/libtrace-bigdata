@@ -270,7 +270,7 @@ int module_influxdb_config(yaml_parser_t *parser, yaml_event_t *event, int *leve
     }
 }
 
-int module_influxdb_init() {
+int module_influxdb_init(bd_bigdata_t *bigdata) {
 
     config = (struct module_influxdb_conf *)malloc(sizeof(
         struct module_influxdb_conf));
@@ -295,7 +295,7 @@ int module_influxdb_init() {
     config->callbacks->config_cb = (cb_config)module_influxdb_config;
 
     // register the callback set
-    bd_register_cb_set(config->callbacks);
+    bd_register_cb_set(bigdata, config->callbacks);
 }
 
 

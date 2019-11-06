@@ -413,7 +413,7 @@ int module_dns_config(yaml_parser_t *parser, yaml_event_t *event, int *level) {
     }
 }
 
-int module_dns_init() {
+int module_dns_init(bd_bigdata_t *bigdata) {
     // allocate memory for config structure
     config = (struct module_dns_conf *)malloc(
         sizeof(struct module_dns_conf));
@@ -431,7 +431,9 @@ int module_dns_init() {
 
     config->callbacks = bd_create_cb_set("dns");
     config->callbacks->config_cb = (cb_config)module_dns_config;
-    bd_register_cb_set(config->callbacks);
+
+    /* register the callback set */
+    bd_register_cb_set(bigdata, config->callbacks);
 
     return 0;
 }

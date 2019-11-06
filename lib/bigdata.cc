@@ -6,21 +6,21 @@
 
 bd_global_t *global_data;
 
-void init_modules() {
-    module_statistics_init();
-    module_protocol_statistics_init();
-    module_dns_init();
+static void init_modules(bd_bigdata_t *bigdata) {
+    module_statistics_init(bigdata);
+    module_protocol_statistics_init(bigdata);
+    module_dns_init(bigdata);
 #ifdef HAVE_LIBCURL
-    module_influxdb_init();
+    module_influxdb_init(bigdata);
 #endif
-    module_cdn_statistics_init();
+    module_cdn_statistics_init(bigdata);
 #ifdef HAVE_LIBRDKAFKA
-    module_kafka_init();
+    module_kafka_init(bigdata);
 #endif
-    module_flow_statistics_init();
+    module_flow_statistics_init(bigdata);
 }
 
-void libtrace_cleanup(libtrace_t *trace, libtrace_callback_set_t *processing,
+static void libtrace_cleanup(libtrace_t *trace, libtrace_callback_set_t *processing,
     libtrace_callback_set_t *reporter) {
 
     if (trace != NULL) {
@@ -34,6 +34,19 @@ void libtrace_cleanup(libtrace_t *trace, libtrace_callback_set_t *processing,
     if (reporter != NULL) {
         trace_destroy_callback_set(reporter);
     }
+}
+
+static bd_bigdata_t *init_bigdata(bd_bigdata_t *bigdata, libtrace_t *trace, libtrace_thread_t *thread,
+    libtrace_packet_t *packet, Flow *flow, bd_global_t *global, void *tls) {
+
+    bigdata->trace = trace;
+    bigdata->thread = thread;
+    bigdata->packet = packet;
+    bigdata->flow = flow;
+    bigdata->global = global;
+    bigdata->tls = tls;
+
+    return bigdata;
 }
 
 /* Called when a processing thread is started before any packets are read
@@ -109,12 +122,7 @@ libtrace_packet_t *per_packet(libtrace_t *trace, libtrace_thread_t *thread,
 
     // create bigdata structure
     bd_bigdata_t bigdata;
-    bigdata.trace = trace;
-    bigdata.thread = thread;
-    bigdata.packet = packet;
-    bigdata.flow = flow;
-    bigdata.global = (bd_global_t *)global;
-    bigdata.tls = tls;
+    init_bigdata(&bigdata, trace, thread, packet, flow, (bd_global_t *)global, tls);
 
     // If a protocol was found trigger protocol event
     if (flow != NULL) {
@@ -158,12 +166,7 @@ static void per_tick(libtrace_t *trace, libtrace_thread_t *thread, void *global,
 
     // create bigdata structure
     bd_bigdata_t bigdata;
-    bigdata.trace = trace;
-    bigdata.thread = thread;
-    bigdata.packet = NULL;
-    bigdata.flow = NULL;
-    bigdata.global = (bd_global_t *)global;
-    bigdata.tls = tls;
+    init_bigdata(&bigdata, trace, thread, NULL, NULL, (bd_global_t *)global, tls);
 
     // trigger the tick events
     bd_callback_trigger_tick(&bigdata, tick);
@@ -213,12 +216,7 @@ static void reporter_result(libtrace_t *trace, libtrace_thread_t *thread,
 
     // create bigdata structure for callbacks
     bd_bigdata_t bigdata;
-    bigdata.trace = trace;
-    bigdata.thread = thread;
-    bigdata.packet = NULL;
-    bigdata.flow = NULL;
-    bigdata.global = (bd_global_t *)global;
-    bigdata.tls = tls;
+    init_bigdata(&bigdata, trace, thread, NULL, NULL, (bd_global_t *)global, tls);
 
     // if the result needs to be sent to the modules combiner do that
     if (result->type == BD_RESULT_COMBINE) {
@@ -256,7 +254,6 @@ static void reporter_stopping(libtrace_t *trace, libtrace_thread_t *thread,
     if (l_data != NULL) { free(l_data); }
 }
 
-
 int main(int argc, char *argv[]) {
 
     /* Initialise libprotoident */
@@ -278,8 +275,15 @@ int main(int argc, char *argv[]) {
     global_data->callbacks = NULL;
     global_data->callback_count = 0;
 
+    /* create bigdata structure */
+    bd_bigdata_t bigdata;
+    if (init_bigdata(&bigdata, NULL, NULL, NULL, NULL, global_data, NULL) == NULL) {
+        fprintf(stderr, "Unable to setup global data structure\n");
+        return -1;
+    }
+
     // initialise modules
-    init_modules();
+    init_modules(&bigdata);
 
     // parse configuration
     global_data->config = parse_config(argv[1], global_data);
@@ -347,37 +351,6 @@ int main(int argc, char *argv[]) {
     libtrace_cleanup(trace, processing, reporter);
 
     return 0;
-}
-
-/* Registers a modules callback functions against libtrace-bigdata
- * params:
- *     bd_cb_set - modules callback set
- * returns:
- *     assigned module ID
- */
-int bd_register_cb_set(bd_cb_set *cbset) {
-    // obtain lock for global data
-    pthread_mutex_lock(&global_data->lock);
-
-    bd_cb_set *tmp = global_data->callbacks;
-
-    if (tmp == NULL) {
-       global_data->callbacks = cbset;
-    } else {
-        while (tmp->next != NULL) {
-             tmp = tmp->next;
-        }
-        tmp->next = cbset;
-    }
-
-    // increment callback count
-    global_data->callback_count += 1;
-    // set modules ID
-    cbset->id = global_data->callback_count;
-
-    pthread_mutex_unlock(&global_data->lock);
-
-    return cbset->id;
 }
 
 int bd_get_packet_direction(libtrace_packet_t *packet) {

@@ -22,6 +22,34 @@ bd_cb_set *bd_create_cb_set(const char *module_name) {
     return cbset;
 }
 
+int bd_register_cb_set(bd_bigdata_t *bigdata, bd_cb_set *cbset) {
+    // get global data from bigdata structure
+    bd_global_t *global_data = bigdata->global;
+
+    // obtain lock for global data
+    pthread_mutex_lock(&global_data->lock);
+
+    bd_cb_set *tmp = global_data->callbacks;
+
+    if (tmp == NULL) {
+       global_data->callbacks = cbset;
+    } else {
+        while (tmp->next != NULL) {
+             tmp = tmp->next;
+        }
+        tmp->next = cbset;
+    }
+
+    // increment callback count
+    global_data->callback_count += 1;
+    // set modules ID
+    cbset->id = global_data->callback_count;
+
+    pthread_mutex_unlock(&global_data->lock);
+
+    return cbset->id;
+}
+
 int bd_add_filter_to_cb_set(bd_cb_set *cbset, const char *filter) {
     cbset->filter = trace_create_filter(filter);
     return 0;
@@ -32,13 +60,68 @@ int bd_add_tickrate_to_cb_set(bd_cb_set *cbset, size_t tickrate) {
     return 0;
 }
 
-int bd_register_protocol_event(bd_cb_set *cbset, cb_protocol callback, lpi_protocol_t protocol) {
-    cbset->protocol_cb[protocol] = callback;
+int bd_register_start_event(bd_cb_set *cbset, cb_start callback) {
+    cbset->start_cb = callback;
     return 0;
 }
 
 int bd_register_packet_event(bd_cb_set *cbset, cb_packet callback) {
     cbset->packet_cb = callback;
+    return 0;
+}
+
+int bd_register_tick_event(bd_cb_set *cbset, cb_tick callback) {
+    cbset->tick_cb = callback;
+    return 0;
+}
+
+int bd_register_stop_event(bd_cb_set *cbset, cb_stop callback) {
+    cbset->stop_cb = callback;
+    return 0;
+}
+
+int bd_register_clear_event(bd_cb_set *cbset, cb_clear callback) {
+    cbset->clear_cb = callback;
+    return 0;
+}
+
+int bd_register_protocol_event(bd_cb_set *cbset, cb_protocol callback, lpi_protocol_t protocol) {
+    cbset->protocol_cb[protocol] = callback;
+    return 0;
+}
+
+int bd_register_protocol_updated_event(bd_cb_set *cbset, cb_protocol_updated callback) {
+    cbset->protocol_updated_cb = callback;
+    return 0;
+}
+
+int bd_register_reporter_start_event(bd_cb_set *cbset, cb_reporter_start callback) {
+    cbset->reporter_start_cb = callback;
+    return 0;
+}
+
+int bd_register_reporter_output_event(bd_cb_set *cbset, cb_reporter_output callback) {
+    cbset->reporter_output_cb = callback;
+    return 0;
+}
+
+int bd_register_reporter_combiner_event(bd_cb_set *cbset, cb_reporter_combiner callback) {
+    cbset->reporter_combiner_cb = callback;
+    return 0;
+}
+
+int bd_register_reporter_stop_event(bd_cb_set *cbset, cb_reporter_stop callback) {
+    cbset->reporter_stop_cb = callback;
+    return 0;
+}
+
+int bd_register_flowstart_event(bd_cb_set *cbset, cb_flowstart callback) {
+    cbset->flowstart_cb = callback;
+    return 0;
+}
+
+int bd_register_flowend_event(bd_cb_set *cbset, cb_flowend callback) {
+    cbset->flowend_cb = callback;
     return 0;
 }
 

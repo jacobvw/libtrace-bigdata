@@ -3,6 +3,6 @@
 
 #include "bigdata.h"
 
-int module_influxdb_init();
+int module_influxdb_init(bd_bigdata_t *bigdata);
 
 #endif

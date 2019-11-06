@@ -3,6 +3,6 @@
 
 #include "bigdata.h"
 
-int module_protocol_statistics_init();
+int module_protocol_statistics_init(bd_bigdata_t *bigdata);
 
 #endif
