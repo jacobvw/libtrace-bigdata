@@ -1,4 +1,3 @@
-#include "bigdata.h"
 #include "module_flow_statistics.h"
 
 /* configuration structure for the plugin */

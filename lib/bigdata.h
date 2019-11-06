@@ -17,6 +17,7 @@
 #include <stdlib.h>
 #include <errno.h>
 
+
 typedef struct bigdata_config bd_conf_t;
 typedef struct bigdata_global bd_global_t;
 typedef struct bigdata_network bd_network_t;
@@ -24,13 +25,16 @@ typedef struct bigdata bd_bigdata_t;
 typedef struct bigdata_global bd_global_t;
 typedef struct bigdata_callback_set bd_cb_set;
 typedef struct bigdata_flow_record bd_flow_record_t;
+
+typedef int (*cb_packet) (bd_bigdata_t *bigdata, void *mls);
 typedef int (*cb_protocol) (bd_bigdata_t *bigdata, void *mls);
 
+
 // internal libraries
-#include "bigdata_parser.h"
-#include "bigdata_flow.h"
 #include "bigdata_resultset.h"
 #include "bigdata_callbacks.h"
+#include "bigdata_parser.h"
+#include "bigdata_flow.h"
 
 // Input Plugins
 #include "module_dns.h"
@@ -52,6 +56,7 @@ typedef int (*cb_protocol) (bd_bigdata_t *bigdata, void *mls);
 #define INPUT_INIT 3
 #define BD_INVALID_CONFIG 4
 #define BD_MALFORMED_CONF 5
+#define BD_YAML_ERROR 6
 
 typedef struct bigdata {
     libtrace_t *trace;
@@ -80,28 +85,28 @@ typedef struct bigdata_network {
 } bd_network_t;
 
 
-/* configuration event */
+/* configuration event prototype */
 typedef int (*cb_config) (yaml_parser_t *parser, yaml_event_t *event, int *level);
 
-/* processing events - packet processing thread */
+/* packet processing processing event prototypes - packet processing thread */
 typedef void* (*cb_start) (void *tls);
 typedef int (*cb_packet) (bd_bigdata_t *bigdata, void *mls);
 typedef int (*cb_tick) (bd_bigdata_t *bigdata, void *mls, uint64_t tick);
 typedef int (*cb_stop) (void *tls, void *mls);
 typedef int (*cb_clear) (void *mls);
 
-/*protocol events - packet processing thread */
+/*protocol event prototypes - packet processing thread */
 typedef int (*cb_protocol) (bd_bigdata_t *bigdata, void *mls);
 typedef int (*cb_protocol_updated) (bd_bigdata_t *bigdata, void *mls, lpi_protocol_t old_protocol,
     lpi_protocol_t new_protocol);
 
-/* result related events - Reporter thread */
+/* result event prototypes - Reporter thread */
 typedef void* (*cb_reporter_start) (void *tls);
 typedef int (*cb_reporter_output) (bd_bigdata_t *bigdata, void *mls, bd_result_set *result);
 typedef int (*cb_reporter_combiner) (bd_bigdata_t *bigdata, void *mls, uint64_t tick, void *result);
 typedef int (*cb_reporter_stop) (void *tls, void *mls);
 
-/* flow related events - packet processing thread */
+/* flow event prototypes - packet processing thread */
 typedef int (*cb_flowstart) (bd_bigdata_t *bigdata, void *mls, bd_flow_record_t *flow_record);
 typedef int (*cb_flowend) (bd_bigdata_t *bigdata, void *mls, bd_flow_record_t *flow_record);
 
@@ -137,6 +142,7 @@ typedef struct bigdata_callback_set {
     bd_cb_set *next;
 } bd_cb_set;
 
+/* Global configuration structure */
 typedef struct bigdata_global {
     pthread_mutex_t lock;
     bd_cb_set *callbacks;
@@ -162,12 +168,26 @@ typedef struct bigdata_thread_reporter_local {
 
 /* API functions */
 
-/* Registers a callback set against the application core */
+/* Registers a callback set against the application core.
+ *
+ * @param	callback set created via bd_create_cb_set()
+ * @returns	int ID for the plugin
+ *		-1 on error
+ */
 int bd_register_cb_set(bd_cb_set *cbset);
 
+/* Get the direction the packet is travelling. If configuration
+ * option local_networks_as_direction is enabled this will be used
+ * to check the packets direction, if not enabled trace_get_direction()
+ * from Libtrace is used.
+ *
+ * @param	The packet to check the direction for
+ * @returns	0 if the packet is outbound
+ *		1 if the packet is inbound
+ */
 int bd_get_packet_direction(libtrace_packet_t *packet);
 
-/** Checks if the supplied IP address is part of one of the local networks
+/* Checks if the supplied IP address is part of one of the local networks
  *
  * @param	sockaddr structure for the IP to check
  * @returns	1 if the IP is a local IP
@@ -176,10 +196,32 @@ int bd_get_packet_direction(libtrace_packet_t *packet);
  */
 int bd_local_ip(struct sockaddr *ip);
 
-void consume_event(yaml_parser_t *parser, yaml_event_t *event, int *level);
+/* Get the Libtrace trace file.
+ *
+ * @param	bigdata structure
+ * @returns	Libtrace trace file
+ */
 libtrace_t *bd_get_trace(bd_bigdata_t *bigdata);
+
+/* Get the Libtrace thread.
+ *
+ * @param	bigdata structure
+ * @returns	Libtrace thread
+ */
 libtrace_thread_t *bd_get_thread(bd_bigdata_t *bigdata);
+
+/* Get the Libflowmanager flow.
+ *
+ * @param	bigdata strucure
+ * @returns	Libflowmanager flow
+ */
 Flow *bd_get_flow(bd_bigdata_t *bigdata);
+
+/* Get the Libtrace packet.
+ *
+ * @params	bigdata structure
+ * @returns	Libtrace packet
+ */
 libtrace_packet_t *bd_get_packet(bd_bigdata_t *bigdata);
 
 #endif

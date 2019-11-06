@@ -31,9 +31,14 @@ int bd_add_tickrate_to_cb_set(bd_cb_set *cbset, size_t tickrate) {
     cbset->tickrate = tickrate;
     return 0;
 }
-// Register callback for a protocol event
+
 int bd_register_protocol_event(bd_cb_set *cbset, cb_protocol callback, lpi_protocol_t protocol) {
     cbset->protocol_cb[protocol] = callback;
+    return 0;
+}
+
+int bd_register_packet_event(bd_cb_set *cbset, cb_packet callback) {
+    cbset->packet_cb = callback;
     return 0;
 }
 

@@ -1,12 +1,6 @@
 #include "bigdata_flow.h"
-#include "bigdata.h"
 #include <netinet/in.h>
 #include <arpa/inet.h>
-
-/* private prototypes */
-int flow_init_metrics(libtrace_packet_t *packet, Flow *flow, uint8_t dir, double ts);
-int flow_process_metrics(libtrace_t *trace, libtrace_thread_t *thread, libtrace_packet_t *packet,
-    Flow *flow, void *global, void *tls, double dir, double ts);
 
 Flow *flow_per_packet(libtrace_t *trace, libtrace_thread_t *thread,
     libtrace_packet_t *packet, void *global, void *tls) {
@@ -64,7 +58,7 @@ Flow *flow_per_packet(libtrace_t *trace, libtrace_thread_t *thread,
     return flow;
 }
 
-int flow_init_metrics(libtrace_packet_t *packet, Flow *flow, uint8_t dir, double ts) {
+static int flow_init_metrics(libtrace_packet_t *packet, Flow *flow, uint8_t dir, double ts) {
     // create flow record for the flow
     bd_flow_record_t *flow_record = (bd_flow_record_t *)malloc(sizeof(bd_flow_record_t));
     if (flow_record == NULL) {
@@ -102,7 +96,7 @@ int flow_init_metrics(libtrace_packet_t *packet, Flow *flow, uint8_t dir, double
     return 0;
 }
 
-int flow_process_metrics(libtrace_t *trace, libtrace_thread_t *thread, libtrace_packet_t *packet,
+static int flow_process_metrics(libtrace_t *trace, libtrace_thread_t *thread, libtrace_packet_t *packet,
     Flow *flow, void *global, void *tls, double dir, double ts) {
 
     bd_flow_record_t *flow_record = (bd_flow_record_t *)flow->extension;

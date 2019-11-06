@@ -5,7 +5,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-bd_network_t *get_local_network(char *network_string) {
+static bd_network_t *get_local_network(char *network_string) {
 
 	char delim[] = "/";
         char buf[INET6_ADDRSTRLEN];
@@ -121,7 +121,7 @@ void print_event(yaml_event_t *event, int *level) {
     }
 }
 
-void update_level(yaml_event_t *event, int *level) {
+static void update_level(yaml_event_t *event, int *level) {
     switch(event->type) {
         case YAML_STREAM_START_EVENT: *level += 1; break;
         case YAML_STREAM_END_EVENT: *level -= 1; break;
@@ -136,13 +136,14 @@ void update_level(yaml_event_t *event, int *level) {
     }
 }
 
-void consume_event(yaml_parser_t *parser, yaml_event_t *event, int *level) {
+int consume_event(yaml_parser_t *parser, yaml_event_t *event, int *level) {
     yaml_event_delete(event);
     if (!yaml_parser_parse(parser, event)) {
         printf("Parser error %d\n", parser->error);
         exit(EXIT_FAILURE);
     }
     update_level(event, level);
+    return *level;
 }
 
 bd_conf_t *parse_config(char *filename, bd_global_t *g_data) {

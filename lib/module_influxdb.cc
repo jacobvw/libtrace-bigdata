@@ -1,5 +1,4 @@
 #include "module_influxdb.h"
-#include "bigdata.h"
 #include <curl/curl.h>
 
 #define INFLUX_BUF_LEN 2000

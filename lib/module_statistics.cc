@@ -1,5 +1,5 @@
 #include "module_statistics.h"
-#include "bigdata.h"
+
 #include <set>
 
 struct module_statistics_conf {
