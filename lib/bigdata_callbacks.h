@@ -205,10 +205,31 @@ int bd_register_reporter_output_event(bd_cb_set *cbset, cb_reporter_output callb
  */
 int bd_register_reporter_combiner_event(bd_cb_set *cbset, cb_reporter_combiner callback);
 
+/* Register a callback function to the reporter stop event.
+ *
+ * @params      cbset - Callback set
+ *              callback - The callback function
+ * @returns     0 on success
+ *              -1 on error
+ */
 int bd_register_reporter_stop_event(bd_cb_set *cbset, cb_reporter_stop callback);
 
+/* Register a callback function to the flowstart event.
+ *
+ * @params      cbset - Callback set
+ *              callback - The callback function
+ * @returns     0 on success
+ *              -1 on error
+ */
 int bd_register_flowstart_event(bd_cb_set *cbset, cb_flowstart callback);
 
+/* Register a callback function to the flowend event.
+ *
+ * @params      cbset - Callback set
+ *              callback - The callback function
+ * @returns     0 on success
+ *              -1 on error
+ */
 int bd_register_flowend_event(bd_cb_set *cbset, cb_flowend callback);
 
 #endif
