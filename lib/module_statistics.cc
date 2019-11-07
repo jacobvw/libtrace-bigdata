@@ -87,7 +87,7 @@ int module_statistics_packet(bd_bigdata_t *bigdata, void *mls) {
     // get the module local storage
     mod_stats_t *stats = (mod_stats_t *)mls;
     // get the packet direction
-    int dir = bd_get_packet_direction(packet);
+    int dir = bd_get_packet_direction(bigdata);
 
     // check if the packet contains a TCP header
     libtrace_tcp_t *tcp_h = trace_get_tcp(packet);

@@ -4,8 +4,6 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-bd_global_t *global_data;
-
 static void init_modules(bd_bigdata_t *bigdata) {
     module_statistics_init(bigdata);
     module_protocol_statistics_init(bigdata);
@@ -111,22 +109,17 @@ static void *start_processing(libtrace_t *trace, libtrace_thread_t *thread,
 libtrace_packet_t *per_packet(libtrace_t *trace, libtrace_thread_t *thread,
     void *global, void *tls, libtrace_packet_t *packet) {
 
-    Flow *flow = NULL;
-
     // Get global and thread local data
     bd_global_t *g_data = (bd_global_t *)global;
     bd_thread_local_t *l_data = (bd_thread_local_t *)tls;
 
-    // pass packet into the flow manager to get flow
-    flow = flow_per_packet(trace, thread, packet, global, tls);
-
     // create bigdata structure
     bd_bigdata_t bigdata;
-    init_bigdata(&bigdata, trace, thread, packet, flow, (bd_global_t *)global, tls);
+    init_bigdata(&bigdata, trace, thread, packet, NULL, (bd_global_t *)global, tls);
 
-    // If a protocol was found trigger protocol event
-    if (flow != NULL) {
-        bd_flow_record_t *flow_record = (bd_flow_record_t *)flow->extension;
+    // update the bigdata structure with flow information and trigger protocol event
+    if (flow_per_packet(&bigdata) != NULL) {
+        bd_flow_record_t *flow_record = (bd_flow_record_t *)bigdata.flow->extension;
         bd_callback_trigger_protocol(&bigdata, flow_record->lpi_module->protocol);
     }
 
@@ -134,7 +127,7 @@ libtrace_packet_t *per_packet(libtrace_t *trace, libtrace_thread_t *thread,
     bd_callback_trigger_packet(&bigdata);
 
     // Expire all suitably idle flows.
-    flow_expire(trace, thread, packet, global, tls);
+    flow_expire(&bigdata);
 
     return packet;
 }
@@ -256,39 +249,38 @@ static void reporter_stopping(libtrace_t *trace, libtrace_thread_t *thread,
 
 int main(int argc, char *argv[]) {
 
+    bd_bigdata_t bigdata;
+    bd_global_t global;
+
+    /* ensure only 2 args, app name and config file */
+    if (argc != 2) {
+        fprintf(stderr, "Usage: %s configFile\n", argv[0]);
+        exit(BD_INVALID_PARAMS);
+    }
+
     /* Initialise libprotoident */
     if (lpi_init_library() == -1) {
         fprintf(stderr, "Unable to initialise libprotoident\n");
-        return -1;
+        exit(BD_STARTUP_ERROR);
     }
 
-    /* Create global data */
-    global_data = (bd_global_t *)malloc(sizeof(bd_global_t));
-    if (global_data == NULL) {
-        fprintf(stderr, "Unable to allocate memory for global data\n");
-        exit(BD_OUTOFMEMORY);
-    }
-    if (pthread_mutex_init(&global_data->lock, NULL) != 0) {
+    /* init global data */
+    if (pthread_mutex_init(&(global.lock), NULL) != 0) {
         printf("\n mutex init failed\n");
-        return -1;
+        exit(BD_STARTUP_ERROR);
     }
-    global_data->callbacks = NULL;
-    global_data->callback_count = 0;
+    global.callbacks = NULL;
+    global.callback_count = 0;
 
-    /* create bigdata structure */
-    bd_bigdata_t bigdata;
-    if (init_bigdata(&bigdata, NULL, NULL, NULL, NULL, global_data, NULL) == NULL) {
-        fprintf(stderr, "Unable to setup global data structure\n");
-        return -1;
-    }
+    /* init bigdata structure */
+    init_bigdata(&bigdata, NULL, NULL, NULL, NULL, &global, NULL) == NULL;
 
     // initialise modules
     init_modules(&bigdata);
 
     // parse configuration
-    global_data->config = parse_config(argv[1], global_data);
-    if (global_data->config == NULL) {
-        fprintf(stderr, "Usage: ./bigdata config.yaml\n");
+    global.config = parse_config(argv[1], &global);
+    if (global.config == NULL) {
         exit(BD_INVALID_CONFIG);
     }
 
@@ -296,7 +288,7 @@ int main(int argc, char *argv[]) {
     libtrace_callback_set_t *processing = NULL;
     libtrace_callback_set_t *reporter = NULL;
 
-    trace = trace_create(global_data->config->interface);
+    trace = trace_create(global.config->interface);
     if (trace_is_err(trace)) {
         trace_perror(trace, "Unable to open capture point");
         libtrace_cleanup(trace, processing, reporter);
@@ -309,10 +301,10 @@ int main(int argc, char *argv[]) {
 
     trace_set_combiner(trace, &combiner_unordered, (libtrace_generic_t){0});
     // Setup number of processing threads
-    trace_set_perpkt_threads(trace, global_data->config->processing_threads);
+    trace_set_perpkt_threads(trace, global.config->processing_threads);
 
     // Enable the bidirectional hasher if specified by the user.
-    if (global_data->config->enable_bidirectional_hasher) {
+    if (global.config->enable_bidirectional_hasher) {
         // Using this hasher will keep all packets related to a flow on the same thread
         trace_set_hasher(trace, HASHER_BIDIRECTIONAL, NULL, NULL);
         fprintf(stdout, "Bidirectional hasher enabled\n");
@@ -335,7 +327,7 @@ int main(int argc, char *argv[]) {
 
 
     // start the trace
-    if (trace_pstart(trace, global_data, processing, reporter) == -1) {
+    if (trace_pstart(trace, &global, processing, reporter) == -1) {
         trace_perror(trace, "Unable to start packet capture");
         libtrace_cleanup(trace, processing, reporter);
         return 1;
@@ -353,22 +345,25 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 
-int bd_get_packet_direction(libtrace_packet_t *packet) {
+int bd_get_packet_direction(bd_bigdata_t *bigdata) {
+
+    libtrace_packet_t *packet = bigdata->packet;
+    bd_global_t *global = bigdata->global;
 
     if (packet == NULL) {
         fprintf(stderr, "NULL packet. func. bd_get_packet_direction()\n");
         return -1;
     }
 
-    if (global_data->config->local_networks_as_direction) {
+    if (global->config->local_networks_as_direction) {
         struct sockaddr_storage src_addr, dst_addr;
         struct sockaddr *src_ip, *dst_ip;
 
         src_ip = trace_get_source_address(packet, (struct sockaddr *)&src_addr);
         dst_ip = trace_get_destination_address(packet, (struct sockaddr *)&dst_addr);
 
-        for (int i=0; i<global_data->config->local_subnets_count; i++) {
-            bd_network_t *network = global_data->config->local_subnets[i];
+        for (int i=0; i < global->config->local_subnets_count; i++) {
+            bd_network_t *network = global->config->local_subnets[i];
 
             struct sockaddr *address = (struct sockaddr *)&(network->address);
             struct sockaddr *mask = (struct sockaddr *)&(network->mask);
@@ -445,11 +440,13 @@ int bd_get_packet_direction(libtrace_packet_t *packet) {
 }
 
 // returns 1 is ip is local, else 0
-int bd_local_ip(struct sockaddr *ip) {
+int bd_local_ip(bd_bigdata_t *bigdata, struct sockaddr *ip) {
+
+    bd_global_t *global = bigdata->global;
 
     // iterate over all local ips
-    for (int i=0; i<global_data->config->local_subnets_count; i++) {
-        bd_network_t *network = global_data->config->local_subnets[i];
+    for (int i=0; i < global->config->local_subnets_count; i++) {
+        bd_network_t *network = global->config->local_subnets[i];
 
         struct sockaddr *address = (struct sockaddr *)&(network->address);
         struct sockaddr *mask = (struct sockaddr *)&(network->mask);

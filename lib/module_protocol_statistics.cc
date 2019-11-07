@@ -145,7 +145,7 @@ int module_protocol_statistics_packet(bd_bigdata_t *bigdata, void *mls) {
 
     // get the flow direction and current direction
     int flow_dir = bd_flow_get_direction(flow);
-    int dir = bd_get_packet_direction(packet);
+    int dir = bd_get_packet_direction(bigdata);
 
     // get pointer to protocol for this packet
     mod_proto_stats_proto_t *proto = &(stats->proto_stats[flow_rec->lpi_module->protocol]);
@@ -167,8 +167,8 @@ int module_protocol_statistics_packet(bd_bigdata_t *bigdata, void *mls) {
         bd_flow_get_destination_ip(flow, &dst_addr);
 
         /* bd_local_ip return 1 if local, 0 is external and -1 if not IPv4 or IPv6 */
-        int src_is_local = bd_local_ip((struct sockaddr *)&src_addr);
-        int dst_is_local = bd_local_ip((struct sockaddr *)&dst_addr);
+        int src_is_local = bd_local_ip(bigdata, (struct sockaddr *)&src_addr);
+        int dst_is_local = bd_local_ip(bigdata, (struct sockaddr *)&dst_addr);
 
         if (src_is_local == 1) {
             proto->isrc_ips->insert(src_addr);

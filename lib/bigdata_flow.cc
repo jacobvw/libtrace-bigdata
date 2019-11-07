@@ -2,15 +2,12 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-Flow *flow_per_packet(libtrace_t *trace, libtrace_thread_t *thread,
-    libtrace_packet_t *packet, void *global, void *tls) {
+Flow *flow_per_packet(bd_bigdata_t *bigdata) {
 
-    // Get thread local storage
-    bd_global_t *global_data = (bd_global_t *)global;
-    bd_thread_local_t *local_data = (bd_thread_local_t *)tls;
+    /* get the thread local data */
+    bd_thread_local_t *local_data = (bd_thread_local_t *)bigdata->tls;
 
-    Flow *flow;
-    double ts = trace_get_seconds(packet);
+    double ts = trace_get_seconds(bigdata->packet);
     uint8_t dir;
     bool is_new = false;
     libtrace_tcp_t *tcp = NULL;
@@ -19,12 +16,12 @@ Flow *flow_per_packet(libtrace_t *trace, libtrace_thread_t *thread,
     uint16_t l3_type;
     /* Libflowmanager only deals with IP traffic, so ignore anything
      * that does not have an IP header */
-    ip = (libtrace_ip_t *)trace_get_layer3(packet, &l3_type, NULL);
+    ip = (libtrace_ip_t *)trace_get_layer3(bigdata->packet, &l3_type, NULL);
     if (l3_type != 0x0800) { return NULL; }
     if (ip == NULL) { return NULL; }
 
     /* Get the direction of the packet */
-    dir = bd_get_packet_direction(packet);
+    dir = bd_get_packet_direction(bigdata);
 
     /* Ignore packets where the IP addresses are the same - something is
      * probably screwy and it's REALLY hard to determine direction */
@@ -35,30 +32,33 @@ Flow *flow_per_packet(libtrace_t *trace, libtrace_thread_t *thread,
     /* Match the packet to a Flow - this will create a new flow if
      * there is no matching flow already in the Flow map and set the
      * is_new flag to true. */
-    flow = local_data->flow_manager->matchPacketToFlow(packet, dir, &is_new);
+    bigdata->flow = local_data->flow_manager->matchPacketToFlow(bigdata->packet,
+        dir, &is_new);
 
     /* Libflowmanager did not like something about that packet - best to
      * just ignore it and carry on */
-    if (flow == NULL) {
+    if (bigdata->flow == NULL) {
         return NULL;
     }
 
     /* If this is a new flow, metrics need to be allocated for it */
     if (is_new) {
-        flow_init_metrics(packet, flow, dir, ts);
+        flow_init_metrics(bigdata, dir, ts);
 
     }
 
-    // update metrics for the flow
-    flow_process_metrics(trace, thread, packet, flow, global, tls, dir, ts);
+    /* update metrics for the flow */
+    flow_process_metrics(bigdata, dir, ts);
 
-    // update expiry time for this flow
-    local_data->flow_manager->updateFlowExpiry(flow, packet, dir, ts);
+    /* update expiry time for this flow */
+    local_data->flow_manager->updateFlowExpiry(bigdata->flow, bigdata->packet,
+        dir, ts);
 
-    return flow;
+    return bigdata->flow;
 }
 
-static int flow_init_metrics(libtrace_packet_t *packet, Flow *flow, uint8_t dir, double ts) {
+static int flow_init_metrics(bd_bigdata_t *bigdata, uint8_t dir, double ts) {
+
     // create flow record for the flow
     bd_flow_record_t *flow_record = (bd_flow_record_t *)malloc(sizeof(bd_flow_record_t));
     if (flow_record == NULL) {
@@ -67,19 +67,19 @@ static int flow_init_metrics(libtrace_packet_t *packet, Flow *flow, uint8_t dir,
     }
 
     // Make sure to set the ss_family if no source or destination address was found
-    if (trace_get_source_address(packet, (struct sockaddr *)
+    if (trace_get_source_address(bigdata->packet, (struct sockaddr *)
         &(flow_record->src_ip)) == NULL) {
 
         flow_record->src_ip.ss_family = AF_UNSPEC;
     }
-    if (trace_get_destination_address(packet, (struct sockaddr *)
+    if (trace_get_destination_address(bigdata->packet, (struct sockaddr *)
         &(flow_record->dst_ip)) == NULL) {
 
         flow_record->dst_ip.ss_family = AF_UNSPEC;
     }
 
-    flow_record->src_port = trace_get_source_port(packet);
-    flow_record->dst_port = trace_get_destination_port(packet);
+    flow_record->src_port = trace_get_source_port(bigdata->packet);
+    flow_record->dst_port = trace_get_destination_port(bigdata->packet);
     flow_record->start_ts = ts;
     flow_record->end_ts = ts;
     flow_record->init_dir = dir;
@@ -91,46 +91,38 @@ static int flow_init_metrics(libtrace_packet_t *packet, Flow *flow, uint8_t dir,
     flow_record->lpi_module = NULL;
 
     // link flow record to the flow
-    flow->extension = flow_record;
+    bigdata->flow->extension = flow_record;
 
     return 0;
 }
 
-static int flow_process_metrics(libtrace_t *trace, libtrace_thread_t *thread, libtrace_packet_t *packet,
-    Flow *flow, void *global, void *tls, double dir, double ts) {
+static int flow_process_metrics(bd_bigdata_t *bigdata, double dir, double ts) {
 
-    bd_flow_record_t *flow_record = (bd_flow_record_t *)flow->extension;
+    // get the flow record
+    bd_flow_record_t *flow_record = (bd_flow_record_t *)bigdata->flow->extension;
 
     flow_record->end_ts = ts;
     int lpi_updated;
 
     if (dir == 0) {
         flow_record->out_packets += 1;
-        flow_record->out_bytes += trace_get_payload_length(packet);
+        flow_record->out_bytes += trace_get_payload_length(bigdata->packet);
     } else {
         flow_record->in_packets += 1;
-        flow_record->in_bytes += trace_get_payload_length(packet);
+        flow_record->in_bytes += trace_get_payload_length(bigdata->packet);
     }
 
     /* update libprotoident */
-    lpi_updated = lpi_update_data(packet, &flow_record->lpi, flow_record->init_dir);
+    lpi_updated = lpi_update_data(bigdata->packet, &flow_record->lpi,
+        flow_record->init_dir);
 
     /* the lpi_module is only NULL when this is a new flow */
     if (flow_record->lpi_module == NULL) {
         /* try guess the protocol for the flow */
         flow_record->lpi_module = lpi_guess_protocol(&flow_record->lpi);
 
-        /* create bigdata structure for the flowstart event */
-        bd_bigdata_t bigdata;
-        bigdata.trace = trace;
-        bigdata.thread = thread;
-        bigdata.packet = packet;
-        bigdata.flow = flow;
-        bigdata.global = (bd_global_t *)global;
-        bigdata.tls = tls;
-
         /* Trigger the flowstart event */
-        bd_callback_trigger_flowstart(&bigdata);
+        bd_callback_trigger_flowstart(bigdata);
 
     /* Otherwise if this is not a new flow but lpi has updated */
     } else if (lpi_updated) {
@@ -144,17 +136,8 @@ static int flow_process_metrics(libtrace_t *trace, libtrace_thread_t *thread, li
         /* If the protocol has changed generate a protocol updated event */
         if (oldproto != flow_record->lpi_module->protocol) {
 
-            /* Create bigdata structure for the protocol updated event */
-            bd_bigdata_t bigdata;
-            bigdata.trace = trace;
-            bigdata.thread = thread;
-            bigdata.packet = packet;
-            bigdata.flow = flow;
-            bigdata.global = (bd_global_t *)global;
-            bigdata.tls = tls;
-
             /* Trigger the event */
-            bd_callback_trigger_protocol_updated(&bigdata, oldproto,
+            bd_callback_trigger_protocol_updated(bigdata, oldproto,
                 flow_record->lpi_module->protocol);
 
         }
@@ -163,39 +146,36 @@ static int flow_process_metrics(libtrace_t *trace, libtrace_thread_t *thread, li
     return 0;
 }
 
-int flow_expire(libtrace_t *trace, libtrace_thread_t *thread,
-    libtrace_packet_t *packet, void *global, void *tls) {
+int flow_expire(bd_bigdata_t *bigdata) {
 
-    bd_global_t *global_data = (bd_global_t *)global;
-    bd_thread_local_t *local_data = (bd_thread_local_t *)tls;
-    FlowManager *fm = local_data->flow_manager;
-    bd_cb_set *cbs = global_data->callbacks;
+    // get needed information from the bigdata structure
+    bd_thread_local_t *local = (bd_thread_local_t *)bigdata->tls;
 
+    FlowManager *fm = local->flow_manager;
     Flow *expired_flow;
 
-    /* create bigdata structure for expired flow event */
-    bd_bigdata_t bigdata;
-    bigdata.trace = trace;
-    bigdata.thread = thread;
-    bigdata.packet = NULL;
-    bigdata.flow = NULL;
-    bigdata.global = (bd_global_t *)global;
-    bigdata.tls = tls;
+    // keep track of the current flow
+    Flow *flow = bigdata->flow;
 
-    while ((expired_flow = fm->expireNextFlow(trace_get_seconds(packet), false)) != NULL) {
+    while ((expired_flow = fm->expireNextFlow(trace_get_seconds(bigdata->packet),
+        false)) != NULL) {
+
         // Gain access to the flow metrics
         bd_flow_record_t *flow_record = (bd_flow_record_t *)expired_flow->extension;
 
         /* update the flow in the bigdata structure for the current flow */
-        bigdata.flow = expired_flow;
+        bigdata->flow = expired_flow;
 
         /* trigger the flowend event */
-        bd_callback_trigger_flowend(&bigdata);
+        bd_callback_trigger_flowend(bigdata);
 
         // Free the metrics structure and release the flow to libflowmanager
         free(flow_record);
         fm->releaseFlow(expired_flow);
     }
+
+    // restore the current flow
+    bigdata->flow = flow;
 
     return 0;
 }
