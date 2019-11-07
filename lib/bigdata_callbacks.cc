@@ -128,21 +128,18 @@ int bd_register_flowend_event(bd_cb_set *cbset, cb_flowend callback) {
 
 int bd_callback_trigger_output(bd_bigdata_t *bigdata, bd_result_set_t *result) {
 
-    int ret;
+    int ret = 0;
     int cb_counter = 0;
 
-    // get access to global data
     bd_global_t *global = bigdata->global;
-    // gain access to thread storage
     bd_rthread_local_t *l_data = (bd_rthread_local_t *)bigdata->tls;
-
-    // get the first callback set
     bd_cb_set *cbs = global->callbacks;
 
     // call each registered output module passing the result set
     for (; cbs != NULL; cbs = cbs->next) {
         if (cbs->reporter_output_cb != NULL) {
             ret = cbs->reporter_output_cb(bigdata, l_data->mls[cb_counter], result);
+
             // if ret isnt 0 output failed so store and output and try again later??
             if (ret != 0) {
                 fprintf(stderr, "Failed posting result to %s\n", cbs->name);
@@ -158,22 +155,17 @@ int bd_callback_trigger_output(bd_bigdata_t *bigdata, bd_result_set_t *result) {
 
 int bd_callback_trigger_combiner(bd_bigdata_t *bigdata, bd_result_set_wrap_t *res) {
 
-    int ret;
+    int ret = 0;
     int cb_counter = 0;
-
-    // get access to global data
     bd_global_t *global = bigdata->global;
-    // gain access to thread storage
-    bd_rthread_local_t *l_data = (bd_rthread_local_t *)bigdata->tls;
-
-    // get the first callback set
+    bd_rthread_local_t *local = (bd_rthread_local_t *)bigdata->tls;
     bd_cb_set *cbs = global->callbacks;
 
     for (; cbs != NULL; cbs = cbs->next) {
         if (cbs->reporter_combiner_cb != NULL) {
             // if this result if for the current module
             if (res->module_id == cbs->id) {
-                ret = cbs->reporter_combiner_cb(bigdata, l_data->mls[cb_counter],
+                ret = cbs->reporter_combiner_cb(bigdata, local->mls[cb_counter],
                     res->key, (void *)res->value);
             }
         }
@@ -185,20 +177,15 @@ int bd_callback_trigger_combiner(bd_bigdata_t *bigdata, bd_result_set_wrap_t *re
 
 int bd_callback_trigger_protocol(bd_bigdata_t *bigdata, lpi_protocol_t protocol) {
 
-    int ret;
+    int ret = 0;
     int cb_counter = 0;
-
-    // get access to global data
     bd_global_t *global = bigdata->global;
-    // gain access to thread storage
-    bd_thread_local_t *l_data = (bd_thread_local_t *)bigdata->tls;
-
-    // get the first callback set
+    bd_thread_local_t *local = (bd_thread_local_t *)bigdata->tls;
     bd_cb_set *cbs = global->callbacks;
 
     for (; cbs != NULL; cbs = cbs->next) {
         if (cbs->protocol_cb[protocol] != NULL) {
-            ret = cbs->protocol_cb[protocol](bigdata, l_data->mls[cb_counter]);
+            ret = cbs->protocol_cb[protocol](bigdata, local->mls[cb_counter]);
         }
         cb_counter += 1;
     }
@@ -209,20 +196,16 @@ int bd_callback_trigger_protocol(bd_bigdata_t *bigdata, lpi_protocol_t protocol)
 int bd_callback_trigger_protocol_updated(bd_bigdata_t *bigdata, lpi_protocol_t oldproto,
     lpi_protocol_t newproto) {
 
-    int ret;
+    int ret = 0;
     int cb_counter = 0;
-
-    // get access to global data
     bd_global_t *global = bigdata->global;
-    // gain access to thread storage
-    bd_thread_local_t *l_data = (bd_thread_local_t *)bigdata->tls;
-
-    // get the first callback set
+    bd_thread_local_t *local = (bd_thread_local_t *)bigdata->tls;
     bd_cb_set *cbs = global->callbacks;
 
     for (; cbs != NULL; cbs = cbs->next) {
         if (cbs->protocol_updated_cb != NULL) {
-            ret = cbs->protocol_updated_cb(bigdata, l_data->mls[cb_counter], oldproto, newproto);
+            ret = cbs->protocol_updated_cb(bigdata, local->mls[cb_counter],
+                oldproto, newproto);
         }
         cb_counter += 1;
     }
@@ -233,13 +216,10 @@ int bd_callback_trigger_protocol_updated(bd_bigdata_t *bigdata, lpi_protocol_t o
 int bd_callback_trigger_starting(bd_bigdata_t *bigdata) {
 
     int cb_counter = 0;
-
-    // get access to global data
     bd_global_t *global = bigdata->global;
-    // gain access to thread storage
     bd_thread_local_t *local = (bd_thread_local_t *)bigdata->tls;
-
     bd_cb_set *cbs = global->callbacks;
+
     for (; cbs != NULL; cbs = cbs->next) {
         if (cbs->start_cb != NULL) {
             local->mls[cb_counter] = cbs->start_cb(local);
@@ -252,16 +232,12 @@ int bd_callback_trigger_starting(bd_bigdata_t *bigdata) {
 
 int bd_callback_trigger_packet(bd_bigdata_t *bigdata) {
 
-    int ret;
+    int ret = 0;
     int cb_counter = 0;
-
-    // get access to global data
     bd_global_t *global = bigdata->global;
-    // gain access to thread storage
     bd_thread_local_t *local = (bd_thread_local_t *)bigdata->tls;
-
-    // trigger packet event
     bd_cb_set *cbs = global->callbacks;
+
     for (; cbs != NULL; cbs = cbs->next) {
         if (cbs->packet_cb != NULL) {
             if (cbs->filter != NULL) {
@@ -280,15 +256,12 @@ int bd_callback_trigger_packet(bd_bigdata_t *bigdata) {
 
 int bd_callback_trigger_stopping(bd_bigdata_t *bigdata) {
 
-    int ret;
+    int ret = 0;
     int cb_counter = 0;
-
-    // get access to global data
     bd_global_t *global = bigdata->global;
-    // gain access to thread storage
     bd_thread_local_t *local = (bd_thread_local_t *)bigdata->tls;
-
     bd_cb_set *cbs = global->callbacks;
+
     for (; cbs != NULL; cbs = cbs->next) {
         if (cbs->stop_cb != NULL) {
             ret = cbs->stop_cb(bigdata->tls, local->mls[cb_counter]);
@@ -301,15 +274,12 @@ int bd_callback_trigger_stopping(bd_bigdata_t *bigdata) {
 
 int bd_callback_trigger_flowstart(bd_bigdata_t *bigdata) {
 
-    int ret;
+    int ret = 0;
     int cb_counter = 0;
-
-    // gain access to global data
     bd_global_t *global = bigdata->global;
-    // gain access to thread storage
     bd_thread_local_t *local = (bd_thread_local_t *)bigdata->tls;
-
     bd_cb_set *cbs = global->callbacks;
+
     for (; cbs != NULL; cbs = cbs->next) {
         if (cbs->flowstart_cb != NULL) {
             ret = cbs->flowstart_cb(bigdata, local->mls[cb_counter],
@@ -323,21 +293,16 @@ int bd_callback_trigger_flowstart(bd_bigdata_t *bigdata) {
 
 int bd_callback_trigger_flowend(bd_bigdata_t *bigdata) {
 
-    int ret;
+    int ret = 0;
     int cb_counter = 0;
-
-    // gain access to global data
     bd_global_t *global = bigdata->global;
-    // gain access to thread storage
-    bd_thread_local_t *l_data = (bd_thread_local_t *)bigdata->tls;
-
-    // gain access to callbacks
+    bd_thread_local_t *local = (bd_thread_local_t *)bigdata->tls;
     bd_cb_set *cbs = global->callbacks;
 
     // invoke each callback
     for (; cbs != NULL; cbs = cbs->next) {
         if (cbs->flowend_cb != NULL) {
-            ret = cbs->flowend_cb(bigdata, l_data->mls[cb_counter],
+            ret = cbs->flowend_cb(bigdata, local->mls[cb_counter],
                 (bd_flow_record_t *)bigdata->flow->extension);
         }
         cb_counter += 1;
@@ -403,15 +368,10 @@ int bd_callback_trigger_tick(bd_bigdata_t *bigdata, uint64_t tick) {
 int bd_callback_trigger_reporter_starting(bd_bigdata_t *bigdata) {
 
     int cb_counter = 0;
-
-    // gain access to global data
     bd_global_t *global = bigdata->global;
-    // gain access to thread storage
     bd_rthread_local_t *local = (bd_rthread_local_t *)bigdata->tls;
-
-    // call handlers to modules that need initialise some report module
-    // local storage
     bd_cb_set *cbs = global->callbacks;
+
     for (; cbs != NULL; cbs = cbs->next) {
         if (cbs->reporter_start_cb != NULL) {
             local->mls[cb_counter] = (void *)cbs->reporter_start_cb(local);
@@ -424,13 +384,12 @@ int bd_callback_trigger_reporter_starting(bd_bigdata_t *bigdata) {
 
 int bd_callback_trigger_reporter_stopping(bd_bigdata_t *bigdata) {
 
-    int ret = 0;;
+    int ret = 0;
     int cb_counter = 0;
-
     bd_global_t *global = (bd_global_t *)bigdata->global;
     bd_thread_local_t *local = (bd_thread_local_t *)bigdata->tls;
-
     bd_cb_set *cbs = global->callbacks;
+
     for (; cbs != NULL; cbs = cbs->next) {
         if (cbs->reporter_stop_cb != NULL) {
             ret = cbs->reporter_stop_cb(bigdata->tls, local->mls[cb_counter]);
