@@ -15,7 +15,7 @@
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
-  "id": 2,
+  "id": 11,
   "links": [],
   "panels": [
     {
@@ -706,6 +706,7 @@
               "type": "tag"
             }
           ],
+          "hide": false,
           "measurement": "protocol_statistics",
           "orderByTime": "ASC",
           "policy": "default",
@@ -734,7 +735,7 @@
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "Count External Destination IPs",
+      "title": "Count External Destination IPs (Outgoing flows)",
       "tooltip": {
         "shared": true,
         "sort": 0,
@@ -851,7 +852,7 @@
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "Count External Source IPs",
+      "title": "Count External Source IPs (Incoming Flows)",
       "tooltip": {
         "shared": true,
         "sort": 0,
@@ -893,6 +894,7 @@
       "bars": true,
       "dashLength": 10,
       "dashes": false,
+      "decimals": 0,
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -921,6 +923,7 @@
       "links": [],
       "nullPointMode": "null",
       "options": {},
+      "paceLength": 10,
       "percentage": false,
       "pointradius": 2,
       "points": false,
@@ -1044,5 +1047,5 @@
   "timezone": "",
   "title": "Protocol Statistics",
   "uid": "R4Fxz-NZz",
-  "version": 67
+  "version": 2
 }
