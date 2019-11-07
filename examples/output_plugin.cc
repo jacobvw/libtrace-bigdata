@@ -99,7 +99,7 @@ int module_MODULENAME_config(yaml_parser_t *parser, yaml_event_t *event, int *le
 }
 
 /* init function called by the application core when starting up */
-int module_MODULENAME_init() {
+int module_MODULENAME_init(bd_bigdata_t *bigdata) {
 
     config = (struct module_MODULENAME_confif *)malloc(sizeof(
         struct module_MODULENAME_config));
@@ -114,5 +114,5 @@ int module_MODULENAME_init() {
     config->callbacks->config_cb = (cb_config)module_MODULENAME_config;
 
     // register the callback set
-    bd_register_cb_set(config->callbacks);
+    bd_register_cb_set(bigdata, config->callbacks);
 }
