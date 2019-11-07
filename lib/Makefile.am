@@ -13,6 +13,7 @@ endif
 
 bin_PROGRAMS = bigdata
 bigdata_SOURCES = bigdata.cc bigdata.h \
+		bigdata_common.cc bigdata_common.h \
 		bigdata_callbacks.cc bigdata_callbacks.h \
 		bigdata_flow.cc bigdata_flow.h \
 		bigdata_parser.cc bigdata_parser.h \

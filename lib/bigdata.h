@@ -26,6 +26,7 @@ typedef struct bigdata_callback_set bd_cb_set;
 typedef struct bigdata_flow_record bd_flow_record_t;
 
 // internal libraries
+#include "bigdata_common.h"
 #include "bigdata_resultset.h"
 #include "bigdata_callbacks.h"
 #include "bigdata_parser.h"
@@ -54,6 +55,21 @@ typedef struct bigdata_flow_record bd_flow_record_t;
 #define BD_YAML_ERROR 6
 #define BD_STARTUP_ERROR 7
 #define BD_INVALID_PARAMS 8
+
+typedef enum {
+    BD_EVENT_STARTING,
+    BD_EVENT_PACKET,
+    BD_EVENT_PROTOCOL,
+    BD_EVENT_PROTOCOL_UPDATED,
+    BD_EVENT_TICK,
+    BD_EVENT_FLOWSTART,
+    BD_EVENT_FLOWEND,
+    BD_EVENT_STOPPING,
+    BD_EVENT_REPORTER_STARTING,
+    BD_EVENT_OUTPUT,
+    BD_EVENT_COMBINE,
+    BD_EVENT_REPORTER_STOPPING,
+} bd_event_t;
 
 typedef struct bigdata {
     libtrace_t *trace;
@@ -110,56 +126,5 @@ static bd_bigdata_t *init_bigdata(bd_bigdata_t *bigdata, libtrace_t *trace, libt
 static void init_modules(bd_bigdata_t *bigdata);
 static void libtrace_cleanup(libtrace_t *trace, libtrace_callback_set_t *processing,
     libtrace_callback_set_t *reporter);
-
-
-/* API functions */
-
-/* Get the direction the packet is travelling. If configuration
- * option local_networks_as_direction is enabled this will be used
- * to check the packets direction, if not enabled trace_get_direction()
- * from Libtrace is used.
- *
- * @param	The packet to check the direction for
- * @returns	0 if the packet is outbound
- *		1 if the packet is inbound
- */
-int bd_get_packet_direction(bd_bigdata_t *bigdata);
-
-/* Checks if the supplied IP address is part of one of the local networks
- *
- * @param	sockaddr structure for the IP to check
- * @returns	1 if the IP is a local IP
- *      	0 if the IP is not a local IP
- *         	-1 if the supplied IP is not IP4 or IP6
- */
-int bd_local_ip(bd_bigdata_t *bigdata, struct sockaddr *ip);
-
-/* Get the Libtrace trace file.
- *
- * @param	bigdata structure
- * @returns	Libtrace trace file
- */
-libtrace_t *bd_get_trace(bd_bigdata_t *bigdata);
-
-/* Get the Libtrace thread.
- *
- * @param	bigdata structure
- * @returns	Libtrace thread
- */
-libtrace_thread_t *bd_get_thread(bd_bigdata_t *bigdata);
-
-/* Get the Libflowmanager flow.
- *
- * @param	bigdata strucure
- * @returns	Libflowmanager flow
- */
-Flow *bd_get_flow(bd_bigdata_t *bigdata);
-
-/* Get the Libtrace packet.
- *
- * @params	bigdata structure
- * @returns	Libtrace packet
- */
-libtrace_packet_t *bd_get_packet(bd_bigdata_t *bigdata);
 
 #endif
