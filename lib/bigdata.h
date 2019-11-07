@@ -52,6 +52,8 @@ typedef struct bigdata_flow_record bd_flow_record_t;
 #define BD_INVALID_CONFIG 4
 #define BD_MALFORMED_CONF 5
 #define BD_YAML_ERROR 6
+#define BD_STARTUP_ERROR 7
+#define BD_INVALID_PARAMS 8
 
 typedef struct bigdata {
     libtrace_t *trace;
@@ -121,7 +123,7 @@ static void libtrace_cleanup(libtrace_t *trace, libtrace_callback_set_t *process
  * @returns	0 if the packet is outbound
  *		1 if the packet is inbound
  */
-int bd_get_packet_direction(libtrace_packet_t *packet);
+int bd_get_packet_direction(bd_bigdata_t *bigdata);
 
 /* Checks if the supplied IP address is part of one of the local networks
  *
@@ -130,7 +132,7 @@ int bd_get_packet_direction(libtrace_packet_t *packet);
  *      	0 if the IP is not a local IP
  *         	-1 if the supplied IP is not IP4 or IP6
  */
-int bd_local_ip(struct sockaddr *ip);
+int bd_local_ip(bd_bigdata_t *bigdata, struct sockaddr *ip);
 
 /* Get the Libtrace trace file.
  *

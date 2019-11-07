@@ -22,14 +22,10 @@ typedef struct bigdata_flow_record {
 } bd_flow_record_t;
 
 /* private functions */
-static int flow_init_metrics(libtrace_packet_t *packet, Flow *flow, uint8_t dir, double ts);
-static int flow_process_metrics(libtrace_t *trace, libtrace_thread_t *thread, libtrace_packet_t *packet,
-    Flow *flow, void *global, void *tls, double dir, double ts);
-
-int flow_expire(libtrace_t *trace, libtrace_thread_t *thread,libtrace_packet_t *packet,
-    void *global, void *tls);
-Flow *flow_per_packet(libtrace_t *trace, libtrace_thread_t *thread,
-    libtrace_packet_t *packet, void *global, void *tls);
+static int flow_init_metrics(bd_bigdata_t *bigdata, uint8_t dir, double ts);
+static int flow_process_metrics(bd_bigdata_t *bigdata, double dir, double ts);
+int flow_expire(bd_bigdata_t *bigdata);
+Flow *flow_per_packet(bd_bigdata_t *bigdata);
 
 /* Get the number of incoming packets seen for the current packets flow.
  *
