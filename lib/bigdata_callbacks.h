@@ -71,7 +71,10 @@ int bd_callback_trigger_flowstart(bd_bigdata_t *bigdata);
 int bd_callback_trigger_flowend(bd_bigdata_t *bigdata);
 int bd_callback_trigger_protocol_updated(bd_bigdata_t *bigdata, lpi_protocol_t oldproto,
     lpi_protocol_t newproto);
-
+int bd_callback_trigger_starting(bd_bigdata_t *bigdata);
+int bd_callback_trigger_stopping(bd_bigdata_t *bigdata);
+int bd_callback_trigger_reporter_starting(bd_bigdata_t *bigdata);
+int bd_callback_trigger_reporter_stopping(bd_bigdata_t *bigdata);
 
 /* API FUNCTIONS */
 

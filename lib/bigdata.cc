@@ -52,8 +52,9 @@ static bd_bigdata_t *init_bigdata(bd_bigdata_t *bigdata, libtrace_t *trace, libt
 static void *start_processing(libtrace_t *trace, libtrace_thread_t *thread,
     void *global) {
 
-    int cb_counter = 0;
-    // gain access to global data
+    // create the bigdata structure
+    bd_bigdata_t bigdata;
+
     bd_global_t *g_data = (bd_global_t *)global;
 
     // create thread local storage
@@ -83,15 +84,6 @@ static void *start_processing(libtrace_t *trace, libtrace_thread_t *thread,
         return NULL;
     }
 
-    // call handlers to modules that need initialise some event local data
-    bd_cb_set *cbs = g_data->callbacks;
-    for (; cbs != NULL; cbs = cbs->next) {
-        if (cbs->start_cb != NULL) {
-            local->mls[cb_counter] = cbs->start_cb(local);
-        }
-        cb_counter += 1;
-    }
-
     // create storage space for each modules countdown tickrate
     local->c_tickrate = (uint64_t *)malloc(sizeof(uint64_t) * g_data->callback_count);
     if (local->c_tickrate == NULL) {
@@ -102,6 +94,15 @@ static void *start_processing(libtrace_t *trace, libtrace_thread_t *thread,
     for (int i = 0; i < g_data->callback_count; i++) {
         local->c_tickrate[i] = 0;
     }
+
+    // init bigdata structure
+    init_bigdata(&bigdata, trace, thread, NULL, NULL, (bd_global_t *)global,
+        (void *)local);
+
+    /* trigger packet processing thread starting event for input plugins to init
+     * some local storage
+     */
+    bd_callback_trigger_starting(&bigdata);
 
     return local;
 }
@@ -135,18 +136,18 @@ libtrace_packet_t *per_packet(libtrace_t *trace, libtrace_thread_t *thread,
 static void stop_processing(libtrace_t *trace, libtrace_thread_t *thread, void *global,
     void *tls) {
 
-    int cb_counter = 0;
-    // get global and thread local storage
-    bd_global_t *g_data = (bd_global_t *)global;
-    bd_thread_local_t *l_data = (bd_thread_local_t *)tls;
+    bd_bigdata_t bigdata;
+    bd_thread_local_t *l_data;
 
-    bd_cb_set *cbs = g_data->callbacks;
-    for (; cbs != NULL; cbs = cbs->next) {
-        if (cbs->stop_cb != NULL) {
-            cbs->stop_cb(tls, l_data->mls[cb_counter]);
-        }
-        cb_counter += 1;
-    }
+    // init the bigdata structure
+    init_bigdata(&bigdata, trace, thread, NULL, NULL, (bd_global_t *)global,
+        (bd_thread_local_t *)tls);
+
+    /* trigger packet processing thread stopping event */
+    bd_callback_trigger_stopping(&bigdata);
+
+    // cast the thread local storage
+    l_data = (bd_thread_local_t *)tls;
 
     // cleanup thread local storage, flow managers, etc.
     if (l_data->mls != NULL) { free(l_data->mls); }
@@ -169,7 +170,8 @@ static void per_tick(libtrace_t *trace, libtrace_thread_t *thread, void *global,
 static void *reporter_starting(libtrace_t *trace, libtrace_thread_t *thread,
     void *global) {
 
-    int cb_counter = 0;
+    bd_bigdata_t bigdata;
+
     // gain access to global data
     bd_global_t *g_data = (bd_global_t *)global;
 
@@ -186,15 +188,11 @@ static void *reporter_starting(libtrace_t *trace, libtrace_thread_t *thread,
         exit(BD_OUTOFMEMORY);
     }
 
-    // call handlers to modules that need initialise some report module
-    // local storage
-    bd_cb_set *cbs = g_data->callbacks;
-    for (; cbs != NULL; cbs = cbs->next) {
-        if (cbs->reporter_start_cb != NULL) {
-            local->mls[cb_counter] = (void *)cbs->reporter_start_cb(local);
-        }
-        cb_counter += 1;
-    }
+    init_bigdata(&bigdata, trace, thread, NULL, NULL, (bd_global_t *)global,
+        (void *)local);
+
+    /* Trigger reporter starting event */
+    bd_callback_trigger_reporter_starting(&bigdata);
 
     return local;
 }
@@ -227,20 +225,17 @@ static void reporter_result(libtrace_t *trace, libtrace_thread_t *thread,
 static void reporter_stopping(libtrace_t *trace, libtrace_thread_t *thread,
     void *global, void *tls) {
 
-    int cb_counter = 0;
-    // get global and thread local storage
-    bd_global_t *g_data = (bd_global_t *)global;
+    bd_bigdata_t bigdata;
+
+    // get thread local storage
     bd_thread_local_t *l_data = (bd_thread_local_t *)tls;
 
-    // call all reporter stopping callbacks, each module is required to free any
-    // module local storage
-    bd_cb_set *cbs = g_data->callbacks;
-    for (; cbs != NULL; cbs = cbs->next) {
-        if (cbs->reporter_stop_cb != NULL) {
-            cbs->reporter_stop_cb(tls, l_data->mls[cb_counter]);
-        }
-        cb_counter += 1;
-    }
+    // init bigdata structure
+    init_bigdata(&bigdata, trace, thread, NULL, NULL, (bd_global_t *)global,
+        (void *)tls);
+
+    // trigger reporter stopping event
+    bd_callback_trigger_reporter_stopping(&bigdata);
 
     // cleanup thread local storage, flow managers, etc.
     if (l_data->mls != NULL) { free(l_data->mls); }
