@@ -2,6 +2,9 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+static char *sockaddr_storage_to_string(struct sockaddr_storage *ptr, char *space,
+    int spacelen);
+
 Flow *flow_per_packet(bd_bigdata_t *bigdata) {
 
     /* get the thread local data */
@@ -225,7 +228,15 @@ struct sockaddr_storage *bd_flow_get_source_ip(Flow *flow,
 struct sockaddr_storage *bd_flow_get_destination_ip(Flow *flow,
     struct sockaddr_storage *dst) {
 
+    if (flow == NULL) {
+        return NULL;
+    }
+
     if (dst == NULL) {
+        return NULL;
+    }
+
+    if (flow->extension == NULL) {
         return NULL;
     }
 
@@ -235,23 +246,51 @@ struct sockaddr_storage *bd_flow_get_destination_ip(Flow *flow,
     return dst;
 }
 
-lpi_protocol_t bd_flow_get_protocol(bd_bigdata_t *bigdata) {
+char *bd_flow_get_destination_ip_string(Flow *flow, char *space, int spacelen) {
 
-    if (bigdata == NULL) {
+    if (flow == NULL) {
+        return NULL;
+    }
+
+    struct sockaddr_storage dst_ip;
+
+    if (bd_flow_get_destination_ip(flow, &dst_ip) == NULL) {
+        return NULL;
+    }
+
+    sockaddr_storage_to_string(&dst_ip, space, spacelen);
+
+    return space;
+
+
+}
+
+char *bd_flow_get_source_ip_string(Flow *flow, char *space, int spacelen) {
+
+    if (flow == NULL) {
+        return NULL;
+    }
+
+    struct sockaddr_storage src_ip;
+
+    if (bd_flow_get_source_ip(flow, &src_ip) == NULL) {
+        return NULL;
+    }
+
+    sockaddr_storage_to_string(&src_ip, space, spacelen);
+
+    return space;
+
+}
+
+lpi_protocol_t bd_flow_get_protocol(Flow *flow) {
+
+    if (flow == NULL) {
+        fprintf(stderr, "NULL flow. func. bd_flow_get_protocol()\n");
         return LPI_PROTO_UNKNOWN;
     }
 
-    if (bigdata->flow == NULL) {
-        return LPI_PROTO_UNKNOWN;
-    }
-
-    if (bigdata->flow->extension == NULL) {
-        return LPI_PROTO_UNKNOWN;
-    }
-
-    /* If flow is not null we should have a flow record */
-    bd_flow_record_t *flow_rec = (bd_flow_record_t *)
-        (bigdata->flow->extension);
+    bd_flow_record_t *flow_rec = (bd_flow_record_t *)flow->extension;
 
     return flow_rec->lpi_module->protocol;
 }
@@ -284,38 +323,61 @@ Flow *bd_flow_get(bd_bigdata_t *bigdata) {
      return bigdata->flow;
 }
 
-bd_flow_record_t *bd_flow_get_record(bd_bigdata_t *bigdata) {
+bd_flow_record_t *bd_flow_get_record(Flow *flow) {
 
-    if (bigdata == NULL) {
-        fprintf(stderr, "NULL bigdata structure passed into. func "
-            "bd_get_flow_record()\n");
+    if (flow == NULL) {
+        fprintf(stderr, "NULL flow. func. bd_flow_get_record()\n");
         return NULL;
     }
 
-    Flow *f;
-    if ((f = bd_flow_get(bigdata)) != NULL) {
-        return (bd_flow_record_t *)f->extension;
-    }
-
-    return NULL;
+    return (bd_flow_record_t *)flow->extension;
 }
 
-double bd_flow_get_duration(bd_bigdata_t *bigdata) {
+double bd_flow_get_duration(Flow *flow) {
 
     bd_flow_record_t *rec;
-    if ((bd_flow_get_record(bigdata)) != NULL) {
+    if ((bd_flow_get_record(flow)) != NULL) {
         return rec->end_ts - rec->start_ts;
     }
 
     return 0;
 }
 
-uint64_t bd_flow_get_id(bd_bigdata_t *bigdata) {
+uint64_t bd_flow_get_id(Flow *flow) {
 
-    Flow *flow;
-    if ((bd_flow_get(bigdata)) != NULL) {
-        return flow->id.get_id_num();
+    if (flow == NULL) {
+        fprintf(stderr, "NULL flow. func. bd_flow_get_id()\n");
+        return 0;
     }
 
-    return 0;
+    return flow->id.get_id_num();
+}
+
+
+/* PRIVATE FUNCTIONS */
+static char *sockaddr_storage_to_string(struct sockaddr_storage *ptr, char *space,
+    int spacelen) {
+
+    if (!ptr) { return NULL; }
+    if (!space) { return NULL; }
+    if (spacelen <= 0) { return NULL; }
+
+
+    if (ptr->ss_family == AF_INET) {
+
+        struct sockaddr_in *v4 = (struct sockaddr_in *)ptr;
+        inet_ntop(AF_INET, &(v4->sin_addr), space, spacelen);
+
+    } else if (ptr->ss_family == AF_INET6) {
+
+        struct sockaddr_in6 *v6 = (struct sockaddr_in6 *)ptr;
+        inet_ntop(AF_INET6, &(v6->sin6_addr), space, spacelen);
+
+    } else {
+
+        space[0] = '\0';
+
+    }
+
+    return space;
 }

@@ -47,7 +47,10 @@ foreach:
   # flow statistics
   flow_statistics:
     enabled: 0
-    # protocols to output individual flow information for
+    # how often to output flow interval results.
+    output_interval: 60
+    # protocols to output flow information for. Refer to each Libprotoident
+    # plugin for correct names.
     protocols:
       - HTTP
       - SSH

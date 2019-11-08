@@ -89,7 +89,7 @@ struct sockaddr_storage *bd_flow_get_destination_ip(Flow *flow, struct sockaddr_
  * @returns	Libprotoident protocol on success.
  *		LPI_PROTO_UNKNOWN on error
  */
-lpi_protocol_t bd_flow_get_protocol(bd_bigdata_t *bigdata);
+lpi_protocol_t bd_flow_get_protocol(Flow *flow);
 
 /* Get the Flowmanager for the current packet processing thread.
  *
@@ -113,14 +113,14 @@ Flow *bd_flow_get(bd_bigdata_t *bigdata);
  * @returns	pointer to the flow record on success.
  * 		NULL pointer on error.
  */
-bd_flow_record_t *bd_flow_get_record(bd_bigdata_t *bigdata);
+bd_flow_record_t *bd_flow_get_record(Flow *flow);
 
 /* Get the duration for the current packets flow.
  *
  * @params	bigdata - bigdata structure.
  * @returns	the duration of the current flow on success.
  */
-double bd_flow_get_duration(bd_bigdata_t *bigdata);
+double bd_flow_get_duration(Flow *flow);
 
 /* Get the unique ID associated with the current packets flow
  *
@@ -128,6 +128,28 @@ double bd_flow_get_duration(bd_bigdata_t *bigdata);
  * @returns	id associated with the flow on success.
  * 		0 on error.
  */
-uint64_t bd_flow_get_id(bd_bigdata_t *bigdata);
+uint64_t bd_flow_get_id(Flow *flow);
+
+/* Gets the flows destination ip address as a string.
+ * Note: This is the destination IP from the first SYN packet seen for this flow.
+ *
+ * @params	flow - The flow.
+ *		space - allocated space for the result, be aware of IPv6 addresses.
+ *		spacelen - the size of space available for the result.
+ * @returns	Pointer to the begining of IP address on success.
+ *		NULL on error.
+ */
+char *bd_flow_get_destination_ip_string(Flow *flow, char *space, int spacelen);
+
+/* Gets the flows souce ip address as a string.
+ * Note: This is the souce IP from the first SYN packet seen for this flow.
+ *
+ * @params      flow - The flow.
+ *              space - allocated space for the result, be aware of IPv6 addresses.
+ *              spacelen - the size of space available for the result.
+ * @returns     Pointer to the begining of IP address on success.
+ *              NULL on error.
+ */
+char *bd_flow_get_source_ip_string(Flow *flow, char *space, int spacelen);
 
 #endif
