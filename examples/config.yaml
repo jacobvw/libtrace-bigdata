@@ -28,15 +28,15 @@ foreach:
   # dns module
   dns:
     enabled: 0
-    # timeout to flush old requests that have not received a response
+    # timeout to flush old requests that have not received a response (seconds)
     timeout_request: 20
-    # how often to check for timed out requests with no response
+    # how often to check for timed out requests with no response (seconds)
     timeout_check: 20
 
   # protocol statistics module
   protocol_statistics:
     enabled: 0
-    # how often to output results in seconds
+    # how often to output results (seconds)
     output_interval: 60
     metrics:
       - byte_count
@@ -47,10 +47,10 @@ foreach:
   # flow statistics
   flow_statistics:
     enabled: 0
-    # how often to output flow interval results.
+    # how often to output results (seconds)
     output_interval: 60
     # protocols to output flow information for. Refer to each Libprotoident
-    # plugin for correct names.
+    # (https://github.com/wanduow/libprotoident) plugins for correct names.
     protocols:
       - HTTP
       - SSH
