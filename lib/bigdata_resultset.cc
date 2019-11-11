@@ -36,11 +36,15 @@ int bd_result_set_insert(bd_result_set_t *result_set, char const *key, bd_record
             sizeof(bd_result_t)*result_set->allocated_results);
         if (result_set->results == NULL) {
             fprintf(stderr, "Unable to allocate memory. func. bd_result_set_insert()\n");
-            return 1;
+            exit(BD_OUTOFMEMORY);
         }
     }
 
     result_set->results[result_set->num_results].key = strdup(key);
+    if (result_set->results[result_set->num_results].key == NULL) {
+        fprintf(stderr, "Unable to allocate memory. func. bd_result_set_insert()\n");
+        exit(BD_OUTOFMEMORY);
+    }
     result_set->results[result_set->num_results].type = dtype;
     result_set->results[result_set->num_results].value = value;
 
@@ -126,8 +130,6 @@ int bd_result_set_insert_tag(bd_result_set_t *result_set, char const *tag,
     return 0;
 }
 
-// to send a result set to any registered output modules. Should
-// only be called by processing threads
 int bd_result_set_publish(bd_bigdata_t *bigdata, bd_result_set_t *result, uint64_t key) {
 
     if (result == NULL) {
@@ -169,8 +171,6 @@ int bd_result_set_publish(bd_bigdata_t *bigdata, bd_result_set_t *result, uint64
     return 0;
 }
 
-// to send a result to the registered combine callback for the supplied module id.
-// Should only be called from a processing thread.
 int bd_result_combine(bd_bigdata_t *bigdata, void *result, uint64_t key, int module_id) {
 
     if (result == NULL) {
@@ -262,8 +262,8 @@ int bd_result_set_wrap_free(bd_result_set_wrap_t *r) {
         return -1;
     }
 
-    /* ensure BD_RESULT_PUBLISH type, BD_RESULT_COMBINE contains a pointer to a
-     * unknown datatype.
+    /* ensure BD_RESULT_PUBLISH type. BD_RESULT_COMBINE contains a pointer to a
+     * unknown datatype so is the responsibility of the plugin to clear.
      */
     if (r->type == BD_RESULT_PUBLISH) {
         ret = bd_result_set_free((bd_result_set_t *)r->value);
