@@ -2,9 +2,9 @@
 
 set -x
 # Prefer aclocal 1.9 if we can find it
-aclocal-1.11 -I m4 ||
-	aclocal-1.9 -I m4 || 
-	aclocal  -I m4
+aclocal-1.11 ||
+	aclocal-1.9 || 
+	aclocal
 
 # Darwin bizarrely uses glibtoolize
 libtoolize --force --copy ||
