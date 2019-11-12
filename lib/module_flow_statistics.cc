@@ -158,7 +158,7 @@ int module_flow_statistics_config(yaml_parser_t *parser, yaml_event_t *event, in
 
                         config->enabled = 1;
 
-                        fprintf(stdout, "Flow statistics module enabled\n");
+                        fprintf(stdout, "Flow Statistics Plugin Enabled\n");
                     }
                     break;
                 }
@@ -195,11 +195,11 @@ int module_flow_statistics_config(yaml_parser_t *parser, yaml_event_t *event, in
                         lpi_protocol_t protocol;
                         protocol = lpi_get_protocol_by_name((char *)event->data.scalar.value);
                         if (protocol != LPI_PROTO_LAST) {
-                            fprintf(stderr, "\tEnabling protocol: %s\n",
+                            fprintf(stderr, "\tEnabling Protocol: %s\n",
                                 (char *)event->data.scalar.value);
                             config->protocol[protocol] = 1;
                         } else {
-                            fprintf(stderr, "\tCould not find protocol: %s\n",
+                            fprintf(stderr, "\tCould Not Find Protocol: %s\n",
                                 (char *)event->data.scalar.value);
                         }
 

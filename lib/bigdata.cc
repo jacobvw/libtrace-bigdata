@@ -301,7 +301,7 @@ int main(int argc, char *argv[]) {
     if (global.config->enable_bidirectional_hasher) {
         // Using this hasher will keep all packets related to a flow on the same thread
         trace_set_hasher(trace, HASHER_BIDIRECTIONAL, NULL, NULL);
-        fprintf(stdout, "Bidirectional hasher enabled\n");
+        fprintf(stdout, "Bidirectional Hasher Enabled\n");
     }
 
     // setup processing callbacks

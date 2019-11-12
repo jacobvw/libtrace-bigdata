@@ -179,7 +179,9 @@ int module_influxdb_post(bd_bigdata_t *bigdata, void *mls, bd_result_set *result
       fprintf(stderr, "failed to post to influxDB: %s\n", curl_easy_strerror(res));
     }
 
-    fprintf(stderr, "%s\n", str);
+    if (bigdata->global->config->debug) {
+        fprintf(stderr, "%s\n", str);
+    }
 
     free(str);
 
