@@ -35,7 +35,7 @@ int module_flow_statistics_foreach_flow(Flow *flow, void *data) {
             bd_result_set_t *res = bd_result_set_create("flow_statistics");
             bd_result_set_insert_uint(res, "flow_id", flow->id.get_id_num());
             bd_result_set_insert_tag(res, "protocol", lpi_print(flow_rec->lpi_module->protocol));
-            bd_result_set_insert_string(res, "type", "flow_interval");
+            bd_result_set_insert_tag(res, "type", "flow_interval");
 
             bd_result_set_insert_double(res, "start_ts", flow_rec->start_ts);
             bd_result_set_insert_double(res, "duration", flow_rec->end_ts - flow_rec->start_ts);
@@ -157,6 +157,8 @@ int module_flow_statistics_config(yaml_parser_t *parser, yaml_event_t *event, in
                         strcmp((char *)event->data.scalar.value, "t") == 0) {
 
                         config->enabled = 1;
+
+                        fprintf(stdout, "Flow statistics module enabled\n");
                     }
                     break;
                 }
@@ -191,9 +193,14 @@ int module_flow_statistics_config(yaml_parser_t *parser, yaml_event_t *event, in
                         /* try to convert the protocol string supplied into a
                          * lpi_protocol_t. Enable the protocol if found */
                         lpi_protocol_t protocol;
-                        protocol = lpi_get_protocol((char *)event->data.scalar.value);
+                        protocol = lpi_get_protocol_by_name((char *)event->data.scalar.value);
                         if (protocol != LPI_PROTO_LAST) {
+                            fprintf(stderr, "\tEnabling protocol: %s\n",
+                                (char *)event->data.scalar.value);
                             config->protocol[protocol] = 1;
+                        } else {
+                            fprintf(stderr, "\tCould not find protocol: %s\n",
+                                (char *)event->data.scalar.value);
                         }
 
                         /* consume the event */
@@ -222,7 +229,6 @@ int module_flow_statistics_config(yaml_parser_t *parser, yaml_event_t *event, in
         config->callbacks->tick_cb = (cb_tick)module_flow_statistics_tick;
         config->callbacks->flowend_cb = (cb_flowend)module_flow_statistics_flowend;
 
-        fprintf(stdout, "Flow Statistics Plugin Enabled\n");
     }
 }
 
