@@ -167,13 +167,13 @@ libtrace_packet_t *bd_get_packet(bd_bigdata_t *bigdata) {
 char *bd_replaceWord(const char *s, const char *oldsubstr, const char *newsubstr) {
     char *result;
     int i, cnt = 0;
-    int newWlen = strlen(newW);
-    int oldWlen = strlen(oldW);
+    int newWlen = strlen(newsubstr);
+    int oldWlen = strlen(oldsubstr);
 
     // Counting the number of times old word
     // occur in the string
     for (i = 0; s[i] != '\0'; i++) {
-        if (strstr(&s[i], oldW) == &s[i]) {
+        if (strstr(&s[i], oldsubstr) == &s[i]) {
             cnt++;
 
             // Jumping to index after the old word.
@@ -187,8 +187,8 @@ char *bd_replaceWord(const char *s, const char *oldsubstr, const char *newsubstr
     i = 0;
     while (*s) {
         // compare the substring with the result
-        if (strstr(s, oldW) == s) {
-            strcpy(&result[i], newW);
+        if (strstr(s, oldsubstr) == s) {
+            strcpy(&result[i], newsubstr);
             i += newWlen;
             s += oldWlen;
         } else {
