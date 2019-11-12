@@ -11,7 +11,6 @@ static void init_modules(bd_bigdata_t *bigdata) {
 #ifdef HAVE_LIBCURL
     module_influxdb_init(bigdata);
 #endif
-    module_cdn_statistics_init(bigdata);
 #ifdef HAVE_LIBRDKAFKA
     module_kafka_init(bigdata);
 #endif

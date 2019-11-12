@@ -68,21 +68,6 @@ foreach:
       - tcp_packet_count
       - udp_packet_count
 
-  # cdn statistics
-  cdn_statistics:
-    enabled: 0
-    output_interval: 60
-    cdns:
-      facebook:
-        - fbcdn-sphotos-b-a.akamaihd.net
-        - fbcdn-sphotos-c-a.akamaihd.net
-      youtube:
-        - youtube.com
-        - m.youtube.com
-      netflix:
-        - netflix.com
-        - cdn.netflix.com
-
 # output modules
 where:
 
