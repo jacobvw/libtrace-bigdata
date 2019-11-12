@@ -205,6 +205,7 @@ bd_conf_t *parse_config(char *filename, bd_global_t *g_data) {
                     // should now be a YAML_SCALAR_EVENT containing a hostname,
                     //  if not config is incorrect.
                     if (event.type != YAML_SCALAR_EVENT) {
+                        fprintf(stderr, "Config error: Expected hostname\n");
                         return NULL;
                     }
                     conf->hostname = strdup((char *)event.data.scalar.value);
@@ -218,6 +219,7 @@ bd_conf_t *parse_config(char *filename, bd_global_t *g_data) {
                     // should now be a YAML_SCALAR_EVENT containing a interface name,
                     //  if not config is incorrect.
                     if (event.type != YAML_SCALAR_EVENT) {
+                        fprintf(stderr, "Config error: Expected interface\n");
                         return NULL;
                     }
                     conf->interface = strdup((char *)event.data.scalar.value);
@@ -232,6 +234,7 @@ bd_conf_t *parse_config(char *filename, bd_global_t *g_data) {
                     // should now be a YAML_SCALAR_EVENT containing a interface name,
                     //  if not config is incorrect.
                     if (event.type != YAML_SCALAR_EVENT) {
+                        fprintf(stderr, "Config error: Expected number of threads\n");
                         return NULL;
                     }
                     conf->processing_threads = atoi((char *)event.data.scalar.value);
@@ -244,6 +247,8 @@ bd_conf_t *parse_config(char *filename, bd_global_t *g_data) {
                     // consume the first event which contains the key
                     consume_event(&parser, &event, &level);
                     if (event.type != YAML_SCALAR_EVENT) {
+                        fprintf(stderr, "Config error: Expected boolean after local_networks_"
+                            "as_direction\n");
                         return NULL;
                     }
                     if (strcmp((char *)event.data.scalar.value, "1") == 0 ||
@@ -260,7 +265,7 @@ bd_conf_t *parse_config(char *filename, bd_global_t *g_data) {
                 if (strcmp((char *)event.data.scalar.value, "local_networks") == 0) {
                     consume_event(&parser, &event, &level);
                     if (event.type != YAML_SEQUENCE_START_EVENT) {
-                        fprintf(stderr, "Config error: Expected network sequence after "
+                        fprintf(stderr, "Config error: Expected network address/es after "
                             "local_networks.\n");
                         return NULL;
                     }
@@ -296,6 +301,8 @@ bd_conf_t *parse_config(char *filename, bd_global_t *g_data) {
                     // should now be a YAML_SCALAR_EVENT,
                     //  if not config is incorrect.
                     if (event.type != YAML_SCALAR_EVENT) {
+                        fprintf(stderr, "Config error: Expected boolean after "
+                            "enable_bidirectional_hasher\n");
                         return NULL;
                     }
                     if (strcmp((char *)event.data.scalar.value, "1") == 0 ||
@@ -317,6 +324,8 @@ bd_conf_t *parse_config(char *filename, bd_global_t *g_data) {
                     // should now be a YAML_SCALAR_EVENT,
                     //  if not config is incorrect.
                     if (event.type != YAML_SCALAR_EVENT) {
+                        fprintf(stderr, "Config error: Expected boolean after "
+                            "debug\n");
                         return NULL;
                     }
                     if (strcmp((char *)event.data.scalar.value, "1") == 0 ||
@@ -361,7 +370,7 @@ bd_conf_t *parse_config(char *filename, bd_global_t *g_data) {
                                         if (mod_enter_level != level) {
                                             fprintf(stderr, "Module %s did not consume all its "
                                                 "events\n", cbs->name);
-                                            exit(0);
+                                            exit(BD_INVALID_CONFIG);
                                         }
 
                                         // module has been found so break out of the for loop
@@ -371,6 +380,7 @@ bd_conf_t *parse_config(char *filename, bd_global_t *g_data) {
                             }
                         }
 
+                        /* Module not found, bypassing its configuration */
                         if (!found_module) {
                             consume_event(&parser, &event, &level);
                         }
