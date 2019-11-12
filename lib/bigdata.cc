@@ -106,7 +106,7 @@ static void *start_processing(libtrace_t *trace, libtrace_thread_t *thread,
     return local;
 }
 
-libtrace_packet_t *per_packet(libtrace_t *trace, libtrace_thread_t *thread,
+static libtrace_packet_t *per_packet(libtrace_t *trace, libtrace_thread_t *thread,
     void *global, void *tls, libtrace_packet_t *packet) {
 
     // Get global and thread local data

@@ -49,12 +49,6 @@ static bd_network_t *get_local_network(char *network_string) {
             inet_pton(AF_INET, buf, &(msk->sin_addr));
             msk->sin_family = AF_INET;
 
-            //char addr_str[INET_ADDRSTRLEN];
-            //inet_ntop(AF_INET, &(addr->sin_addr), addr_str, INET_ADDRSTRLEN);
-            //char msk_str[INET_ADDRSTRLEN];
-            //inet_ntop(AF_INET, &(msk->sin_addr), msk_str, INET_ADDRSTRLEN);
-            //fprintf(stderr, "ip address %s mask %s\n", addr_str, msk_str);
-
         } else if (inet_pton(AF_INET6, address, buf)) {
             // IPv6
             /* Check the subnet mask is valid */
@@ -94,13 +88,10 @@ static bd_network_t *get_local_network(char *network_string) {
             inet_pton(AF_INET6, buf, &(msk->sin6_addr));
             msk->sin6_family = AF_INET6;
 
-            //char addr_str[INET6_ADDRSTRLEN];
-            //inet_ntop(AF_INET6, &(addr->sin6_addr), addr_str, INET6_ADDRSTRLEN);
-            //char msk_str[INET6_ADDRSTRLEN];
-            //inet_ntop(AF_INET6, &(msk->sin6_addr), msk_str, INET6_ADDRSTRLEN);
-            //fprintf(stderr, "ip address %s mask %s\n", addr_str, msk_str);
         } else {
             fprintf(stderr, "Address %s is not a valid IPv4 or IPv6 address\n", address);
+            free(network);
+            network = NULL;
         }
 
 	return network;
@@ -269,22 +260,31 @@ bd_conf_t *parse_config(char *filename, bd_global_t *g_data) {
                 if (strcmp((char *)event.data.scalar.value, "local_networks") == 0) {
                     consume_event(&parser, &event, &level);
                     if (event.type != YAML_SEQUENCE_START_EVENT) {
+                        fprintf(stderr, "Config error: Expected network sequence after "
+                            "local_networks.\n");
                         return NULL;
                     }
                     consume_event(&parser, &event, &level);
                     while (event.type == YAML_SCALAR_EVENT) {
-                        if (conf->local_subnets_count == 0) {
-                            conf->local_subnets =
-                                (bd_network_t **)malloc(sizeof(bd_network_t *));
-                        } else {
-                            conf->local_subnets =
-                                (bd_network_t **)realloc(conf->local_subnets,
-                                    (conf->local_subnets_count + 1) * sizeof(bd_network_t *));
-                        }
-                        conf->local_subnets[conf->local_subnets_count] =
-                            get_local_network((char *)event.data.scalar.value);
 
-                        conf->local_subnets_count++;
+                        bd_network_t *tmp_network = get_local_network(
+                            (char *)event.data.scalar.value);
+
+                        if (tmp_network != NULL) {
+                            if (conf->local_subnets_count == 0) {
+                                conf->local_subnets =
+                                    (bd_network_t **)malloc(sizeof(bd_network_t *));
+                            } else {
+                                conf->local_subnets =
+                                    (bd_network_t **)realloc(conf->local_subnets,
+                                        (conf->local_subnets_count + 1) * sizeof(bd_network_t *));
+                            }
+
+                            conf->local_subnets[conf->local_subnets_count] = tmp_network;
+
+                            conf->local_subnets_count++;
+                        }
+
                         consume_event(&parser, &event, &level);
                     }
                     break;
