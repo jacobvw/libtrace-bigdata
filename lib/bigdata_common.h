@@ -53,4 +53,14 @@ Flow *bd_get_flow(bd_bigdata_t *bigdata);
  */
 libtrace_packet_t *bd_get_packet(bd_bigdata_t *bigdata);
 
+/** Replaces all occurances of a substring within a string with another substring.
+ *
+ * @params	s - the main string
+ *		oldsubstr - the substring to remove.
+ *		newsubstr - the substring to replace oldsubstr with.
+ * @returns	a new malloc'd string with all occurances of oldsubstr replaced with
+ *		newsubstr.
+ */
+char *bd_replaceWord(const char *s, const char *oldsubstr, const char *newsubstr);
+
 #endif
