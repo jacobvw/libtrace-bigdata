@@ -1,6 +1,3 @@
-#                                               -*- Autoconf -*-
-# Process this file with autoconf to produce a configure script.
-
 AC_PREREQ([2.69])
 AC_INIT([Libtrace-bigdata], [1.0], [jacobvw@icloud.com])
 AC_CONFIG_SRCDIR([lib/bigdata.cc])
@@ -8,6 +5,11 @@ AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_AUX_DIR([build])
 
 AM_INIT_AUTOMAKE([subdir-objects])
+
+# Make sure we use the relatively silent automake output
+m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])])
+
+AC_GNU_SOURCE
 
 # Checks for programs.
 AC_PROG_CXX
