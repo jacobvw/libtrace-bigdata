@@ -293,7 +293,7 @@ static char *result_to_query(bd_result_set *result) {
             first_pass = false;
         } else if (result->results[i].type == BD_TYPE_INT) {
             if (!first_pass) strcat(str, ",");
-            snprintf(buf, KAFKA_BUF_LEN, "%" PRId64, result->results[i].value.data_int);
+            snprintf(buf, KAFKA_BUF_LEN, "%li", result->results[i].value.data_int);
             strcat(str, result->results[i].key);
             strcat(str, "=");
             strcat(str, buf);
@@ -303,7 +303,7 @@ static char *result_to_query(bd_result_set *result) {
         // influxdb needs to be compiled with uint64 support. NOTE i at end
         } else if (result->results[i].type == BD_TYPE_UINT) {
             if (!first_pass) strcat(str, ",");
-            snprintf(buf, KAFKA_BUF_LEN, "%" PRIu64, result->results[i].value.data_uint);
+            snprintf(buf, KAFKA_BUF_LEN, "%lu", result->results[i].value.data_uint);
             strcat(str, result->results[i].key);
             strcat(str, "=");
             strcat(str, buf);
