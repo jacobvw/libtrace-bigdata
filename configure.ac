@@ -9,6 +9,11 @@ AC_CONFIG_AUX_DIR([build])
 
 AM_INIT_AUTOMAKE([subdir-objects])
 
+# Make sure we use the relatively silent automake output
+m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])])
+
+AC_GNU_SOURCE
+
 # Checks for programs.
 AC_PROG_CXX
 AC_PROG_CC

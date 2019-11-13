@@ -115,13 +115,13 @@ typedef struct idns_context
 
 /***********************************************************************/
 
-static        dns_rcode_t  dns_encode_domain	(block_t *const restrict,const char           *restrict,      size_t) __attribute__ ((nothrow,nonnull));
-static        dns_rcode_t  dns_encode_string	(block_t *const restrict,const char           *restrict,const size_t) __attribute__ ((nothrow,nonnull));
-static        dns_rcode_t  dns_encode_question  (block_t *const restrict,const dns_question_t *const restrict)        __attribute__ ((nothrow,nonnull));
-static inline dns_rcode_t  encode_edns0rr_nsid	(block_t *const restrict,const edns0_opt_t    *const restrict)        __attribute__ ((nothrow,nonnull));
-static inline dns_rcode_t  encode_edns0rr_raw	(block_t *const restrict,const edns0_opt_t    *const restrict)        __attribute__ ((nothrow,nonnull));
-static inline dns_rcode_t  encode_rr_opt    	(block_t *const restrict,const dns_query_t    *const restrict,const dns_edns0opt_t *const restrict) __attribute__ ((nothrow,nonnull));
-static inline dns_rcode_t  encode_rr_naptr	(block_t *const restrict,const dns_naptr_t    *const restrict)        __attribute__ ((nothrow,nonnull));
+static        dns_rcode_t  dns_encode_domain	(block_t *const __restrict,const char           *__restrict,      size_t) __attribute__ ((nothrow,nonnull));
+static        dns_rcode_t  dns_encode_string	(block_t *const __restrict,const char           *__restrict,const size_t) __attribute__ ((nothrow,nonnull));
+static        dns_rcode_t  dns_encode_question  (block_t *const __restrict,const dns_question_t *const __restrict)        __attribute__ ((nothrow,nonnull));
+static inline dns_rcode_t  encode_edns0rr_nsid	(block_t *const __restrict,const edns0_opt_t    *const __restrict)        __attribute__ ((nothrow,nonnull));
+static inline dns_rcode_t  encode_edns0rr_raw	(block_t *const __restrict,const edns0_opt_t    *const __restrict)        __attribute__ ((nothrow,nonnull));
+static inline dns_rcode_t  encode_rr_opt    	(block_t *const __restrict,const dns_query_t    *const __restrict,const dns_edns0opt_t *const __restrict) __attribute__ ((nothrow,nonnull));
+static inline dns_rcode_t  encode_rr_naptr	(block_t *const __restrict,const dns_naptr_t    *const __restrict)        __attribute__ ((nothrow,nonnull));
 
 static        bool	   align_memory	(block_t *const)		__attribute__ ((nothrow,nonnull,   warn_unused_result));
 static        void        *alloc_struct	(block_t *const,const size_t)	__attribute__ ((nothrow,nonnull(1),warn_unused_result,malloc));
@@ -130,29 +130,29 @@ static inline void         write_uint16 (block_t *const,uint16_t)               
 static inline void         write_uint32 (block_t *const,uint32_t)                                         __attribute__ ((nothrow,nonnull(1)));
 static inline uint16_t	   read_uint16	(block_t *const)		                                  __attribute__ ((nothrow,nonnull));
 static inline uint32_t	   read_uint32	(block_t *const)		                                  __attribute__ ((nothrow,nonnull));
-static        dns_rcode_t  read_raw	(idns_context *const restrict,uint8_t    **restrict,const size_t) __attribute__ ((nothrow,nonnull(1,2)));
-static        dns_rcode_t  read_string	(idns_context *const restrict,const char **restrict)              __attribute__ ((nothrow,nonnull(1,2)));
-static        dns_rcode_t  read_domain	(idns_context *const restrict,const char **restrict)	          __attribute__ ((nothrow,nonnull));
+static        dns_rcode_t  read_raw	(idns_context *const __restrict,uint8_t    **__restrict,const size_t) __attribute__ ((nothrow,nonnull(1,2)));
+static        dns_rcode_t  read_string	(idns_context *const __restrict,const char **__restrict)              __attribute__ ((nothrow,nonnull(1,2)));
+static        dns_rcode_t  read_domain	(idns_context *const __restrict,const char **__restrict)	          __attribute__ ((nothrow,nonnull));
 
-static inline dns_rcode_t  decode_edns0rr_nsid	(idns_context *const restrict,edns0_opt_t *const restrict) __attribute__ ((nothrow,nonnull));
-static inline dns_rcode_t  decode_edns0rr_raw	(idns_context *const restrict,edns0_opt_t *const restrict) __attribute__ ((nothrow,nonnull));
+static inline dns_rcode_t  decode_edns0rr_nsid	(idns_context *const __restrict,edns0_opt_t *const __restrict) __attribute__ ((nothrow,nonnull));
+static inline dns_rcode_t  decode_edns0rr_raw	(idns_context *const __restrict,edns0_opt_t *const __restrict) __attribute__ ((nothrow,nonnull));
 
-static        dns_rcode_t  decode_question(idns_context *const restrict,dns_question_t *const restrict)		     __attribute__ ((nothrow,nonnull));
-static inline dns_rcode_t  decode_rr_soa  (idns_context *const restrict,dns_soa_t      *const restrict,const size_t) __attribute__ ((nothrow,nonnull(1,2)));
-static inline dns_rcode_t  decode_rr_a	  (idns_context *const restrict,dns_a_t        *const restrict,const size_t) __attribute__ ((nothrow,nonnull(1,2)));
-static inline dns_rcode_t  decode_rr_wks  (idns_context *const restrict,dns_wks_t      *const restrict,const size_t) __attribute__ ((nothrow,nonnull(1,2)));
-static inline dns_rcode_t  decode_rr_mx	  (idns_context *const restrict,dns_mx_t       *const restrict,const size_t) __attribute__ ((nothrow,nonnull(1,2)));
-static inline dns_rcode_t  decode_rr_txt  (idns_context *const restrict,dns_txt_t      *const restrict,const size_t) __attribute__ ((nothrow,nonnull(1,2)));
-static inline dns_rcode_t  decode_rr_hinfo(idns_context *const restrict,dns_hinfo_t    *const restrict)              __attribute__ ((nothrow,nonnull(1,2)));
-static inline dns_rcode_t  decode_rr_naptr(idns_context *const restrict,dns_naptr_t    *const restrict,const size_t) __attribute__ ((nothrow,nonnull(1,2)));
-static inline dns_rcode_t  decode_rr_aaaa (idns_context *const restrict,dns_aaaa_t     *const restrict,const size_t) __attribute__ ((nothrow,nonnull(1,2)));
-static inline dns_rcode_t  decode_rr_srv  (idns_context *const restrict,dns_srv_t      *const restrict,const size_t) __attribute__ ((nothrow,nonnull(1,2)));
-static inline dns_rcode_t  decode_rr_sig  (idns_context *const restrict,dns_sig_t      *const restrict,const size_t) __attribute__ ((nothrow,nonnull(1,2),unused));
-static inline dns_rcode_t  decode_rr_minfo(idns_context *const restrict,dns_minfo_t    *const restrict)              __attribute__ ((nothrow,nonnull(1,2)));
-static inline dns_rcode_t  decode_rr_gpos (idns_context *const restrict,dns_gpos_t     *const restrict)              __attribute__ ((nothrow,nonnull(1,2)));
-static inline dns_rcode_t  decode_rr_loc  (idns_context *const restrict,dns_loc_t      *const restrict,const size_t) __attribute__ ((nothrow,nonnull(1,2)));
-static inline dns_rcode_t  decode_rr_opt  (idns_context *const restrict,dns_edns0opt_t *const restrict,const size_t) __attribute__ ((nothrow,nonnull(1,2)));
-static        dns_rcode_t  decode_answer  (idns_context *const restrict,dns_answer_t   *const restrict)              __attribute__ ((nothrow,nonnull(1,2)));
+static        dns_rcode_t  decode_question(idns_context *const __restrict,dns_question_t *const __restrict)		     __attribute__ ((nothrow,nonnull));
+static inline dns_rcode_t  decode_rr_soa  (idns_context *const __restrict,dns_soa_t      *const __restrict,const size_t) __attribute__ ((nothrow,nonnull(1,2)));
+static inline dns_rcode_t  decode_rr_a	  (idns_context *const __restrict,dns_a_t        *const __restrict,const size_t) __attribute__ ((nothrow,nonnull(1,2)));
+static inline dns_rcode_t  decode_rr_wks  (idns_context *const __restrict,dns_wks_t      *const __restrict,const size_t) __attribute__ ((nothrow,nonnull(1,2)));
+static inline dns_rcode_t  decode_rr_mx	  (idns_context *const __restrict,dns_mx_t       *const __restrict,const size_t) __attribute__ ((nothrow,nonnull(1,2)));
+static inline dns_rcode_t  decode_rr_txt  (idns_context *const __restrict,dns_txt_t      *const __restrict,const size_t) __attribute__ ((nothrow,nonnull(1,2)));
+static inline dns_rcode_t  decode_rr_hinfo(idns_context *const __restrict,dns_hinfo_t    *const __restrict)              __attribute__ ((nothrow,nonnull(1,2)));
+static inline dns_rcode_t  decode_rr_naptr(idns_context *const __restrict,dns_naptr_t    *const __restrict,const size_t) __attribute__ ((nothrow,nonnull(1,2)));
+static inline dns_rcode_t  decode_rr_aaaa (idns_context *const __restrict,dns_aaaa_t     *const __restrict,const size_t) __attribute__ ((nothrow,nonnull(1,2)));
+static inline dns_rcode_t  decode_rr_srv  (idns_context *const __restrict,dns_srv_t      *const __restrict,const size_t) __attribute__ ((nothrow,nonnull(1,2)));
+static inline dns_rcode_t  decode_rr_sig  (idns_context *const __restrict,dns_sig_t      *const __restrict,const size_t) __attribute__ ((nothrow,nonnull(1,2),unused));
+static inline dns_rcode_t  decode_rr_minfo(idns_context *const __restrict,dns_minfo_t    *const __restrict)              __attribute__ ((nothrow,nonnull(1,2)));
+static inline dns_rcode_t  decode_rr_gpos (idns_context *const __restrict,dns_gpos_t     *const __restrict)              __attribute__ ((nothrow,nonnull(1,2)));
+static inline dns_rcode_t  decode_rr_loc  (idns_context *const __restrict,dns_loc_t      *const __restrict,const size_t) __attribute__ ((nothrow,nonnull(1,2)));
+static inline dns_rcode_t  decode_rr_opt  (idns_context *const __restrict,dns_edns0opt_t *const __restrict,const size_t) __attribute__ ((nothrow,nonnull(1,2)));
+static        dns_rcode_t  decode_answer  (idns_context *const __restrict,dns_answer_t   *const __restrict)              __attribute__ ((nothrow,nonnull(1,2)));
 
 /***********************************************************************/
 
@@ -214,9 +214,9 @@ static        dns_rcode_t  decode_answer  (idns_context *const restrict,dns_answ
 /*******************************************************************/
 
 dns_rcode_t dns_encode(
-	dns_packet_t      *const restrict dest,
-	size_t            *const restrict plen,
-	const dns_query_t *const restrict query
+	dns_packet_t      *const __restrict dest,
+	size_t            *const __restrict plen,
+	const dns_query_t *const __restrict query
 )
 {
   struct idns_header *header;
@@ -260,8 +260,10 @@ dns_rcode_t dns_encode(
   
   data.size = *plen - sizeof(struct idns_header);
   data.ptr  = &buffer[sizeof(struct idns_header)];
+
+  size_t i;
   
-  for (size_t i = 0 ; i < query->qdcount ; i++)
+  for (i = 0 ; i < query->qdcount ; i++)
   {
     rc = dns_encode_question(&data,&query->questions[i]);
     if (rc != RCODE_OKAY)
@@ -274,7 +276,7 @@ dns_rcode_t dns_encode(
   ; EDNS stuff, but that's it for now.
   ;---------------------------------------------------------------*/
   
-  for (size_t i = 0 ; i < query->ancount ; i++)
+  for (i = 0 ; i < query->ancount ; i++)
   {
     switch(query->answers[i].generic.type)
     {
@@ -296,7 +298,7 @@ dns_rcode_t dns_encode(
   ; EDNS only supported additional record type for now
   ;-------------------------------------------------------*/
   
-  for (size_t i = 0 ; i < query->arcount ; i++)
+  for (i = 0 ; i < query->arcount ; i++)
   {
     switch(query->additional[i].generic.type)
     {
@@ -315,8 +317,8 @@ dns_rcode_t dns_encode(
 /*********************************************************************/
 
 static dns_rcode_t dns_encode_domain(
-	block_t    *const restrict data,
-	const char *restrict       name,
+	block_t    *const __restrict data,
+	const char *__restrict       name,
 	size_t                     len
 )
 {
@@ -423,8 +425,8 @@ static dns_rcode_t dns_encode_domain(
 /*******************************************************************/
 
 static dns_rcode_t dns_encode_string(
-	block_t      *const restrict data,
-	const char   *restrict       text,
+	block_t      *const __restrict data,
+	const char   *__restrict       text,
 	const size_t                 size
 )
 {
@@ -445,8 +447,8 @@ static dns_rcode_t dns_encode_string(
 /******************************************************************/
 
 static dns_rcode_t dns_encode_question(
-	block_t              *const restrict data,
-	const dns_question_t *const restrict pquestion
+	block_t              *const __restrict data,
+	const dns_question_t *const __restrict pquestion
 )
 {
   int rc;
@@ -473,8 +475,8 @@ static dns_rcode_t dns_encode_question(
 /*************************************************************************/
 
 static inline dns_rcode_t encode_edns0rr_nsid(
-	block_t           *const restrict data,
-	const edns0_opt_t *const restrict opt
+	block_t           *const __restrict data,
+	const edns0_opt_t *const __restrict opt
 )
 {
   size_t newlen;
@@ -514,8 +516,8 @@ static inline dns_rcode_t encode_edns0rr_nsid(
 /**********************************************************************/
 
 static inline dns_rcode_t encode_edns0rr_raw(
-	block_t           *const restrict data,
-	const edns0_opt_t *const restrict opt
+	block_t           *const __restrict data,
+	const edns0_opt_t *const __restrict opt
 )
 {
   assert(pblock_okay(data));
@@ -537,9 +539,9 @@ static inline dns_rcode_t encode_edns0rr_raw(
 /*************************************************************************/
 
 static inline dns_rcode_t encode_rr_opt(
-	block_t              *const restrict data,
-	const dns_query_t    *const restrict query,
-	const dns_edns0opt_t *const restrict opt
+	block_t              *const __restrict data,
+	const dns_query_t    *const __restrict query,
+	const dns_edns0opt_t *const __restrict opt
 )
 {
   uint8_t *prdlen;
@@ -604,8 +606,8 @@ static inline dns_rcode_t encode_rr_opt(
 /***********************************************************************/
 
 static inline dns_rcode_t encode_rr_naptr(
-	block_t           *const restrict data,
-	const dns_naptr_t *const restrict naptr
+	block_t           *const __restrict data,
+	const dns_naptr_t *const __restrict naptr
 )
 {
   dns_rcode_t  rc;
@@ -793,8 +795,8 @@ static inline uint32_t read_uint32(block_t *const parse)
 /********************************************************************/
 
 static dns_rcode_t read_raw(
-	idns_context  *const restrict data,
-	uint8_t      **restrict       result,
+	idns_context  *const __restrict data,
+	uint8_t      **__restrict       result,
 	const size_t                  len
 )
 {
@@ -834,8 +836,8 @@ static dns_rcode_t read_raw(
 /********************************************************************/
 
 static dns_rcode_t read_string(
-	idns_context  *const restrict data,
-	const char   **restrict       result
+	idns_context  *const __restrict data,
+	const char   **__restrict       result
 )
 {
   size_t len;
@@ -867,8 +869,8 @@ static dns_rcode_t read_string(
 /********************************************************************/
 
 static dns_rcode_t read_domain(
-	idns_context  *const restrict data,
-	const char   **restrict       result
+	idns_context  *const __restrict data,
+	const char   **__restrict       result
 )
 {
   block_t *parse = &data->parse;
@@ -960,8 +962,8 @@ static dns_rcode_t read_domain(
 /********************************************************************/
 
 static inline dns_rcode_t decode_edns0rr_nsid(
-	idns_context *const restrict data,
-	edns0_opt_t  *const restrict opt
+	idns_context *const __restrict data,
+	edns0_opt_t  *const __restrict opt
 )
 {
   static const char hexdigits[] = "0123456789ABCDEF";
@@ -972,7 +974,9 @@ static inline dns_rcode_t decode_edns0rr_nsid(
   if (data->dest.size < opt->len / 2)
     return RCODE_NO_MEMORY;
   
-  for (size_t i = 0 ; i < opt->len ; i += 2)
+  size_t i;
+
+  for (i = 0 ; i < opt->len ; i += 2)
   {
     const char *phexh;
     const char *phexl;
@@ -1006,8 +1010,8 @@ static inline dns_rcode_t decode_edns0rr_nsid(
 /***********************************************************************/
 
 static inline dns_rcode_t decode_edns0rr_raw(
-	idns_context *const restrict data,
-	edns0_opt_t  *const restrict opt
+	idns_context *const __restrict data,
+	edns0_opt_t  *const __restrict opt
 )
 {
   if (data->dest.size < opt->len)
@@ -1024,8 +1028,8 @@ static inline dns_rcode_t decode_edns0rr_raw(
 /*************************************************************/
 
 static dns_rcode_t decode_question(
-	idns_context   *const restrict data,
-	dns_question_t *const restrict pquest
+	idns_context   *const __restrict data,
+	dns_question_t *const __restrict pquest
 )
 {
   dns_rcode_t rc;
@@ -1057,8 +1061,8 @@ static dns_rcode_t decode_question(
 /************************************************************************/
 
 static inline dns_rcode_t decode_rr_soa(
-	idns_context *const restrict data,
-	dns_soa_t    *const restrict psoa,
+	idns_context *const __restrict data,
+	dns_soa_t    *const __restrict psoa,
 	const size_t                 len
 )
 {
@@ -1087,8 +1091,8 @@ static inline dns_rcode_t decode_rr_soa(
 /***********************************************************************/
 
 static inline dns_rcode_t decode_rr_a(
-	idns_context *const restrict data,
-	dns_a_t      *const restrict pa,
+	idns_context *const __restrict data,
+	dns_a_t      *const __restrict pa,
 	const size_t                 len
 )
 {
@@ -1105,8 +1109,8 @@ static inline dns_rcode_t decode_rr_a(
 /***********************************************************************/
 
 static inline dns_rcode_t decode_rr_aaaa(
-	idns_context *const restrict data,
-	dns_aaaa_t   *const restrict pa,
+	idns_context *const __restrict data,
+	dns_aaaa_t   *const __restrict pa,
 	const size_t                 len
 )
 {
@@ -1123,8 +1127,8 @@ static inline dns_rcode_t decode_rr_aaaa(
 /**********************************************************************/
 
 static inline dns_rcode_t decode_rr_wks(
-	idns_context *const restrict data,
-	dns_wks_t    *const restrict pwks,
+	idns_context *const __restrict data,
+	dns_wks_t    *const __restrict pwks,
 	const size_t                 len
 )
 {
@@ -1145,8 +1149,8 @@ static inline dns_rcode_t decode_rr_wks(
 /*********************************************************************/
 
 static inline dns_rcode_t decode_rr_mx(
-	idns_context *const restrict data,
-	dns_mx_t     *const restrict pmx,
+	idns_context *const __restrict data,
+	dns_mx_t     *const __restrict pmx,
 	const size_t                 len
 )
 {
@@ -1162,8 +1166,8 @@ static inline dns_rcode_t decode_rr_mx(
 /**********************************************************************/
 
 static inline dns_rcode_t decode_rr_txt(
-	idns_context *const restrict data,
-	dns_txt_t    *const restrict ptxt,
+	idns_context *const __restrict data,
+	dns_txt_t    *const __restrict ptxt,
 	const size_t                 len
 )
 {
@@ -1201,7 +1205,9 @@ static inline dns_rcode_t decode_rr_txt(
   
   ptxt->text = (const char *)data->dest.ptr;
 
-  for (size_t i = 0 ; i < items ; i++)
+  size_t i;
+
+  for (i = 0 ; i < items ; i++)
   {
     slen = *data->parse.ptr;
 
@@ -1234,8 +1240,8 @@ static inline dns_rcode_t decode_rr_txt(
 /**********************************************************************/
 
 static inline dns_rcode_t decode_rr_hinfo(
-	idns_context *const restrict data,
-	dns_hinfo_t  *const restrict phinfo
+	idns_context *const __restrict data,
+	dns_hinfo_t  *const __restrict phinfo
 )
 {
   dns_rcode_t rc;
@@ -1252,8 +1258,8 @@ static inline dns_rcode_t decode_rr_hinfo(
 /**********************************************************************/
 
 static inline dns_rcode_t decode_rr_srv(
-	idns_context *const restrict data,
-	dns_srv_t    *const restrict psrv,
+	idns_context *const __restrict data,
+	dns_srv_t    *const __restrict psrv,
 	const size_t                 len
 )
 {
@@ -1272,8 +1278,8 @@ static inline dns_rcode_t decode_rr_srv(
 /**********************************************************************/
 
 static inline dns_rcode_t decode_rr_naptr(
-	idns_context *const restrict data,
-	dns_naptr_t  *const restrict pnaptr,
+	idns_context *const __restrict data,
+	dns_naptr_t  *const __restrict pnaptr,
 	const size_t                 len
 )
 {
@@ -1300,8 +1306,8 @@ static inline dns_rcode_t decode_rr_naptr(
 /********************************************************************/
 
 static inline dns_rcode_t decode_rr_sig(
-	idns_context *const restrict data,
-	dns_sig_t    *const restrict psig,
+	idns_context *const __restrict data,
+	dns_sig_t    *const __restrict psig,
 	const size_t                 len
 )
 {
@@ -1345,8 +1351,8 @@ static inline dns_rcode_t decode_rr_sig(
 /******************************************************************/
 
 static inline dns_rcode_t decode_rr_minfo(
-		idns_context *const restrict data,
-		dns_minfo_t  *const restrict pminfo
+		idns_context *const __restrict data,
+		dns_minfo_t  *const __restrict pminfo
 )
 {
   dns_rcode_t rc;
@@ -1361,11 +1367,11 @@ static inline dns_rcode_t decode_rr_minfo(
 
 /*****************************************************************/
 
-static dns_rcode_t dloc_double(idns_context *const restrict,double *const restrict) __attribute__ ((nonnull));
+static dns_rcode_t dloc_double(idns_context *const __restrict,double *const __restrict) __attribute__ ((nonnull));
 
 static dns_rcode_t dloc_double(
-		idns_context *const restrict data,
-		double       *const restrict pvalue
+		idns_context *const __restrict data,
+		double       *const __restrict pvalue
 )
 {
   size_t len;
@@ -1393,10 +1399,10 @@ static dns_rcode_t dloc_double(
 
 /****************************************************************/
 
-static void dgpos_angle(dnsgpos_angle *const restrict,double) __attribute__ ((nonnull(1)));
+static void dgpos_angle(dnsgpos_angle *const __restrict,double) __attribute__ ((nonnull(1)));
 
 static void dgpos_angle(
-	dnsgpos_angle *const restrict pa,
+	dnsgpos_angle *const __restrict pa,
 	double                        v
 )
 {
@@ -1411,8 +1417,8 @@ static void dgpos_angle(
 /*****************************************************************/
 
 static inline dns_rcode_t decode_rr_gpos(
-		idns_context *const restrict data,
-		dns_gpos_t   *const restrict pgpos
+		idns_context *const __restrict data,
+		dns_gpos_t   *const __restrict pgpos
 )
 {
   dns_rcode_t rc;
@@ -1456,10 +1462,10 @@ static inline dns_rcode_t decode_rr_gpos(
 #define LOC_LNG_MAX	((unsigned long)(180uL * 3600000uL))
 #define LOC_ALT_BIAS	(10000000L)
 
-static int dloc_scale(unsigned long *const restrict,const int) __attribute__ ((nonnull(1)));
+static int dloc_scale(unsigned long *const __restrict,const int) __attribute__ ((nonnull(1)));
 
 static int dloc_scale(
-	unsigned long *const restrict presult,
+	unsigned long *const __restrict presult,
 	const int                     scale
 )
 {
@@ -1480,10 +1486,10 @@ static int dloc_scale(
 
 /**************************************************************/
 
-static void dloc_angle(dnsgpos_angle *const restrict,const long) __attribute__ ((nonnull(1)));
+static void dloc_angle(dnsgpos_angle *const __restrict,const long) __attribute__ ((nonnull(1)));
 
 static void dloc_angle(
-	dnsgpos_angle *const restrict pa,
+	dnsgpos_angle *const __restrict pa,
 	const long                    v
 )
 {
@@ -1503,8 +1509,8 @@ static void dloc_angle(
 /*************************************************************/
 
 static inline dns_rcode_t decode_rr_loc(
-		idns_context *const restrict data,
-		dns_loc_t    *const restrict ploc,
+		idns_context *const __restrict data,
+		dns_loc_t    *const __restrict ploc,
 		const size_t                 len
 )
 {
@@ -1566,8 +1572,8 @@ static inline dns_rcode_t decode_rr_loc(
 /***************************************************************/
 
 static inline dns_rcode_t decode_rr_opt(
-                idns_context   *const restrict data,
-                dns_edns0opt_t *const restrict opt,
+                idns_context   *const __restrict data,
+                dns_edns0opt_t *const __restrict opt,
                 const size_t                   len
 )
 {
@@ -1607,7 +1613,9 @@ static inline dns_rcode_t decode_rr_opt(
     if (opt->opts == NULL)
       return RCODE_NO_MEMORY;
     
-    for (size_t i = 0 ; i < opt->numopts ; i++)
+    size_t i;
+
+    for (i = 0 ; i < opt->numopts ; i++)
     {
       dns_rcode_t rc;
       
@@ -1640,8 +1648,8 @@ static inline dns_rcode_t decode_rr_opt(
 /**********************************************************************/
 
 static dns_rcode_t decode_answer(
-		idns_context *const restrict data,
-		dns_answer_t *const restrict pans
+		idns_context *const __restrict data,
+		dns_answer_t *const __restrict pans
 )
 {
   size_t      len;
@@ -1764,9 +1772,9 @@ static dns_rcode_t decode_answer(
 /***********************************************************************/
 
 dns_rcode_t dns_decode(
-	      dns_decoded_t *const restrict presponse,
-	      size_t        *const restrict prsize,
-	const dns_packet_t  *const restrict buffer,
+	      dns_decoded_t *const __restrict presponse,
+	      size_t        *const __restrict prsize,
+	const dns_packet_t  *const __restrict buffer,
 	const size_t                        len
 )
 {
@@ -1843,15 +1851,17 @@ dns_rcode_t dns_decode(
   {
     return RCODE_NO_MEMORY;
   }
+
+  size_t i;
   
-  for (size_t i = 0 ; i < response->qdcount ; i++)
+  for (i = 0 ; i < response->qdcount ; i++)
   {
     rc = decode_question(&context,&response->questions[i]);
     if (rc != RCODE_OKAY)
       return rc;
   }
 
-  for (size_t i = 0 ; i < response->ancount ; i++)
+  for (i = 0 ; i < response->ancount ; i++)
   {
     rc = decode_answer(&context,&response->answers[i]);
     if (rc != RCODE_OKAY)
@@ -1864,8 +1874,8 @@ dns_rcode_t dns_decode(
   ;-------------------------------------------------------------*/
   
   if (context.edns) return RCODE_FORMAT_ERROR;
-  
-  for (size_t i = 0 ; i < response->nscount ; i++)
+
+  for (i = 0 ; i < response->nscount ; i++)
   {
     rc = decode_answer(&context,&response->nameservers[i]);
     if (rc != RCODE_OKAY)
@@ -1874,7 +1884,7 @@ dns_rcode_t dns_decode(
   
   if (context.edns) return RCODE_FORMAT_ERROR;
   
-  for (size_t i = 0 ; i < response->arcount ; i++)
+  for (i = 0 ; i < response->arcount ; i++)
   {
     rc = decode_answer(&context,&response->additional[i]);
     if (rc != RCODE_OKAY)
