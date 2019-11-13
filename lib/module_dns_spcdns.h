@@ -977,21 +977,21 @@ typedef struct dns_query_t	/* RFC-1035 */
 /**********************************************************************/
 
 dns_rcode_t	dns_encode(
-			  dns_packet_t      *const __restrict,
-			  size_t            *const __restrict,
-			  const dns_query_t *const __restrict
+			  dns_packet_t      *const restrict,
+			  size_t            *const restrict,
+			  const dns_query_t *const restrict
 			 ) __attribute__ ((nothrow,nonnull));
 
 dns_rcode_t	dns_decode(
-                          dns_decoded_t      *const __restrict,
-                          size_t             *const __restrict,
-			  const dns_packet_t *const __restrict,
+                          dns_decoded_t      *const restrict,
+                          size_t             *const restrict,
+			  const dns_packet_t *const restrict,
 			  const size_t
 			 ) __attribute__ ((nothrow,nonnull(1,2,3)));
 
 #ifdef __cplusplus
    }
 #  undef class
-#  undef __restrict
+#  undef restrict
 #endif
 #endif

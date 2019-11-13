@@ -279,9 +279,9 @@ static int strint_cmp(const void *needle,const void *haystack)
 
 static const char *itosdef(
 	int                                         v,
-	const struct int_string_map *const __restrict pitab,
+	const struct int_string_map *const restrict pitab,
 	const size_t                                itabcnt,
-	const char                  *const __restrict def
+	const char                  *const restrict def
 )
 {
   struct int_string_map *pism;
@@ -301,8 +301,8 @@ static const char *itosdef(
 /********************************************************************/
 
 static int stoidef(
-	const char *const __restrict                  tag,
-	const struct string_int_map *const __restrict pstab,
+	const char *const restrict                  tag,
+	const struct string_int_map *const restrict pstab,
 	const size_t                                stabcnt,
 	const int                                   def
 )
@@ -310,9 +310,8 @@ static int stoidef(
   struct string_int_map *psim;
   size_t                 len = strlen(tag) + 1;
   char                   buffer[len];
-  size_t i;
-
-  for (i = 0 ; i < len ; i++)
+  
+  for (size_t i = 0 ; i < len ; i++)
     buffer[i] = toupper(tag[i]);
   
   psim = bsearch(buffer,pstab,stabcnt,sizeof(struct string_int_map),strint_cmp);
