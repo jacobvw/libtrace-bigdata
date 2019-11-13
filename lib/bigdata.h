@@ -46,15 +46,20 @@ typedef struct bigdata_flow_record bd_flow_record_t;
     #include "module_kafka.h"
 #endif
 
-#define BD_OUTOFMEMORY 1
-#define OUTPUT_INIT 2
-#define INPUT_INIT 3
-#define BD_INVALID_CONFIG 4
-#define BD_MALFORMED_CONF 5
-#define BD_YAML_ERROR 6
-#define BD_STARTUP_ERROR 7
-#define BD_INVALID_PARAMS 8
+/* Enumeration of error codes supported */
+enum {
+    BD_OUTOFMEMORY = 1,
+    BD_OUTPUT_INIT = 2,
+    BD_INPUT_INIT = 3,
+    BD_INVALID_CONFIG = 4,
+    BD_MALFORMED_CONF = 5,
+    BD_YAML_ERROR = 6,
+    BD_STARTUP_ERROR = 7,
+    BD_INVALID_PARAMS = 8,
+    BD_INVALID_INTERFACE = 9,
+};
 
+/* Enumeration of events supported */
 typedef enum {
     BD_EVENT_STARTING,
     BD_EVENT_PACKET,

@@ -286,7 +286,7 @@ int main(int argc, char *argv[]) {
     if (trace_is_err(trace)) {
         trace_perror(trace, "Unable to open capture point");
         libtrace_cleanup(trace, processing, reporter);
-        return 1;
+        exit(BD_INVALID_INTERFACE);
     }
 
     trace_set_reporter_thold(trace, 1);
