@@ -43,6 +43,12 @@ if test "x$curlfound" = xfalse; then
     AC_MSG_WARN(Libcurl not found. InfluxDB plugin will not be compiled)
 fi
 
+# check for doxygen
+doxygenfound=true
+AC_CHECK_PROGS([doxygen], [doxygen],,[doxygenfound=false])
+if test "x$doxygenfound" = xfalse; then
+    AC_MSG_WARN([Doxygen not found - continuing without Doxygen support])
+fi
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_CHECK_HEADER_STDBOOL
@@ -63,5 +69,8 @@ AC_CHECK_FUNCS([memchr memset modf pow strdup])
 
 AM_CONDITIONAL([HAVE_LIBRDKAFKA], [test "x$rdkafkafound" = xtrue])
 AM_CONDITIONAL([HAVE_LIBCURL], [test "x$curlfound" = xtrue])
+AM_CONDITIONAL([HAVE_DOXYGEN], [test "x$doxygenfound" = xtrue])
+
+AM_COND_IF([HAVE_DOXYGEN], [AC_CONFIG_FILES([docs/Doxyfile docs/Makefile])])
 
 AC_OUTPUT(Makefile lib/Makefile)
