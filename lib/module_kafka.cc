@@ -52,7 +52,7 @@ void *module_kafka_starting(void *tls) {
         opts->errstr, sizeof(opts->errstr)) != RD_KAFKA_CONF_OK) {
 
         fprintf(stderr, "Kafka error: %s\n", opts->errstr);
-        exit(OUTPUT_INIT);
+        exit(BD_OUTPUT_INIT);
     }
 
     // set delivery report callback
@@ -64,7 +64,7 @@ void *module_kafka_starting(void *tls) {
     if (!opts->rk) {
         fprintf(stderr, "Kafka error: Failed to create new producer: %s\n",
             opts->errstr);
-        exit(OUTPUT_INIT);
+        exit(BD_OUTPUT_INIT);
     }
 
     return opts;
