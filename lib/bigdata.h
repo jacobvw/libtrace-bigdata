@@ -75,6 +75,12 @@ typedef enum {
     BD_EVENT_REPORTER_STOPPING,
 } bd_event_t;
 
+/* Cached fields */
+typedef struct bigdata_cache {
+    int packet_direction;
+    int ip_local;
+} bd_cache_t;
+
 typedef struct bigdata {
     libtrace_t *trace;
     libtrace_thread_t *thread;
@@ -82,6 +88,7 @@ typedef struct bigdata {
     Flow *flow;
     bd_global_t *global;
     void *tls;
+    bd_cache_t cache;
 } bd_bigdata_t;
 
 // configuration structure for application core

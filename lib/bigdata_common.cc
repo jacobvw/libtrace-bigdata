@@ -4,10 +4,16 @@ int bd_get_packet_direction(bd_bigdata_t *bigdata) {
 
     libtrace_packet_t *packet = bigdata->packet;
     bd_global_t *global = bigdata->global;
+    bd_cache_t *cache = &(bigdata->cache);
 
     if (packet == NULL) {
         fprintf(stderr, "NULL packet. func. bd_get_packet_direction()\n");
         return -1;
+    }
+
+    /* If a cached value exists for this packet */
+    if (cache->packet_direction != -1) {
+        return cache->packet_direction;
     }
 
     if (global->config->local_networks_as_direction) {
@@ -38,7 +44,8 @@ int bd_get_packet_direction(bd_bigdata_t *bigdata) {
 
                     // check source
                     if ((packet_addr->s_addr & mask_addr->s_addr) == network_addr->s_addr) {
-                        return 0;
+                        cache->packet_direction = 0;
+                        return cache->packet_direction;
                     }
 
                     packet_in = (struct sockaddr_in *)dst_ip;
@@ -46,7 +53,8 @@ int bd_get_packet_direction(bd_bigdata_t *bigdata) {
 
                     // check destination
                     if ((packet_addr->s_addr & mask_addr->s_addr) == network_addr->s_addr) {
-                        return 1;
+                        cache->packet_direction = 1;
+                        return cache->packet_direction;
                     }
                 }
 
@@ -70,7 +78,10 @@ int bd_get_packet_direction(bd_bigdata_t *bigdata) {
                             match = 0;
                         }
                     }
-                    if (match) { return 0; }
+                    if (match) {
+                        cache->packet_direction = 0;
+                        return cache->packet_direction;
+                    }
 
                     packet_in = (struct sockaddr_in6 *)dst_ip;
                     packet_addr = (struct in6_addr *)&(packet_in->sin6_addr);
@@ -83,14 +94,18 @@ int bd_get_packet_direction(bd_bigdata_t *bigdata) {
                             match = 0;
                         }
                     }
-                    if (match) { return 1; }
+                    if (match) {
+                        cache->packet_direction = 1;
+                        return cache->packet_direction;
+                    }
 
                 }
             }
         }
     }
 
-    return trace_get_direction(packet);
+    cache->packet_direction = trace_get_direction(packet);
+    return cache->packet_direction;
 
 }
 
@@ -98,6 +113,12 @@ int bd_get_packet_direction(bd_bigdata_t *bigdata) {
 int bd_local_ip(bd_bigdata_t *bigdata, struct sockaddr *ip) {
 
     bd_global_t *global = bigdata->global;
+    bd_cache_t *cache = &(bigdata->cache);
+
+    /* If a cached value exists for this packet */
+    if (cache->ip_local != -1) {
+        return cache->ip_local;
+    }
 
     // iterate over all local ips
     for (int i=0; i < global->config->local_subnets_count; i++) {
@@ -108,7 +129,8 @@ int bd_local_ip(bd_bigdata_t *bigdata, struct sockaddr *ip) {
 
         if (address->sa_family == ip->sa_family) {
             if (ip->sa_family != AF_INET && ip->sa_family != AF_INET6) {
-                return -1;
+                cache->ip_local = -1;
+                return cache->ip_local;
             }
 
             if (ip->sa_family == AF_INET) {
@@ -122,7 +144,8 @@ int bd_local_ip(bd_bigdata_t *bigdata, struct sockaddr *ip) {
 
                 // check if the supplied ip is within the current network
                 if ((ip_addr->s_addr & mask_addr->s_addr) == network_addr->s_addr) {
-                    return 1;
+                    cache->ip_local = 1;
+                    return cache->ip_local;
                 }
             }
 
@@ -143,13 +166,17 @@ int bd_local_ip(bd_bigdata_t *bigdata, struct sockaddr *ip) {
                         match = 0;
                     }
                 }
-                if (match) { return 1; }
+                if (match) {
+                    cache->ip_local = 1;
+                    return cache->ip_local;
+                }
             }
         }
     }
 
     // got this far, no match
-    return 0;
+    cache->ip_local = 0;
+    return cache->ip_local;
 }
 
 libtrace_t *bd_get_trace(bd_bigdata_t *bigdata) {

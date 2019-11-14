@@ -43,6 +43,10 @@ static bd_bigdata_t *init_bigdata(bd_bigdata_t *bigdata, libtrace_t *trace, libt
     bigdata->global = global;
     bigdata->tls = tls;
 
+    /* initialize cached fields */
+    bigdata->cache.packet_direction = -1;
+    bigdata->cache.ip_local = -1;
+
     return bigdata;
 }
 
