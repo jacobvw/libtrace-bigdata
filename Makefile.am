@@ -1,5 +1,5 @@
 AUTOMAKE_OPTIONS = foreign
-SUBDIRS = lib
+SUBDIRS = lib docs
 
 bigdataconfdir = $(sysconfdir)/bigdata
 bigdataconf_DATA = examples/config.yaml
