@@ -192,7 +192,7 @@ int module_flow_statistics_config(yaml_parser_t *parser, yaml_event_t *event, in
 
                         /* try to convert the protocol string supplied into a
                          * lpi_protocol_t. Enable the protocol if found */
-                        lpi_protocol_t protocol;
+                        /*lpi_protocol_t protocol;
                         protocol = lpi_get_protocol_by_name((char *)event->data.scalar.value);
                         if (protocol != LPI_PROTO_LAST) {
                             if (config->enabled) {
@@ -205,7 +205,7 @@ int module_flow_statistics_config(yaml_parser_t *parser, yaml_event_t *event, in
                                 fprintf(stderr, "\tCould Not Find Protocol: %s\n",
                                     (char *)event->data.scalar.value);
                             }
-                        }
+                        }*/
 
                         /* consume the event */
                         consume_event(parser, event, level);
