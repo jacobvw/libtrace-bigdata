@@ -3,10 +3,13 @@ Maintainer: Jacob van Walraven <jacobvw@icloud.com>
 Section: misc
 Priority: optional
 Standards-Version: 4.1.3
-Build-Depends:
- debhelper (>= 10),
+Build-Depends: debhelper (>= 10),
+ autoconf, libtool,
  libtrace4-dev, libflowmanager-dev, libprotoident-dev,
- libyaml-dev, libcurl4-openssl-dev, librdkafka-dev 
+ libyaml-dev,
+ libcurl4-openssl-dev | libcurl4-gnutls-dev | libcurl4-nss-dev,
+ librdkafka-dev,
+ doxygen, graphviz
 
 Package: libtrace-bigdata
 Architecture: any
