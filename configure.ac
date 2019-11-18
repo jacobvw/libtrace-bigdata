@@ -1,5 +1,5 @@
 AC_PREREQ([2.69])
-AC_INIT([Libtrace-bigdata], [1.0], [jacobvw@icloud.com])
+AC_INIT([libtrace-bigdata], [1.0], [jacobvw@icloud.com])
 AC_CONFIG_SRCDIR([lib/bigdata.cc])
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_AUX_DIR([build])

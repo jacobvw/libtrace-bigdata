@@ -1,5 +1,6 @@
 #!/bin/bash
 
+rm -rf debian-package
 /bin/bash bootstrap.sh
 /bin/bash configure
 make
