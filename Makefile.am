@@ -1,5 +1,6 @@
 AUTOMAKE_OPTIONS = foreign
 SUBDIRS = lib
+EXTRA_DIST = examples
 
 if HAVE_DOXYGEN
 SUBDIRS += docs
