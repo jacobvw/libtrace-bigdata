@@ -125,6 +125,9 @@ void module_kafka_stopping(void *tls, void *mls) {
     // destroy the topic
     rd_kafka_topic_destroy(opts->rkt);
 
+    // Give time for the background threads to cleanup and terminate cleanly
+    rd_kafka_wait_destroyed(2000);
+
     // free the options structure
     free(opts);
 }
