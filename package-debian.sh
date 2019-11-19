@@ -16,8 +16,8 @@ apt-get update
 apt-get install -y libtrace4-dev libprotoident-dev libflowmanager-dev libyaml-dev \
     libcurl4-openssl-dev doxygen graphviz librdkafka-dev autoconf libtool
 
-/bin/bash bootstrap.sh
-/bin/bash configure
+./bootstrap.sh
+./configure CXXFLAGS="-std=c++99" CFLAGS="-std=c99"
 make
 make dist
 mkdir debian-package
