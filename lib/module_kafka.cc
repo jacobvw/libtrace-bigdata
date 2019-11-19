@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <signal.h>
 #include <string.h>
+#include <errno.h>
 
 #define KAFKA_BUF_LEN 2000
 #define KAFKA_LINE_LEN 4000
@@ -21,16 +22,17 @@ static struct module_kafka_conf *config;
 typedef struct module_kafka_options {
     rd_kafka_t *rk;          // producer instance handle
     rd_kafka_conf_t *conf;   // temp configuration object
+    rd_kafka_topic_conf_t *topic_conf;
+    rd_kafka_topic_t *rkt;
     char errstr[512];
 } mod_kafka_opts_t;
 
-static void module_kafka_delivery_cb(rd_kafka_t *rk,
-    const rd_kafka_message_t *rkmessage, void *opaque) {
+static void module_kafka_delivery_cb(rd_kafka_t *rk, void *payload, size_t len,
+    rd_kafka_resp_err_t error_code, void *opaque, void *msg_opaque) {
 
-    // error occured when posting to kafka
-    if (rkmessage->err) {
-        fprintf(stderr, "Kafka delivery failed: %s\n",
-            rd_kafka_err2str(rkmessage->err));
+    if (error_code) {
+        fprintf(stderr, "%% Message delivery failed: %s\n",
+            rd_kafka_err2str(error_code));
     }
 }
 
@@ -46,17 +48,11 @@ void *module_kafka_starting(void *tls) {
 
     // create client configuration
     opts->conf = rd_kafka_conf_new();
+    // create topic configuration
+    opts->topic_conf = rd_kafka_topic_conf_new();
 
-    // set the bootstrap brokers
-    if (rd_kafka_conf_set(opts->conf, "bootstrap.servers", config->brokers,
-        opts->errstr, sizeof(opts->errstr)) != RD_KAFKA_CONF_OK) {
-
-        fprintf(stderr, "Kafka error: %s\n", opts->errstr);
-        exit(BD_OUTPUT_INIT);
-    }
-
-    // set delivery report callback
-    rd_kafka_conf_set_dr_msg_cb(opts->conf, module_kafka_delivery_cb);
+    // set message delivery callback function
+    rd_kafka_conf_set_dr_cb(opts->conf, module_kafka_delivery_cb);
 
     // create producer instance
     opts->rk = rd_kafka_new(RD_KAFKA_PRODUCER, opts->conf, opts->errstr,
@@ -67,15 +63,18 @@ void *module_kafka_starting(void *tls) {
         exit(BD_OUTPUT_INIT);
     }
 
+    if (rd_kafka_brokers_add(opts->rk, config->brokers) == 0) {
+        fprintf(stderr, "Kafka error: No valid brokers specified\n");
+        exit(BD_OUTPUT_INIT);
+    }
+
+    opts->rkt = rd_kafka_topic_new(opts->rk, config->topic, opts->topic_conf);
+
     return opts;
 }
 
 int module_kafka_post(bd_bigdata_t *bigdata, void *mls, bd_result_set *result) {
 
-    rd_kafka_resp_err_t err;
-    int i;
-    int ret;
-    bool first_pass = true;
     char *query;
 
     // get kafka options
@@ -83,50 +82,25 @@ int module_kafka_post(bd_bigdata_t *bigdata, void *mls, bd_result_set *result) {
 
     query = result_to_query(result);
 
-retry:
-    // post the result to the kafka topic
-    /*err = rd_kafka_producev(opts->rk,
-                      RD_KAFKA_V_TOPIC(config->topic),
-                      RD_KAFKA_V_MSGFLAGS(RD_KAFKA_MSG_F_FREE),
-                      RD_KAFKA_V_VALUE(query, strlen(query)),
-                      RD_KAFKA_V_OPAQUE(NULL),
-                      RD_KAFKA_V_END);*/
+    if(rd_kafka_produce(opts->rkt,
+                        RD_KAFKA_PARTITION_UA,
+                        RD_KAFKA_MSG_F_COPY,
+                        query,
+                        strlen(query),
+                        NULL,
+                        0,
+                        NULL) == -1) {
 
-    rd_kafka_topic_t *rkt = rd_kafka_topic_new(opts->rk, config->topic, NULL);
-    if(rd_kafka_produce(rkt, 0, RD_KAFKA_MSG_F_FREE, query, strlen(query),
-        NULL, 0, NULL) == -1) {
-
-        fprintf(stderr, "Kafka failed to produce to topic %s: %s\n",
-            config->topic, rd_kafka_err2str(err));
+        fprintf(stderr, "Kafka error: Failed to produce to topic %s\n",
+            config->topic);
 
     }
 
-    /*if (err) {
-        fprintf(stderr, "Kafka failed to produce to topic %s: %s\n",
-            config->topic, rd_kafka_err2str(err));
-
-        if (err == RD_KAFKA_RESP_ERR__QUEUE_FULL) {
-            /* If the internal queue is full, wait for
-             * messages to be delivered and then retry.
-             * The internal queue represents both
-             * messages to be sent and messages that have
-             * been sent or failed, awaiting their
-             * delivery report callback to be called.
-             *
-             * The internal queue is limited by the
-             * configuration property
-             * queue.buffering.max.messages
-             */
-            /*rd_kafka_poll(opts->rk, 1000);
-            goto retry;
-        }
-    }*/
-
     // serve the delivery report queue. posibly add this to tick event?
-    rd_kafka_poll(opts->rk, 0);
+    rd_kafka_poll(opts->rk, 1000);
 
     // libkafka is set to free query when it is done with it
-    //free(query);
+    free(query);
 
     return 0;
 }
@@ -147,6 +121,9 @@ void module_kafka_stopping(void *tls, void *mls) {
 
     // destroy the producer instance
     rd_kafka_destroy(opts->rk);
+
+    // destroy the topic
+    rd_kafka_topic_destroy(opts->rkt);
 
     // free the options structure
     free(opts);
