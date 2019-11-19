@@ -96,10 +96,12 @@ retry:
     if(rd_kafka_produce(rkt, 0, RD_KAFKA_MSG_F_FREE, query, strlen(query),
         NULL, 0, NULL) == -1) {
 
-        err = rd_kafka_last_error();
+        fprintf(stderr, "Kafka failed to produce to topic %s: %s\n",
+            config->topic, rd_kafka_err2str(err));
+
     }
 
-    if (err) {
+/*    if (err) {
         fprintf(stderr, "Kafka failed to produce to topic %s: %s\n",
             config->topic, rd_kafka_err2str(err));
 
@@ -115,10 +117,10 @@ retry:
              * configuration property
              * queue.buffering.max.messages
              */
-            rd_kafka_poll(opts->rk, 1000/*block for max 1000ms*/);
+/*            rd_kafka_poll(opts->rk, 1000);
             goto retry;
         }
-    }
+*/    }
 
     // serve the delivery report queue. posibly add this to tick event?
     rd_kafka_poll(opts->rk, 0);
@@ -134,12 +136,13 @@ void module_kafka_stopping(void *tls, void *mls) {
     mod_kafka_opts_t *opts = (mod_kafka_opts_t *)mls;
 
     // wait for any remaining messages to be delivered (10 seconds)
-    rd_kafka_flush(opts->rk, 10*1000);
+    //rd_kafka_flush(opts->rk, 10*1000);
 
     // check output queue is empty
     if (rd_kafka_outq_len(opts->rk) > 0) {
         fprintf(stderr, "%d Kafka message(s) were not delivered\n",
             rd_kafka_outq_len(opts->rk));
+        rd_kafka_poll(opts->rk, 100);
     }
 
     // destroy the producer instance

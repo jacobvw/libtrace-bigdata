@@ -3,7 +3,7 @@
 set -x -e -o pipefail
 
 apt-get update
-apt-get install -y devscripts curl apt-transport-https gnupg lsb-release
+apt-get install -y devscripts curl apt-transport-https gnupg lsb-release debhelper
 
 echo "deb https://dl.bintray.com/wand/general $(lsb_release -sc) main" | tee -a /etc/apt/sources.list.d/wand.list
 echo "deb https://dl.bintray.com/wand/libtrace $(lsb_release -sc) main" | tee -a /etc/apt/sources.list.d/wand.list
