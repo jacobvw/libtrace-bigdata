@@ -2,7 +2,7 @@
 
 set -e -o pipefail
 
-BINTRAY_REPO="wand/libtrace-bigdata"
+BINTRAY_REPO="jacobvwrepo/libtrace-bigdata"
 BINTRAY_LICENSE="LGPL-3.0"
 
 apt-get update && apt-get install -y curl
