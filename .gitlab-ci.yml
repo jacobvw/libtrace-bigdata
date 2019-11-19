@@ -1,5 +1,6 @@
 stages:
   - build
+  - upload
 
 build-debian-jessie:
   stage: build
@@ -85,10 +86,10 @@ build-ubuntu-bionic:
   only:
     - tags
 
-upload-packages:
-  stage: upload
-  image: ubuntu:bionic
-  script:
-    - ./bintray-upload.sh
-  only:
-    - tags
+#upload-packages:
+#  stage: upload
+#  image: ubuntu:bionic
+#  script:
+#    - ./bintray-upload.sh
+#  only:
+#    - tags
