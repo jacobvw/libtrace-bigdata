@@ -101,7 +101,7 @@ retry:
 
     }
 
-/*    if (err) {
+    /*if (err) {
         fprintf(stderr, "Kafka failed to produce to topic %s: %s\n",
             config->topic, rd_kafka_err2str(err));
 
@@ -117,10 +117,10 @@ retry:
              * configuration property
              * queue.buffering.max.messages
              */
-/*            rd_kafka_poll(opts->rk, 1000);
+            /*rd_kafka_poll(opts->rk, 1000);
             goto retry;
         }
-*/    }
+    }*/
 
     // serve the delivery report queue. posibly add this to tick event?
     rd_kafka_poll(opts->rk, 0);
