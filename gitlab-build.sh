@@ -2,7 +2,7 @@
 
 set -x -e -o pipefail
 
-export DEBEMAIL='packaging@wand.net.nz'
+export DEBEMAIL='jacobvw@icloud.com'
 export DEBFULLNAME='WAND Packaging'
 export DEBIAN_FRONTEND=noninteractive
 
