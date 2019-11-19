@@ -85,12 +85,19 @@ int module_kafka_post(bd_bigdata_t *bigdata, void *mls, bd_result_set *result) {
 
 retry:
     // post the result to the kafka topic
-    err = rd_kafka_producev(opts->rk,
+    /*err = rd_kafka_producev(opts->rk,
                       RD_KAFKA_V_TOPIC(config->topic),
                       RD_KAFKA_V_MSGFLAGS(RD_KAFKA_MSG_F_FREE),
                       RD_KAFKA_V_VALUE(query, strlen(query)),
                       RD_KAFKA_V_OPAQUE(NULL),
-                      RD_KAFKA_V_END);
+                      RD_KAFKA_V_END);*/
+
+    rd_kafka_topic_t *rkt = rd_kafka_topic_new(opts->rk, config->topic, NULL);
+    if(rd_kafka_produce(rkt, 0, RD_KAFKA_MSG_F_FREE, query, strlen(query),
+        NULL, 0, NULL) == -1) {
+
+        err = rd_kafka_last_error();
+    }
 
     if (err) {
         fprintf(stderr, "Kafka failed to produce to topic %s: %s\n",
