@@ -131,11 +131,4 @@ typedef struct bigdata_thread_reporter_local {
 } bd_rthread_local_t;
 
 
-/* private function */
-static bd_bigdata_t *init_bigdata(bd_bigdata_t *bigdata, libtrace_t *trace, libtrace_thread_t *thread,
-    libtrace_packet_t *packet, Flow *flow, bd_global_t *global, void *tls);
-static void init_modules(bd_bigdata_t *bigdata);
-static void libtrace_cleanup(libtrace_t *trace, libtrace_callback_set_t *processing,
-    libtrace_callback_set_t *reporter);
-
 #endif

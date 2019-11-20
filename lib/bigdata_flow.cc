@@ -2,6 +2,9 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+static int flow_init_metrics(bd_bigdata_t *bigdata, uint8_t dir, double ts);
+static int flow_process_metrics(bd_bigdata_t *bigdata, double dir, double ts);
+
 static char *sockaddr_storage_to_string(struct sockaddr_storage *ptr, char *space,
     int spacelen);
 
@@ -13,7 +16,6 @@ Flow *flow_per_packet(bd_bigdata_t *bigdata) {
     double ts = trace_get_seconds(bigdata->packet);
     uint8_t dir;
     bool is_new = false;
-    libtrace_tcp_t *tcp = NULL;
     libtrace_ip_t *ip = NULL;
 
     uint16_t l3_type;
@@ -335,7 +337,8 @@ bd_flow_record_t *bd_flow_get_record(Flow *flow) {
 
 double bd_flow_get_duration(Flow *flow) {
 
-    bd_flow_record_t *rec;
+    bd_flow_record_t *rec = NULL;
+
     if ((bd_flow_get_record(flow)) != NULL) {
         return rec->end_ts - rec->start_ts;
     }

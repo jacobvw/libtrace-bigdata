@@ -47,15 +47,10 @@ void *module_dns_starting(void *tls) {
 
 int module_dns_packet(bd_bigdata_t *bigdata, void *mls) {
 
-    libtrace_t *trace = bigdata->trace;
-    libtrace_thread_t *thread = bigdata->thread;
     libtrace_packet_t *packet = bigdata->packet;
-    Flow *flow = bigdata->flow;
-    void *tls = bigdata->tls;
 
-    // Gain access to module local storage and thread local storage
+    // Gain access to module local storage
     struct module_dns_local *m_local = (struct module_dns_local *)mls;
-    bd_thread_local_t *t_local = (bd_thread_local_t *)tls;
 
     libtrace_udp_t *udp;
     libtrace_tcp_t *tcp;
@@ -180,7 +175,7 @@ int module_dns_packet(bd_bigdata_t *bigdata, void *mls) {
         bd_result_set_insert_tag(result_set, "opcode", buf);
 
         // for each question
-        for (i=0; i<resp->qdcount; i++) {
+        for (i = 0; i < (int)resp->qdcount; i++) {
             snprintf(buf, sizeof(buf), "%s%d", "question", i);
             bd_result_set_insert_string(result_set, buf, resp->questions[i].name);
 
@@ -190,15 +185,15 @@ int module_dns_packet(bd_bigdata_t *bigdata, void *mls) {
         }
 
         // for each answer
-        for (i=0; i<resp->ancount; i++) {
+        for (i = 0; i < (int)resp->ancount; i++) {
             module_dns_answer_to_result_set(result_set, &resp->answers[i], "answer", i);
         }
         // for each nameserver
-        for (i=0; i<resp->nscount; i++) {
+        for (i = 0; i < (int)resp->nscount; i++) {
             module_dns_answer_to_result_set(result_set, &resp->nameservers[i], "nameserver", i);
         }
         // for each additional
-        for (i=0; i<resp->arcount; i++) {
+        for (i = 0; i < (int)resp->arcount; i++) {
             module_dns_answer_to_result_set(result_set, &resp->additional[i], "additional", i);
         }
 
@@ -224,11 +219,7 @@ int module_dns_packet(bd_bigdata_t *bigdata, void *mls) {
 // the map of requests
 int module_dns_tick(bd_bigdata_t *bigdata, void *mls, uint64_t tick) {
 
-    libtrace_t *trace = bigdata->trace;
-    libtrace_thread_t *thread = bigdata->thread;
-    void *tls = bigdata->tls;
-
-    // Gain access to module local storage and thread local storage
+    // Gain access to module local storage
     struct module_dns_local *m_local = (struct module_dns_local *)mls;
 
     // Gain access to the map
@@ -252,10 +243,32 @@ int module_dns_tick(bd_bigdata_t *bigdata, void *mls, uint64_t tick) {
             ++itr;
         }
     }
+
+    return 0;
 }
 
 int module_dns_ending(void *tls, void *mls) {
+
+    // Gain access to module local storage
     module_dns_local *storage = (module_dns_local *)mls;
+
+    // Gain access to the map
+    std::unordered_map<uint16_t, struct module_dns_req *> *map = storage->reqs;
+
+    struct module_dns_req *dns_req;
+
+    // create iterator
+    std::unordered_map<uint16_t, struct module_dns_req *>::iterator itr;
+    for (itr = map->begin(); itr != map->end(); itr++) {
+
+        // Get the current dns req
+        dns_req = (struct module_dns_req *)itr->second;
+        // free the dns req
+        free(dns_req);
+    }
+
+    // delete the unordered_map
+    delete(map);
 
     return 0;
 }
@@ -351,6 +364,8 @@ int module_dns_answer_to_result_set(bd_result_set_t *result_set, dns_answer_t *a
         default:
             break;
     }
+
+    return 0;
 }
 
 int module_dns_config(yaml_parser_t *parser, yaml_event_t *event, int *level) {
@@ -411,6 +426,8 @@ int module_dns_config(yaml_parser_t *parser, yaml_event_t *event, int *level) {
 
         fprintf(stdout, "DNS Plugin Enabled\n");
     }
+
+    return 0;
 }
 
 int module_dns_init(bd_bigdata_t *bigdata) {

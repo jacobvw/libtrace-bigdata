@@ -70,6 +70,7 @@ int module_flow_statistics_tick(bd_bigdata_t *bigdata, void *mls, uint64_t tick)
             "module_flow_statistics_tick()\n");
     }
 
+    return 0;
 }
 
 int module_flow_statistics_protocol_updated(bd_bigdata_t *bigdata, void *mls, lpi_protocol_t oldproto,
@@ -105,6 +106,8 @@ int module_flow_statistics_protocol_updated(bd_bigdata_t *bigdata, void *mls, lp
 
         bd_result_set_publish(bigdata, res, 0);
     }
+
+    return 0;
 }
 
 int module_flow_statistics_flowend(bd_bigdata_t *bigdata, void *mls, bd_flow_record_t *flow_record) {
@@ -134,6 +137,8 @@ int module_flow_statistics_flowend(bd_bigdata_t *bigdata, void *mls, bd_flow_rec
 
         bd_result_set_publish(bigdata, res, 0);
     }
+
+    return 0;
 }
 
 /* define the configuration function */
@@ -234,6 +239,8 @@ int module_flow_statistics_config(yaml_parser_t *parser, yaml_event_t *event, in
         config->callbacks->flowend_cb = (cb_flowend)module_flow_statistics_flowend;
 
     }
+
+    return 0;
 }
 
 
@@ -267,4 +274,6 @@ int module_flow_statistics_init(bd_bigdata_t *bigdata) {
 
     /* register the callback set against the application core */
     bd_register_cb_set(bigdata, config->callbacks);
+
+    return 0;
 }

@@ -205,6 +205,8 @@ int module_kafka_init(bd_bigdata_t *bigdata) {
 
     // register the callback set
     bd_register_cb_set(bigdata, config->callbacks);
+
+    return 0;
 }
 
 /* Currently a copy of the influxdb query string */

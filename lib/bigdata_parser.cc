@@ -109,6 +109,7 @@ void print_event(yaml_event_t *event, int *level) {
         case YAML_MAPPING_END_EVENT: fprintf(stderr, "YAML_MAPPING_END_EVENT %d\n", *level); break;
         case YAML_SCALAR_EVENT: fprintf(stderr, "YAML_SCALAR_EVENT %d\n", *level); break;
         case YAML_ALIAS_EVENT: fprintf(stderr, "YAML_ALIAS_EVENT %d\n", *level); break;
+        case YAML_NO_EVENT: fprintf(stderr, "YAML_NO_EVENT %d\n", *level); break;
     }
 }
 
@@ -124,6 +125,7 @@ static void update_level(yaml_event_t *event, int *level) {
         case YAML_MAPPING_END_EVENT: *level -= 1; break;
         case YAML_SCALAR_EVENT: break;
         case YAML_ALIAS_EVENT: break;
+        case YAML_NO_EVENT: break;
     }
 }
 
@@ -196,6 +198,8 @@ bd_conf_t *parse_config(char *filename, bd_global_t *g_data) {
             case YAML_SEQUENCE_END_EVENT: consume_event(&parser, &event, &level); break;
             case YAML_MAPPING_START_EVENT: consume_event(&parser, &event, &level); break;
             case YAML_MAPPING_END_EVENT: consume_event(&parser, &event, &level); break;
+
+            case YAML_NO_EVENT: break;
 
             /* Data */
             case YAML_ALIAS_EVENT: consume_event(&parser, &event, &level); break;

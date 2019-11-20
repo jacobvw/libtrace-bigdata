@@ -22,8 +22,6 @@ typedef struct bigdata_flow_record {
 } bd_flow_record_t;
 
 /* private functions */
-static int flow_init_metrics(bd_bigdata_t *bigdata, uint8_t dir, double ts);
-static int flow_process_metrics(bd_bigdata_t *bigdata, double dir, double ts);
 int flow_expire(bd_bigdata_t *bigdata);
 Flow *flow_per_packet(bd_bigdata_t *bigdata);
 

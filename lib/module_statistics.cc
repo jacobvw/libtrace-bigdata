@@ -78,11 +78,7 @@ void *module_statistics_starting(void *tls) {
 
 int module_statistics_packet(bd_bigdata_t *bigdata, void *mls) {
 
-    libtrace_t *trace = bigdata->trace;
-    libtrace_thread_t *thread = bigdata->thread;
     libtrace_packet_t *packet = bigdata->packet;
-    Flow *flow = bigdata->flow;
-    void *tls = bigdata->tls;
 
     // get the module local storage
     mod_stats_t *stats = (mod_stats_t *)mls;
@@ -121,8 +117,10 @@ int module_statistics_packet(bd_bigdata_t *bigdata, void *mls) {
     }
 
     // update timestamps
-    if (stats->start_ts = 0) { trace_get_seconds(packet); }
+    if ((stats->start_ts = 0)) { stats->start_ts = trace_get_seconds(packet); }
     stats->end_ts = trace_get_seconds(packet);
+
+    return 0;
 }
 
 int module_statistics_stopping(void *tls, void *mls) {
@@ -132,13 +130,11 @@ int module_statistics_stopping(void *tls, void *mls) {
 
     /* release stats memory */
     free(stats);
+
+    return 0;
 }
 
 int module_statistics_tick(bd_bigdata_t *bigdata, void *mls, uint64_t tick) {
-
-    libtrace_t *trace = bigdata->trace;
-    libtrace_thread_t *thread = bigdata->thread;
-    void *tls = bigdata->tls;
 
     // gain access to the stats
     mod_stats_t *stats = (mod_stats_t *)mls;
@@ -248,12 +244,16 @@ int module_statistics_combiner(bd_bigdata_t *bigdata, void *mls,
 
     // free the result
     free(res);
+
+    return 0;
 }
 
 int module_statistics_clear(void *mls) {
     mod_stats_t *stats = (mod_stats_t *)mls;
 
     module_statistics_clear_stor(stats);
+
+    return 0;
 }
 
 int module_statistics_reporter_stop(void *tls, void *mls) {
@@ -262,6 +262,8 @@ int module_statistics_reporter_stop(void *tls, void *mls) {
     module_statistics_delete_stor(tally);
 
     free(tally);
+
+    return 0;
 }
 
 int module_statistics_config(yaml_parser_t *parser, yaml_event_t *event, int *level) {

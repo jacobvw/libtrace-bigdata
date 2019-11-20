@@ -42,6 +42,9 @@ struct module_protocol_statistics_ip_compare {
             // ips must match
             return 0;
         }
+
+        // if we get this far ip is not v4 or v6 so just label then as non matching
+        return 1;
     }
 };
 
@@ -127,11 +130,8 @@ void *module_protocol_statistics_starting(void *tls) {
 
 int module_protocol_statistics_packet(bd_bigdata_t *bigdata, void *mls) {
 
-    libtrace_t *trace = bigdata->trace;
-    libtrace_thread_t *thread = bigdata->thread;
     libtrace_packet_t *packet = bigdata->packet;
     Flow *flow = bigdata->flow;
-    void *tls = bigdata->tls;
 
     // module only deals with traffic associated with a flow
     if (flow == NULL) {
@@ -143,8 +143,7 @@ int module_protocol_statistics_packet(bd_bigdata_t *bigdata, void *mls) {
     // get the flow record
     bd_flow_record_t *flow_rec = (bd_flow_record_t *)flow->extension;
 
-    // get the flow direction and current direction
-    int flow_dir = bd_flow_get_direction(flow);
+    // get the current direction for the packet
     int dir = bd_get_packet_direction(bigdata);
 
     // get pointer to protocol for this packet
@@ -187,6 +186,8 @@ int module_protocol_statistics_packet(bd_bigdata_t *bigdata, void *mls) {
     if (config->flow_count) {
         proto->flow_ids->insert(flow->id.get_id_num());
     }
+
+    return 0;
 }
 
 int module_protocol_statistics_stopping(void *tls, void *mls) {
@@ -198,13 +199,11 @@ int module_protocol_statistics_stopping(void *tls, void *mls) {
 
     /* release stats memory */
     free(stats);
+
+    return 0;
 }
 
 int module_protocol_statistics_tick(bd_bigdata_t *bigdata, void *mls, uint64_t tick) {
-
-    libtrace_t *trace = bigdata->trace;
-    libtrace_thread_t *thread = bigdata->thread;
-    void *tls = bigdata->tls;
 
     // gain access to the stats
     mod_proto_stats_t *stats = (mod_proto_stats_t *)mls;
@@ -250,6 +249,8 @@ int module_protocol_statistics_clear(void *mls) {
     for (int i = 0; i < LPI_PROTO_LAST; i++) {
         module_protocol_statistics_clear_proto_stats(&(stats->proto_stats[i]));
     }
+
+    return 0;
 }
 
 void *module_protocol_statistics_reporter_start(void *tls) {
@@ -354,6 +355,8 @@ int module_protocol_statistics_combiner(bd_bigdata_t *bigdata, void *mls,
 
     // free the result passed to combiner
     free(res);
+
+    return 0;
 }
 
 int module_protocol_statistics_reporter_stop(void *tls, void *mls) {
@@ -364,6 +367,8 @@ int module_protocol_statistics_reporter_stop(void *tls, void *mls) {
     }
 
     free(tally);
+
+    return 0;
 }
 
 int module_protocol_statistics_config(yaml_parser_t *parser, yaml_event_t *event, int *level) {

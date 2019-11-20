@@ -113,10 +113,6 @@ static void *start_processing(libtrace_t *trace, libtrace_thread_t *thread,
 static libtrace_packet_t *per_packet(libtrace_t *trace, libtrace_thread_t *thread,
     void *global, void *tls, libtrace_packet_t *packet) {
 
-    // Get global and thread local data
-    bd_global_t *g_data = (bd_global_t *)global;
-    bd_thread_local_t *l_data = (bd_thread_local_t *)tls;
-
     // create bigdata structure
     bd_bigdata_t bigdata;
     init_bigdata(&bigdata, trace, thread, packet, NULL, (bd_global_t *)global, tls);
@@ -271,7 +267,7 @@ int main(int argc, char *argv[]) {
     global.callback_count = 0;
 
     /* init bigdata structure */
-    init_bigdata(&bigdata, NULL, NULL, NULL, NULL, &global, NULL) == NULL;
+    init_bigdata(&bigdata, NULL, NULL, NULL, NULL, &global, NULL);
 
     // initialise modules
     init_modules(&bigdata);

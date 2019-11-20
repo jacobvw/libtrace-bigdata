@@ -89,6 +89,8 @@ void *module_influxdb_stopping(void *tls, void *mls) {
     curl_global_cleanup();
 
     free(opts);
+
+    return 0;
 }
 
 int module_influxdb_config(yaml_parser_t *parser, yaml_event_t *event, int *level) {
@@ -164,6 +166,8 @@ int module_influxdb_config(yaml_parser_t *parser, yaml_event_t *event, int *leve
 
         fprintf(stdout, "InfluxDB Plugin Enabled\n");
     }
+
+    return 0;
 }
 
 int module_influxdb_init(bd_bigdata_t *bigdata) {
@@ -192,6 +196,8 @@ int module_influxdb_init(bd_bigdata_t *bigdata) {
 
     // register the callback set
     bd_register_cb_set(bigdata, config->callbacks);
+
+    return 0;
 }
 
 static char *module_influxdb_result_to_query(bd_result_set *result) {
