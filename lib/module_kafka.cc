@@ -162,6 +162,8 @@ int module_kafka_config(yaml_parser_t *parser, yaml_event_t *event, int *level) 
                     config->topic = strdup((char *)event->data.scalar.value);
                     break;
                 }
+                consume_event(parser, event, level);
+                break;
             default:
                 consume_event(parser, event, level);
                 break;

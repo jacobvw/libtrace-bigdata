@@ -395,6 +395,7 @@ int module_dns_config(yaml_parser_t *parser, yaml_event_t *event, int *level) {
                             "module_dns. setting to default 20 seconds\n");
                         config->timeout_request = 20;
                     }
+                    break;
                 }
                 if (strcmp((char *)event->data.scalar.value, "timeout_check") == 0) {
                     consume_event(parser, event, level);
@@ -404,7 +405,10 @@ int module_dns_config(yaml_parser_t *parser, yaml_event_t *event, int *level) {
                             "module_dns. setting to default 20 seconds\n");
                         config->timeout_check = 20;
                     }
+                    break;
                 }
+                consume_event(parser, event, level);
+                break;
             default:
                 consume_event(parser, event, level);
                 break;

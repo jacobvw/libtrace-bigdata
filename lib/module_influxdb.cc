@@ -150,6 +150,8 @@ int module_influxdb_config(yaml_parser_t *parser, yaml_event_t *event, int *leve
                     }
                     break;
                 }
+                consume_event(parser, event, level);
+                break;
             default:
                 consume_event(parser, event, level);
                 break;

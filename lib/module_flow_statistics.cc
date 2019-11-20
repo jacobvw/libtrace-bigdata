@@ -224,6 +224,8 @@ int module_flow_statistics_config(yaml_parser_t *parser, yaml_event_t *event, in
                     break;
 
                 }
+                consume_event(parser, event, level);
+                break;
             default:
                 consume_event(parser, event, level);
                 break;

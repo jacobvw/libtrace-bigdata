@@ -327,6 +327,8 @@ int module_statistics_config(yaml_parser_t *parser, yaml_event_t *event, int *le
                     config->udp_packet_count = 1;
                     break;
                 }
+                consume_event(parser, event, level);
+                break;
             default:
                 consume_event(parser, event, level);
                 break;
