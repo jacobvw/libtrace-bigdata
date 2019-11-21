@@ -297,6 +297,30 @@ lpi_protocol_t bd_flow_get_protocol(Flow *flow) {
     return flow_rec->lpi_module->protocol;
 }
 
+lpi_category_t bd_flow_get_category(Flow *flow) {
+
+    if (flow == NULL) {
+        fprintf(stderr, "NULL flow. func. bd_flow_get_category()\n");
+        return LPI_CATEGORY_UNKNOWN;
+    }
+
+    bd_flow_record_t *flow_rec = (bd_flow_record_t *)flow->extension;
+
+    return flow_rec->lpi_module->category;
+}
+
+lpi_module_t *bd_flow_get_lpi_module(Flow *flow) {
+
+    if (flow == NULL) {
+        fprintf(stderr, "NULL flow. func. bd_flow_get_lpi_module()\n");
+        return NULL;
+    }
+
+    bd_flow_record_t *flow_rec = (bd_flow_record_t *)flow->extension;
+
+    return flow_rec->lpi_module;
+}
+
 FlowManager *bd_flow_get_flowmanager(bd_bigdata_t *bigdata) {
 
     if (bigdata == NULL) {

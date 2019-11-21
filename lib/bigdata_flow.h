@@ -84,10 +84,26 @@ struct sockaddr_storage *bd_flow_get_destination_ip(Flow *flow, struct sockaddr_
 /* Get the protocol for the current packets flow.
  *
  * @params	bigdata - bigdata structure.
- * @returns	Libprotoident protocol on success.
- *		LPI_PROTO_UNKNOWN on error
+ * @returns	lpi_protocol_t protocol on success.
+ *		LPI_PROTO_UNKNOWN if protocol is unknown or on error.
  */
 lpi_protocol_t bd_flow_get_protocol(Flow *flow);
+
+/* Get the protocol category for the current packets flow.
+ *
+ * @params	bigdata - bigdata structure.
+ * @returns	lpi_category_t category on success.
+ *		LPI_CATEGORY_UNKNOWN if category is unknown or on error.
+ */
+lpi_category_t bd_flow_get_category(Flow *flow);
+
+/* Get the lpi_module for the current packets flow.
+ *
+ * @params	Bigdata - bigdata structure.
+ * @returns	pointer to lpi_module_t on success.
+ *		NULL pointer on error.
+ */
+lpi_module_t *bd_flow_get_lpi_module(Flow *flow);
 
 /* Get the Flowmanager for the current packet processing thread.
  *
