@@ -162,10 +162,16 @@ int module_protocol_statistics_packet(bd_bigdata_t *bigdata, void *mls) {
 
     // dir = 1 is inbound packets
     if (dir) {
-        if (config->byte_count) { proto->in_bytes += trace_get_payload_length(packet); }
+        // both the byte_count and bitrate need the payload length so calculate if either
+        // options is set
+        if (config->byte_count || config->bitrate) {
+            proto->in_bytes += trace_get_payload_length(packet);
+        }
         if (config->packet_count) { proto->in_packets += 1; }
     } else {
-        if (config->byte_count) { proto->out_bytes += trace_get_payload_length(packet); }
+        if (config->byte_count || config->bitrate) {
+            proto->out_bytes += trace_get_payload_length(packet);
+        }
         if (config->packet_count) { proto->out_packets += 1; }
     }
 
