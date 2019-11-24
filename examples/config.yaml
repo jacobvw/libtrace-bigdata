@@ -39,10 +39,16 @@ foreach:
     # how often to output results (seconds)
     output_interval: 60
     metrics:
+      # export in/out bytes per protocol
       - byte_count
+      # export in/out packet count per protocol
       - packet_count
+      # export the number of flows per protocol
       - flow_count
+      #
       - ip_count
+      # export in/out bitrate per protocol
+      - bitrate
 
   # flow statistics
   flow_statistics:
@@ -55,6 +61,10 @@ foreach:
       - HTTP
       - SSH
       - HTTPS
+    # protocol categories to output flow information for. Refer to Libprotoident
+    # for category names. NOT YET IMPLEMENTED
+    protocol_categories:
+      - Remote_Access
 
   # statistics module
   statistics:

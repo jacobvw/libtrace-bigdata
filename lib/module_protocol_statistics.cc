@@ -15,6 +15,7 @@ struct module_protocol_statistics_conf {
     bool packet_count;
     bool flow_count;
     bool ip_count;
+    bool bitrate;
 };
 static struct module_protocol_statistics_conf *config;
 
@@ -343,6 +344,25 @@ int module_protocol_statistics_combiner(bd_bigdata_t *bigdata, void *mls,
                 bd_result_set_insert_uint(result_set, "count_flows",
                     proto->flow_ids->size());
             }
+
+            // calculate ~transfer speed
+            if (config->bitrate) {
+                if (proto->in_bytes > 0) {
+                    bd_result_set_insert_double(result_set, "in_bitrate", proto->in_bytes /
+                        config->output_interval);
+                } else {
+                    bd_result_set_insert_double(result_set, "in_bitrate", 0);
+                }
+
+                if (proto->out_bytes > 0) {
+                    bd_result_set_insert_double(result_set, "out_bitrate", proto->out_bytes /
+                        config->output_interval);
+                } else {
+                    bd_result_set_insert_double(result_set, "out_bitrate", 0);
+                }
+            }
+
+
             // set the timestamp for the result
             bd_result_set_insert_timestamp(result_set, tally->lastkey);
             // add interval
@@ -465,6 +485,11 @@ int module_protocol_statistics_config(yaml_parser_t *parser, yaml_event_t *event
                     config->ip_count = 1;
                     break;
                 }
+                if (strcmp((char *)event->data.scalar.value, "bitrate") == 0) {
+                    consume_event(parser, event, level);
+                    config->bitrate = 1;
+                    break;
+                }
                 consume_event(parser, event, level);
                 break;
             default:
@@ -512,6 +537,7 @@ int module_protocol_statistics_init(bd_bigdata_t *bigdata) {
     config->byte_count = 0;
     config->packet_count = 0;
     config->flow_count = 0;
+    config->bitrate = 0;
 
     // create the callback set
     config->callbacks = bd_create_cb_set("protocol_statistics");
