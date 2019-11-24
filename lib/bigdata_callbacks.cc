@@ -14,11 +14,6 @@ bd_cb_set *bd_create_cb_set(const char *module_name) {
     // assign default tickrate.
     cbset->tickrate = BIGDATA_TICKRATE;
 
-    // clear protocol callbacks
-    for (int i = 0; i < LPI_PROTO_LAST; i++) {
-        cbset->protocol_cb[i] = NULL;
-    }
-
     return cbset;
 }
 
@@ -92,6 +87,11 @@ int bd_register_protocol_event(bd_cb_set *cbset, cb_protocol callback, lpi_proto
 
 int bd_register_protocol_updated_event(bd_cb_set *cbset, cb_protocol_updated callback) {
     cbset->protocol_updated_cb = callback;
+    return 0;
+}
+
+int bd_register_category_event(bd_cb_set *cbset, cb_category callback, lpi_category_t category) {
+    cbset->category_cb[category] = callback;
     return 0;
 }
 

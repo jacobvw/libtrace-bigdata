@@ -17,6 +17,7 @@ typedef int (*cb_clear) (void *mls);
 typedef int (*cb_protocol) (bd_bigdata_t *bigdata, void *mls);
 typedef int (*cb_protocol_updated) (bd_bigdata_t *bigdata, void *mls, lpi_protocol_t old_protocol,
     lpi_protocol_t new_protocol);
+typedef int (*cb_category) (bd_bigdata_t *bigdata, void *mls);
 
 /* result event prototypes - Reporter thread */
 typedef void* (*cb_reporter_start) (void *tls);
@@ -57,6 +58,7 @@ typedef struct bigdata_callback_set {
     // protocol callbacks
     cb_protocol protocol_cb[LPI_PROTO_LAST];
     cb_protocol_updated protocol_updated_cb;
+    cb_category category_cb[LPI_CATEGORY_LAST];
     bd_cb_set *next;
 } bd_cb_set;
 
@@ -75,6 +77,7 @@ int bd_callback_trigger_starting(bd_bigdata_t *bigdata);
 int bd_callback_trigger_stopping(bd_bigdata_t *bigdata);
 int bd_callback_trigger_reporter_starting(bd_bigdata_t *bigdata);
 int bd_callback_trigger_reporter_stopping(bd_bigdata_t *bigdata);
+int bd_callback_trigger_category(bd_bigdata_t *bigdata);
 
 /* API FUNCTIONS */
 
@@ -180,6 +183,18 @@ int bd_register_protocol_event(bd_cb_set *cbset, cb_protocol callback, lpi_proto
  *              -1 on error
  */
 int bd_register_protocol_updated_event(bd_cb_set *cbset, cb_protocol_updated callback);
+
+/* Register a callback function to the catefory event.
+ * See https://github.com/wanduow/libprotoident/blob/master/lib/libprotoident.h
+ * for the supported categories.
+ *
+ * @params	cbset - Callback set
+ *		callback - The callback function
+ *		category - The Libprotoident category
+ * @returns	0 on success
+ *		-1 on error
+ */
+int bd_register_category_event(bd_cb_set *cbset, cb_category callback, lpi_category_t category);
 
 /* Register a callback function to the reporter start event.
  *
