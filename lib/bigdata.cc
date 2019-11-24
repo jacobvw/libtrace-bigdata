@@ -117,10 +117,12 @@ static libtrace_packet_t *per_packet(libtrace_t *trace, libtrace_thread_t *threa
     bd_bigdata_t bigdata;
     init_bigdata(&bigdata, trace, thread, packet, NULL, (bd_global_t *)global, tls);
 
-    // update the bigdata structure with flow information and trigger protocol event
+    // update the bigdata structure with flow information and trigger protocol &
+    // category events
     if (flow_per_packet(&bigdata) != NULL) {
         bd_flow_record_t *flow_record = (bd_flow_record_t *)bigdata.flow->extension;
         bd_callback_trigger_protocol(&bigdata, flow_record->lpi_module->protocol);
+        bd_callback_trigger_category(&bigdata, flow_record->lpi_module->category);
     }
 
     // trigger packet event

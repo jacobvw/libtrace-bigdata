@@ -213,6 +213,24 @@ int bd_callback_trigger_protocol_updated(bd_bigdata_t *bigdata, lpi_protocol_t o
     return ret;
 }
 
+int bd_callback_trigger_category(bd_bigdata_t *bigdata, lpi_category_t category) {
+
+    int ret = 0;
+    int cb_counter = 0;
+    bd_global_t *global = bigdata->global;
+    bd_thread_local_t *local = (bd_thread_local_t *)bigdata->tls;
+    bd_cb_set *cbs = global->callbacks;
+
+    for (; cbs != NULL; cbs = cbs->next) {
+        if (cbs->category_cb[category] != NULL) {
+            ret = cbs->category_cb[category](bigdata, local->mls[cb_counter]);
+        }
+        cb_counter += 1;
+    }
+
+    return ret;
+}
+
 int bd_callback_trigger_starting(bd_bigdata_t *bigdata) {
 
     int cb_counter = 0;

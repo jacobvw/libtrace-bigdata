@@ -77,7 +77,7 @@ int bd_callback_trigger_starting(bd_bigdata_t *bigdata);
 int bd_callback_trigger_stopping(bd_bigdata_t *bigdata);
 int bd_callback_trigger_reporter_starting(bd_bigdata_t *bigdata);
 int bd_callback_trigger_reporter_stopping(bd_bigdata_t *bigdata);
-int bd_callback_trigger_category(bd_bigdata_t *bigdata);
+int bd_callback_trigger_category(bd_bigdata_t *bigdata, lpi_category_t category);
 
 /* API FUNCTIONS */
 
