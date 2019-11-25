@@ -99,3 +99,9 @@ where:
   elasticsearch:
     enabled: 1
     host: http://127.0.0.1
+    port: 9200
+    ssl_verify_peer: 1
+    # Does elasticsearch require user/pass authentication (Normally when using X-Pack)
+    require_user_auth: 1
+    username: elasticuser
+    password: elasticpassword

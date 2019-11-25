@@ -7,6 +7,9 @@ struct module_elasticsearch_conf {
     char *host;
     int port;
     bool ssl_verifypeer;
+    char *username;
+    char *password;
+    bool require_user_auth;
 };
 static struct module_elasticsearch_conf *config;
 
@@ -37,6 +40,13 @@ void *module_elasticsearch_starting(void *tls) {
 
         headers = curl_slist_append(headers, "Content-Type: application/json");
         curl_easy_setopt(opts->curl, CURLOPT_HTTPHEADER, headers);
+
+        // if user auth is required
+        if (config->require_user_auth) {
+            // set username/password
+            curl_easy_setopt(opts->curl, CURLOPT_USERNAME, config->username);
+            curl_easy_setopt(opts->curl, CURLOPT_PASSWORD, config->password);
+        }
 
         if (config->ssl_verifypeer) {
             curl_easy_setopt(opts->curl, CURLOPT_SSL_VERIFYPEER, 1);
@@ -131,6 +141,33 @@ int module_elasticsearch_config(yaml_parser_t *parser, yaml_event_t *event, int 
                     }
                     break;
                 }
+                if (strcmp((char *)event->data.scalar.value, "require_user_auth") == 0) {
+                    consume_event(parser, event, level);
+                    if (strcmp((char *)event->data.scalar.value, "1") == 0 ||
+                        strcmp((char *)event->data.scalar.value, "true") == 0 ||
+                        strcmp((char *)event->data.scalar.value, "yes") == 0) {
+
+                        config->require_user_auth = 1;
+                    } else {
+                        config->require_user_auth = 0;
+                    }
+                    break;
+                }
+                if (strcmp((char *)event->data.scalar.value, "username") == 0) {
+                    consume_event(parser, event, level);
+                    config->username = strdup((char *)event->data.scalar.value);
+                    break;
+                }
+                if (strcmp((char *)event->data.scalar.value, "password") == 0) {
+                    consume_event(parser, event, level);
+                    config->password = strdup((char *)event->data.scalar.value);
+                    break;
+                }
+                if (strcmp((char *)event->data.scalar.value, "port") == 0) {
+                    consume_event(parser, event, level);
+                    config->port = atoi((char *)event->data.scalar.value);
+                    break;
+                }
                 consume_event(parser, event, level);
                 break;
             default:
@@ -161,6 +198,9 @@ int module_elasticsearch_init(bd_bigdata_t *bigdata) {
     config->enabled = 0;
     config->host = NULL;
     config->port = 9200;
+    config->username = NULL;
+    config->password = NULL;
+    config->require_user_auth = 0;
 
     // create callback structure
     config->callbacks = bd_create_cb_set("elasticsearch");
