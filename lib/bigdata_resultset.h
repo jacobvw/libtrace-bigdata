@@ -6,6 +6,9 @@
 #define RESULT_SET_INIT_SIZE 20
 #define RESULT_SET_INC_SIZE 10
 
+#define JSON_BUF_LEN 2000
+#define JSON_LINE_LEN 4000
+
 /* ENUM to identify between a result to combine or a result to publish */
 enum bd_result_type {
     BD_RESULT_COMBINE,
@@ -199,5 +202,7 @@ int bd_result_set_free(bd_result_set_t *result_set);
  *		-1 on error.
  */
 int bd_result_set_wrap_free(bd_result_set_wrap_t *r);
+
+char *bd_result_set_to_json_string(bd_result_set_t *result);
 
 #endif

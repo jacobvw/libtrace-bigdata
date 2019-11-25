@@ -274,3 +274,81 @@ int bd_result_set_wrap_free(bd_result_set_wrap_t *r) {
 
     return ret;
 }
+
+char *bd_result_set_to_json_string(bd_result_set_t *result) {
+
+    bool first_pass = true;
+    char *str;
+    char buf[JSON_BUF_LEN] = "";
+
+    str = (char *)malloc(JSON_LINE_LEN);
+    if (str == NULL) {
+        fprintf(stderr, "Unable to allocate memory. func. bd_result_set_to_json_string()\n");
+        exit(BD_OUTOFMEMORY);
+    }
+    str[0] = '\0';
+
+    // start the json string
+    strcat(str, "{");
+
+    // insert capture application and hostname
+    strcat(str, "\"capture_application\":\"libtrace-bigdata\"");
+
+    // convert all tag fields
+    for (int i = 0; i < result->num_results; i++) {
+
+        strcat(str, ",\"");
+        strcat(str, result->results[i].key);
+        strcat(str, "\":\"");
+
+        switch (result->results[i].type) {
+            case BD_TYPE_TAG:
+            case BD_TYPE_STRING:
+                snprintf(buf, JSON_BUF_LEN, "%s",
+                    result->results[i].value.data_string);
+                break;
+            case BD_TYPE_FLOAT:
+                snprintf(buf, JSON_BUF_LEN, "%f",
+                    result->results[i].value.data_float);
+                break;
+            case BD_TYPE_DOUBLE:
+                snprintf(buf, JSON_BUF_LEN, "%lf",
+                    result->results[i].value.data_double);
+                break;
+            case BD_TYPE_INT:
+                snprintf(buf, JSON_BUF_LEN, "%li",
+                    result->results[i].value.data_int);
+                break;
+            case BD_TYPE_UINT:
+                snprintf(buf, JSON_BUF_LEN, "%lu",
+                    result->results[i].value.data_uint);
+                break;
+            case BD_TYPE_BOOL:
+                if (result->results[i].value.data_bool) {
+                    snprintf(buf, JSON_BUF_LEN, "%s", "t");
+                } else {
+                    snprintf(buf, JSON_BUF_LEN, "%s", "f");
+                }
+                break;
+            default:
+                break;
+        }
+
+        strcat(str, buf);
+        strcat(str, "\"");
+    }
+
+    // insert timestamp into the string
+    if (result->timestamp != 0) {
+        strcat(str, ",\"timestamp\":\"");
+        // timestamp in seconds
+        snprintf(buf, JSON_BUF_LEN, "%lu", result->timestamp);
+        strcat(str, buf);
+        strcat(str, "\"");
+    }
+
+    // end the json string
+    strcat(str, "}");
+
+    return str;
+}

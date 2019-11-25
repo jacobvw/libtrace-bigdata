@@ -41,6 +41,7 @@ typedef struct bigdata_flow_record bd_flow_record_t;
 // Output Plugins
 #ifdef HAVE_LIBCURL
     #include "module_influxdb.h"
+    #include "module_elasticsearch.h"
 #endif
 #ifdef HAVE_LIBRDKAFKA
     #include "module_kafka.h"

@@ -6,9 +6,10 @@ KAFKASOURCE=
 endif
 
 if HAVE_LIBCURL
-INFLUXDBSOUCE = module_influxdb.cc module_influxdb.h
+CURLSOURCES = module_influxdb.cc module_influxdb.h
+CURLSOURCES += module_elasticsearch.cc module_elasticsearch.h
 else
-INFLUXDBSOUCE=
+CURLSOURCES =
 endif
 
 bin_PROGRAMS = bigdata
@@ -24,4 +25,4 @@ bigdata_SOURCES = bigdata.cc bigdata.h \
 		module_statistics.cc module_statistics.h \
                 module_flow_statistics.cc module_flow_statistics.h \
 		$(KAFKASOURCE) \
-		$(INFLUXDBSOUCE)
+		$(CURLSOURCES)

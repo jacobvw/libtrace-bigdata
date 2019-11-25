@@ -10,6 +10,7 @@ static void init_modules(bd_bigdata_t *bigdata) {
     module_dns_init(bigdata);
 #ifdef HAVE_LIBCURL
     module_influxdb_init(bigdata);
+    module_elasticsearch_init(bigdata);
 #endif
 #ifdef HAVE_LIBRDKAFKA
     module_kafka_init(bigdata);

@@ -95,3 +95,7 @@ where:
     enabled: 0
     brokers: 127.0.0.1:9092
     topic: topicname
+
+  elasticsearch:
+    enabled: 1
+    host: http://127.0.0.1
