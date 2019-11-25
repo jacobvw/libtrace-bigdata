@@ -13,6 +13,7 @@ static struct module_flow_statistics_config *config;
 struct module_flow_statistics_flow {
     bd_bigdata_t *bigdata;
     module_flow_statistics_config *c;
+    uint64_t tick;
 };
 
 /* function to apply to each flow */
@@ -51,6 +52,8 @@ int module_flow_statistics_foreach_flow(Flow *flow, void *data) {
             bd_result_set_insert_uint(res, "in_bytes", flow_rec->in_bytes);
             bd_result_set_insert_uint(res, "out_bytes", flow_rec->out_bytes);
 
+            bd_result_set_insert_timestamp(res, f->tick);
+
             bd_result_set_publish(f->bigdata, res, 0);
         }
     }
@@ -63,6 +66,7 @@ int module_flow_statistics_tick(bd_bigdata_t *bigdata, void *mls, uint64_t tick)
     struct module_flow_statistics_flow f;
     f.bigdata = bigdata;
     f.c = config;
+    f.tick = tick;
 
     FlowManager *fm = bd_flow_get_flowmanager(bigdata);
 
@@ -79,6 +83,7 @@ int module_flow_statistics_protocol_updated(bd_bigdata_t *bigdata, void *mls, lp
 
     bd_flow_record_t *flow_rec;
     char ip_tmp[INET6_ADDRSTRLEN];
+    struct timeval tv;
 
     if (config->protocol[newproto]) {
 
@@ -106,6 +111,10 @@ int module_flow_statistics_protocol_updated(bd_bigdata_t *bigdata, void *mls, lp
         bd_result_set_insert_int(res, "dst_port", flow_rec->dst_port);
         bd_result_set_insert_uint(res, "in_bytes", flow_rec->in_bytes);
         bd_result_set_insert_uint(res, "out_bytes", flow_rec->out_bytes);
+
+        // set the timestamp for the result
+        tv = trace_get_timeval(bigdata->packet);
+        bd_result_set_insert_timestamp(res, tv.tv_sec);
 
         bd_result_set_publish(bigdata, res, 0);
     }
@@ -139,6 +148,10 @@ int module_flow_statistics_flowend(bd_bigdata_t *bigdata, void *mls, bd_flow_rec
         bd_result_set_insert_int(res, "dst_port", flow_record->dst_port);
         bd_result_set_insert_uint(res, "in_bytes", flow_record->in_bytes);
         bd_result_set_insert_uint(res, "out_bytes", flow_record->out_bytes);
+
+        /* Makes most sense to insert the timestamp from when the flow ended here??
+           Because the packet received in this function is not for the current flow */
+        bd_result_set_insert_timestamp(res, flow_record->end_ts);
 
         bd_result_set_publish(bigdata, res, 0);
     }
