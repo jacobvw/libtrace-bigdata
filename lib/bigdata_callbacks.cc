@@ -55,6 +55,11 @@ int bd_add_tickrate_to_cb_set(bd_cb_set *cbset, size_t tickrate) {
     return 0;
 }
 
+int bd_register_config_event(bd_cb_set *cbset, cb_config callback) {
+    cbset->config_cb = callback;
+    return 0;
+}
+
 int bd_register_start_event(bd_cb_set *cbset, cb_start callback) {
     cbset->start_cb = callback;
     return 0;

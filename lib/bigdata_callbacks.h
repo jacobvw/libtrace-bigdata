@@ -118,6 +118,15 @@ int bd_add_filter_to_cb_set(bd_cb_set *cbset, const char *filter);
  */
 int bd_add_tickrate_to_cb_set(bd_cb_set *cbset, size_t tickrate);
 
+/* Register a callback function to the config event.
+ *
+ * @params      cbset - Callback set
+ *              callback - The callback function
+ * @returns     0 on success
+ *              -1 on error
+ */
+int bd_register_config_event(bd_cb_set *cbset, cb_config callback);
+
 /* Register a callback function to the packet processing thread start event.
  *
  * @params      cbset - Callback set
