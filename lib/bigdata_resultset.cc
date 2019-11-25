@@ -299,52 +299,54 @@ char *bd_result_set_to_json_string(bd_result_set_t *result) {
 
         strcat(str, ",\"");
         strcat(str, result->results[i].key);
-        strcat(str, "\":\"");
+        strcat(str, "\":");
 
         switch (result->results[i].type) {
             case BD_TYPE_TAG:
             case BD_TYPE_STRING:
-                snprintf(buf, JSON_BUF_LEN, "%s",
-                    result->results[i].value.data_string);
+                strcat(str, "\"");
+                strcat(str, result->results[i].value.data_string);
+                strcat(str, "\"");
                 break;
             case BD_TYPE_FLOAT:
                 snprintf(buf, JSON_BUF_LEN, "%f",
                     result->results[i].value.data_float);
+                strcat(str, buf);
                 break;
             case BD_TYPE_DOUBLE:
                 snprintf(buf, JSON_BUF_LEN, "%lf",
                     result->results[i].value.data_double);
+                strcat(str, buf);
                 break;
             case BD_TYPE_INT:
                 snprintf(buf, JSON_BUF_LEN, "%li",
                     result->results[i].value.data_int);
+                strcat(str, buf);
                 break;
             case BD_TYPE_UINT:
                 snprintf(buf, JSON_BUF_LEN, "%lu",
                     result->results[i].value.data_uint);
+                strcat(str, buf);
                 break;
             case BD_TYPE_BOOL:
                 if (result->results[i].value.data_bool) {
-                    snprintf(buf, JSON_BUF_LEN, "%s", "t");
+                    snprintf(buf, JSON_BUF_LEN, "%s", "true");
                 } else {
-                    snprintf(buf, JSON_BUF_LEN, "%s", "f");
+                    snprintf(buf, JSON_BUF_LEN, "%s", "false");
                 }
+                strcat(str, buf);
                 break;
             default:
                 break;
         }
-
-        strcat(str, buf);
-        strcat(str, "\"");
     }
 
     // insert timestamp into the string
     if (result->timestamp != 0) {
-        strcat(str, ",\"timestamp\":\"");
-        // timestamp in seconds
-        snprintf(buf, JSON_BUF_LEN, "%lu", result->timestamp);
+        strcat(str, ",\"timestamp\":");
+        // timestamp in milliseconds
+        snprintf(buf, JSON_BUF_LEN, "%lu", (result->timestamp)*1000);
         strcat(str, buf);
-        strcat(str, "\"");
     }
 
     // end the json string
