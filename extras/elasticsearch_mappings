@@ -2,30 +2,22 @@ curl -X PUT "localhost:9200/flow_statistics"
 curl -X PUT "localhost:9200/flow_statistics/_mapping" -H 'Content-Type: application/json' -d'
 {
     "properties": {
-      "capture_application": { "type": "text" },
-      "category": { "type": "text" },
+      "capture_application": { "type": "text", "fields": { "keyword": { "type": "keyword" } } },
+      "capture_host": { "type": "text", "fields": { "keyword": { "type": "keyword" } } },
+      "category": { "type": "text", "fields": { "keyword": { "type": "keyword" } } },
       "destination_ip": { "type": "ip" },
       "dst_port": { "type": "long" },
       "duration": { "type": "float" },
-      "end_ts": {
-        "type": "date",
-        "format": "epoch_millis"
-      },
+      "end_ts": { "type": "date", "format": "epoch_millis" },
       "flow_id": { "type": "long" },
       "in_bytes": { "type": "long" },
       "out_bytes": { "type": "long" },
-      "protocol": { "type": "text" },
+      "protocol": { "type": "text", "fields": { "keyword": { "type": "keyword" } } },
       "source_ip": { "type": "ip" },
       "src_port": { "type": "long" },
-      "start_ts": {
-        "type": "date",
-        "format": "epoch_millis"
-      },
-      "timestamp": {
-        "type": "date",
-        "format": "epoch_millis"
-      },
-      "type": { "type": "text" }
+      "start_ts": { "type": "date", "format": "epoch_millis" },
+      "timestamp": { "type": "date", "format": "epoch_millis" },
+      "type": { "type": "text", "fields": { "keyword": { "type": "keyword" } } },
     }
 }
 '
@@ -43,11 +35,12 @@ curl -X PUT "localhost:9200/dns/_mapping" -H 'Content-Type: application/json' -d
       "answer1_type": { "type": "text" },
       "answer_count": { "type": "long" },
       "authoritive_result": { "type": "boolean" },
-      "capture_application": { "type": "text" },
+      "capture_application": { "type": "text", "fields": { "keyword": { "type": "keyword" } } },
+      "capture_host": { "type": "text", "fields": { "keyword": { "type": "keyword" } } },
       "dst_ip": { "type": "ip" },
       "nameserver_count": { "type": "long" },
       "opcode": { "type": "long" },
-      "protocol": { "type": "text" },
+      "protocol": { "type": "text", "fields": { "keyword": { "type": "keyword" } } },
       "question0": { "type": "text" },
       "question0_type": { "type": "text" },
       "question_count": { "type": "long" },
@@ -56,10 +49,7 @@ curl -X PUT "localhost:9200/dns/_mapping" -H 'Content-Type: application/json' -d
       "response_code": { "type": "long" },
       "rtt": { "type": "float" },
       "src_ip": { "type": "ip" },
-      "timestamp": {
-        "type": "date",
-        "format": "epoch_millis"
-      },
+      "timestamp": { "type": "date", "format": "epoch_millis" },
       "truncated_result": { "type": "boolean" }
     }
 }
@@ -69,8 +59,9 @@ curl -X PUT "localhost:9200/protocol_statistics"
 curl -X PUT "localhost:9200/protocol_statistics/_mapping" -H 'Content-Type: application/json' -d'
 {
     "properties": {
-      "capture_application": { "type": "text" },
-      "category": { "type": "text" },
+      "capture_application": { "type": "text", "fields": { "keyword": { "type": "keyword" } } },
+      "capture_host": { "type": "text", "fields": { "keyword": { "type": "keyword" } } },
+      "category": { "type": "text", "fields": { "keyword": { "type": "keyword" } } },
       "count_edst_ips": { "type": "long" },
       "count_esrc_ips": { "type": "long" },
       "count_flows": { "type": "long" },
@@ -83,11 +74,8 @@ curl -X PUT "localhost:9200/protocol_statistics/_mapping" -H 'Content-Type: appl
       "out_bitrate": { "type": "float" },
       "out_bytes": { "type": "long" },
       "out_packets": { "type": "long" },
-      "protocol": { "type": "text" },
-      "timestamp": {
-        "type": "date",
-        "format": "epoch_millis"
-      }
+      "protocol": { "type": "text", "fields": { "keyword": { "type": "keyword" } } },
+      "timestamp": { "type": "date", "format": "epoch_millis" }
     }
 }
 '
