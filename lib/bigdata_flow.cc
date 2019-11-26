@@ -49,7 +49,6 @@ Flow *flow_per_packet(bd_bigdata_t *bigdata) {
     /* If this is a new flow, metrics need to be allocated for it */
     if (is_new) {
         flow_init_metrics(bigdata, dir, ts);
-
     }
 
     /* update metrics for the flow */
@@ -380,6 +379,71 @@ uint64_t bd_flow_get_id(Flow *flow) {
     return flow->id.get_id_num();
 }
 
+struct timeval bd_flow_get_start_timeval(Flow *flow) {
+
+    struct timeval tv;
+    bd_flow_record_t *flow_rec;
+
+    tv.tv_sec = -1;
+    tv.tv_usec = -1;
+
+    if (flow == NULL) {
+        fprintf(stderr, "NULL flow. func. bd_flow_get_start_timeval()\n");
+        return tv;
+    }
+
+    if ((flow_rec = bd_flow_get_record(flow)) != NULL) {
+        tv.tv_sec = (uint32_t)flow_rec->start_ts;
+        tv.tv_usec = (uint32_t)(((flow_rec->start_ts - tv.tv_sec) * 1000000)/UINT_MAX);
+    }
+
+    return tv;
+}
+
+uint64_t bd_flow_get_start_time_milliseconds(Flow *flow) {
+
+    if (flow == NULL) {
+        fprintf(stderr, "NULL flow. func. bd_flow_get_end_time_milliseconds()\n");
+        return 0;
+    }
+
+    struct timeval tv = bd_flow_get_start_timeval(flow);
+
+    return (tv.tv_sec * (uint64_t)1000) + (tv.tv_usec / 1000);
+}
+
+struct timeval bd_flow_get_end_timeval(Flow *flow) {
+
+    struct timeval tv;
+    bd_flow_record_t *flow_rec;
+
+    tv.tv_sec = -1;
+    tv.tv_usec = -1;
+
+    if (flow == NULL) {
+        fprintf(stderr, "NULL flow. func. bd_flow_get_end_timeval()\n");
+        return tv;
+    }
+
+    if ((flow_rec = bd_flow_get_record(flow)) != NULL) {
+        tv.tv_sec = (uint32_t)flow_rec->end_ts;
+        tv.tv_usec = (uint32_t)(((flow_rec->end_ts - tv.tv_sec) * 1000000)/UINT_MAX);
+    }
+
+    return tv;
+}
+
+uint64_t bd_flow_get_end_time_milliseconds(Flow *flow) {
+
+    if (flow == NULL) {
+        fprintf(stderr, "NULL flow. func. bd_flow_get_end_time_milliseconds()\n");
+        return 0;
+    }
+
+    struct timeval tv = bd_flow_get_end_timeval(flow);
+
+    return (tv.tv_sec * (uint64_t)1000) + (tv.tv_usec / 1000);
+}
 
 /* PRIVATE FUNCTIONS */
 static char *sockaddr_storage_to_string(struct sockaddr_storage *ptr, char *space,

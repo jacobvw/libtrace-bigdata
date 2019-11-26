@@ -166,4 +166,40 @@ char *bd_flow_get_destination_ip_string(Flow *flow, char *space, int spacelen);
  */
 char *bd_flow_get_source_ip_string(Flow *flow, char *space, int spacelen);
 
+/* Returns a timeval structure containing the time the flow started.
+ *
+ * @params	flow - The flow.
+ * @returns	struct timeval filled with the flows start time on success.
+ * 		struct timeval with tv_sec and tv_usec set to -1 on error.
+ */
+struct timeval bd_flow_get_start_timeval(Flow *flow);
+
+/* Returns the millisecond timestamp for when the flow started.
+ *
+ * @params	flow - The flow.
+ * @returns	the flows start time on success.
+ *		0 on error.
+ */
+uint64_t bd_flow_get_start_time_milliseconds(Flow *flow);
+
+/* Returns a timeval structure containing the time the flow ended. If the flow is
+ * has not yet finished this will return the timestamp for the last seen packet
+ * for the flow.
+ *
+ * @params      flow - The flow.
+ * @returns     struct timeval filled with the flows end time on success.
+ *              struct timeval with tv_sec and tv_usec set to -1 on error.
+ */
+struct timeval bd_flow_get_end_timeval(Flow *flow);
+
+/* Returns the millisecond timestamp for when the flow ended. If the flow is
+ * has not yet finished this will return the timestamp for the last seen packet
+ * for the flow.
+ *
+ * @params      flow - The flow.
+ * @returns     the flows end time on success.
+ *              0 on error.
+ */
+uint64_t bd_flow_get_end_time_milliseconds(Flow *flow);
+
 #endif
