@@ -39,7 +39,7 @@ int module_flow_statistics_foreach_flow(Flow *flow, void *data) {
             bd_result_set_insert_tag(res, "category", lpi_print_category(bd_flow_get_category(flow)));
             bd_result_set_insert_tag(res, "type", "flow_interval");
 
-            bd_result_set_insert_double(res, "start_ts", flow_rec->start_ts);
+            bd_result_set_insert_uint(res, "start_ts", bd_flow_get_start_time_milliseconds(flow));
             bd_result_set_insert_double(res, "duration", flow_rec->end_ts - flow_rec->start_ts);
 
             bd_flow_get_source_ip_string(flow, ip_tmp, INET6_ADDRSTRLEN);
@@ -99,7 +99,8 @@ int module_flow_statistics_protocol_updated(bd_bigdata_t *bigdata, void *mls, lp
             bd_flow_get_category(bigdata->flow)));
         bd_result_set_insert_string(res, "type", "flow_start");
 
-        bd_result_set_insert_double(res, "start_ts", flow_rec->start_ts);
+        bd_result_set_insert_uint(res, "start_ts",
+           bd_flow_get_start_time_milliseconds(bigdata->flow));
         bd_result_set_insert_double(res, "duration", flow_rec->end_ts - flow_rec->start_ts);
 
         bd_flow_get_source_ip_string(bigdata->flow, ip_tmp, INET6_ADDRSTRLEN);
@@ -134,9 +135,11 @@ int module_flow_statistics_flowend(bd_bigdata_t *bigdata, void *mls, bd_flow_rec
             bd_flow_get_category(bigdata->flow)));
         bd_result_set_insert_string(res, "type", "flow_end");
 
-        bd_result_set_insert_double(res, "start_ts", flow_record->start_ts);
+        bd_result_set_insert_uint(res, "start_ts",
+            bd_flow_get_start_time_milliseconds(bigdata->flow));
         bd_result_set_insert_double(res, "duration", flow_record->end_ts - flow_record->start_ts);
-        bd_result_set_insert_double(res, "end_ts", flow_record->end_ts);
+        bd_result_set_insert_uint(res, "end_ts",
+            bd_flow_get_end_time_milliseconds(bigdata->flow));
 
         bd_flow_get_source_ip_string(bigdata->flow, ip_tmp, INET6_ADDRSTRLEN);
         bd_result_set_insert_string(res, "source_ip", ip_tmp);
