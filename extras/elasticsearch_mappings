@@ -1,0 +1,93 @@
+curl -X PUT "localhost:9200/flow_statistics"
+curl -X PUT "localhost:9200/flow_statistics/_mapping" -H 'Content-Type: application/json' -d'
+{
+    "properties": {
+      "capture_application": { "type": "text" },
+      "category": { "type": "text" },
+      "destination_ip": { "type": "ip" },
+      "dst_port": { "type": "long" },
+      "duration": { "type": "float" },
+      "end_ts": {
+        "type": "date",
+        "format": "epoch_millis"
+      },
+      "flow_id": { "type": "long" },
+      "in_bytes": { "type": "long" },
+      "out_bytes": { "type": "long" },
+      "protocol": { "type": "text" },
+      "source_ip": { "type": "ip" },
+      "src_port": { "type": "long" },
+      "start_ts": {
+        "type": "date",
+        "format": "epoch_millis"
+      },
+      "timestamp": {
+        "type": "date",
+        "format": "epoch_millis"
+      },
+      "type": { "type": "text" }
+    }
+}
+'
+
+curl -X PUT "localhost:9200/dns"
+curl -X PUT "localhost:9200/dns/_mapping" -H 'Content-Type: application/json' -d'
+{
+    "properties": {
+      "additional0": { "type": "text" },
+      "additional0_type": { "type": "text" },
+      "additional_count": { "type": "long" },
+      "answer0": { "type": "text" },
+      "answer0_type": { "type": "text" },
+      "answer1": { "type": "text" },
+      "answer1_type": { "type": "text" },
+      "answer_count": { "type": "long" },
+      "authoritive_result": { "type": "boolean" },
+      "capture_application": { "type": "text" },
+      "dst_ip": { "type": "ip" },
+      "nameserver_count": { "type": "long" },
+      "opcode": { "type": "long" },
+      "protocol": { "type": "text" },
+      "question0": { "type": "text" },
+      "question0_type": { "type": "text" },
+      "question_count": { "type": "long" },
+      "recursion_available": { "type": "boolean" },
+      "recursion_desired": { "type": "boolean" },
+      "response_code": { "type": "long" },
+      "rtt": { "type": "float" },
+      "src_ip": { "type": "ip" },
+      "timestamp": {
+        "type": "date",
+        "format": "epoch_millis"
+      },
+      "truncated_result": { "type": "boolean" }
+    }
+}
+'
+
+curl -X PUT "localhost:9200/protocol_statistics"
+curl -X PUT "localhost:9200/protocol_statistics/_mapping" -H 'Content-Type: application/json' -d'
+{
+    "properties": {
+      "capture_application": { "type": "text" },
+      "category": { "type": "text" },
+      "count_edst_ips": { "type": "long" },
+      "count_esrc_ips": { "type": "long" },
+      "count_flows": { "type": "long" },
+      "count_idst_ips": { "type": "long" },
+      "count_isrc_ips": { "type": "long" },
+      "in_bitrate": { "type": "float" },
+      "in_bytes": { "type": "long" },
+      "in_packets": { "type": "long" },
+      "interval": { "type": "long" },
+      "out_bitrate": { "type": "float" },
+      "out_bytes": { "type": "long" },
+      "out_packets": { "type": "long" },
+      "protocol": { "type": "text" },
+      "timestamp": {
+        "type": "date",
+        "format": "epoch_millis"
+      }
+    }
+}
+'
