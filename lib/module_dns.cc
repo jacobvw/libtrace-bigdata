@@ -150,7 +150,7 @@ int module_dns_packet(bd_bigdata_t *bigdata, void *mls) {
             INET6_ADDRSTRLEN);
 
         // create the result set
-        bd_result_set_t *result_set = bd_result_set_create("dns");
+        bd_result_set_t *result_set = bd_result_set_create(bigdata, "dns");
 
         /* flip source/dst IPs because this is the response packet, want them to match
          * the request packet */

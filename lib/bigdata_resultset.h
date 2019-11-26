@@ -68,11 +68,12 @@ int bd_result_set_insert(bd_result_set_t *result_set, char *key,
 
 /* Create a result set.
  *
- * @param	mod - the name of the plugin.
+ * @param	bigdata - bigdata structure
+ *		mod - the name of the plugin.
  * @returns	pointer to a result set structure on success.
  * 		NULL pointer on error.
  */
-bd_result_set_t *bd_result_set_create(const char *mod);
+bd_result_set_t *bd_result_set_create(bd_bigdata_t *bigdata, const char *mod);
 
 /* Inserts a string into a result set.
  *

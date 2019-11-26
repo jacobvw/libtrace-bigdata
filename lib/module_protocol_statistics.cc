@@ -316,7 +316,7 @@ int module_protocol_statistics_combiner(bd_bigdata_t *bigdata, void *mls,
             mod_proto_stats_proto_t *proto = &(tally->proto_stats[i]);
 
             // create and populate the result set
-            bd_result_set_t *result_set = bd_result_set_create("protocol_statistics");
+            bd_result_set_t *result_set = bd_result_set_create(bigdata, "protocol_statistics");
 
             // the i (counter) is used so we can get the correct protocol name even for protocols
             // not yet seen

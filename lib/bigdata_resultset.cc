@@ -1,7 +1,7 @@
 #include "bigdata.h"
 #include "bigdata_resultset.h"
 
-bd_result_set_t *bd_result_set_create(const char *mod) {
+bd_result_set_t *bd_result_set_create(bd_bigdata_t *bigdata, const char *mod) {
     // create result set structure
     bd_result_set_t *res = (bd_result_set_t *)malloc(sizeof(bd_result_set_t));
     if (res == NULL) {
@@ -18,6 +18,9 @@ bd_result_set_t *bd_result_set_create(const char *mod) {
     res->num_results = 0;
     res->allocated_results = RESULT_SET_INIT_SIZE;
     res->timestamp = 0;
+
+    // insert the capture host into the result set
+    bd_result_set_insert_tag(res, "capture_host", bigdata->global->config->hostname);
 
     return res;
 }

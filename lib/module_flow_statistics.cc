@@ -33,7 +33,7 @@ int module_flow_statistics_foreach_flow(Flow *flow, void *data) {
         /* check the protocol is a wanted one */
         if (f->c->protocol[flow_rec->lpi_module->protocol]) {
 
-            bd_result_set_t *res = bd_result_set_create("flow_statistics");
+            bd_result_set_t *res = bd_result_set_create(f->bigdata, "flow_statistics");
             bd_result_set_insert_uint(res, "flow_id", flow->id.get_id_num());
             bd_result_set_insert_tag(res, "protocol", lpi_print(flow_rec->lpi_module->protocol));
             bd_result_set_insert_tag(res, "category", lpi_print_category(bd_flow_get_category(flow)));
@@ -92,7 +92,7 @@ int module_flow_statistics_protocol_updated(bd_bigdata_t *bigdata, void *mls, lp
         /* This is done here because the flowstart event does not yet
          * have the correct protocol with only the first packet
          */
-        bd_result_set_t *res = bd_result_set_create("flow_statistics");
+        bd_result_set_t *res = bd_result_set_create(bigdata, "flow_statistics");
         bd_result_set_insert_uint(res, "flow_id", bigdata->flow->id.get_id_num());
         bd_result_set_insert_tag(res, "protocol", lpi_print(newproto));
         bd_result_set_insert_tag(res, "category", lpi_print_category(
@@ -128,7 +128,7 @@ int module_flow_statistics_flowend(bd_bigdata_t *bigdata, void *mls, bd_flow_rec
     char ip_tmp[INET6_ADDRSTRLEN];
 
     if(config->protocol[bd_flow_get_protocol(bigdata->flow)]) {
-        bd_result_set_t *res = bd_result_set_create("flow_statistics");
+        bd_result_set_t *res = bd_result_set_create(bigdata, "flow_statistics");
         bd_result_set_insert_uint(res, "flow_id", bigdata->flow->id.get_id_num());
         bd_result_set_insert_tag(res, "protocol", lpi_print(bd_flow_get_protocol(bigdata->flow)));
         bd_result_set_insert_tag(res, "category", lpi_print_category(
