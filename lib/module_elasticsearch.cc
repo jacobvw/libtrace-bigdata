@@ -58,6 +58,13 @@ void *module_elasticsearch_starting(void *tls) {
     return opts;
 }
 
+/* define callback function for curl so output isnt spammed to standard output */
+static size_t module_elasticsearch_callback(void *buffer, size_t size, size_t nmemb,
+    void *userp) {
+
+    return size * nmemb;
+}
+
 int module_elasticsearch_result(bd_bigdata_t *bigdata, void *mls, bd_result_set *result) {
 
     char buf[200];
@@ -71,6 +78,10 @@ int module_elasticsearch_result(bd_bigdata_t *bigdata, void *mls, bd_result_set 
 
         curl_easy_setopt(opts->curl, CURLOPT_URL, buf);
 
+        // set callback to prevent libcurl sending spam to stdout
+        curl_easy_setopt(opts->curl, CURLOPT_WRITEFUNCTION,
+            module_elasticsearch_callback);
+
         json = bd_result_set_to_json_string(result);
         curl_easy_setopt(opts->curl, CURLOPT_POSTFIELDS, json);
 
@@ -82,7 +93,7 @@ int module_elasticsearch_result(bd_bigdata_t *bigdata, void *mls, bd_result_set 
         }
 
         if (bigdata->global->config->debug) {
-            fprintf(stderr, "elasticsearch: %s\n", json);
+            fprintf(stderr, "DEBUG: elasticsearch: %s\n", json);
         }
 
         free(json);
