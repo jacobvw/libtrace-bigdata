@@ -6,10 +6,8 @@
 #include <string.h>
 #include <errno.h>
 
-#define KAFKA_BUF_LEN 2000
-#define KAFKA_LINE_LEN 4000
-
-static char *result_to_query(bd_result_set *result);
+#include <iostream>
+#include <string>
 
 struct module_kafka_conf {
     bd_cb_set *callbacks;
@@ -80,8 +78,10 @@ int module_kafka_post(bd_bigdata_t *bigdata, void *mls, bd_result_set *result) {
     // get kafka options
     mod_kafka_opts_t *opts = (mod_kafka_opts_t *)mls;
 
+    // get the json representation of the result
     json = bd_result_set_to_json_string(result);
 
+    // post to kafka
     if(rd_kafka_produce(opts->rkt,
                         RD_KAFKA_PARTITION_UA,
                         RD_KAFKA_MSG_F_COPY,
@@ -105,9 +105,6 @@ int module_kafka_post(bd_bigdata_t *bigdata, void *mls, bd_result_set *result) {
 void module_kafka_stopping(void *tls, void *mls) {
 
     mod_kafka_opts_t *opts = (mod_kafka_opts_t *)mls;
-
-    // wait for any remaining messages to be delivered (10 seconds)
-    //rd_kafka_flush(opts->rk, 10*1000);
 
     // check output queue is empty
     if (rd_kafka_outq_len(opts->rk) > 0) {
@@ -206,122 +203,4 @@ int module_kafka_init(bd_bigdata_t *bigdata) {
     bd_register_cb_set(bigdata, config->callbacks);
 
     return 0;
-}
-
-/* Currently a copy of the influxdb query string */
-static char *result_to_query(bd_result_set *result) {
-
-    bool first_pass = true;
-    char *str;
-    char buf[KAFKA_BUF_LEN] = "";
-
-    str = (char *)malloc(KAFKA_LINE_LEN);
-    if (str == NULL) {
-        fprintf(stderr, "Unable to allocate memory. func. module_influxdb_post()\n");
-        exit(BD_OUTOFMEMORY);
-    }
-    str[0] = '\0';
-
-    // insert measurement/module name
-    strcat(str, result->module);
-    strcat(str, ",");
-
-    // add tag sets. This is meta data that doesnt change
-    strcat(str, "capture_application=libtrace-bigdata");
-    for (int i = 0; i < result->num_results; i++) {
-        if (result->results[i].type == BD_TYPE_TAG) {
-            strcat(str, ",");
-            /* if the tag key contains a space */
-            if (strstr(result->results[i].key, " ")) {
-                // escape all spaces
-                char *w = bd_replaceWord(result->results[i].key, " ", "\\ ");
-                strcat(str, w);
-                free(w);
-            } else {
-                strcat(str, result->results[i].key);
-            }
-
-            strcat(str, "=");
-
-            /* if the tag result contains a space */
-            if (strstr(result->results[i].value.data_string, " ")) {
-                /* escape all spaces */
-                char *w = bd_replaceWord(result->results[i].value.data_string,
-                    " ", "\\ ");
-                strcat(str, w);
-                free(w);
-            } else {
-                strcat(str, result->results[i].value.data_string);
-            }
-        }
-    }
-
-    // a space is required between tags and values
-    strcat(str, " ");
-
-    // add data as field sets. This is data that does change
-    for (int i = 0; i < result->num_results; i++) {
-        if (result->results[i].type == BD_TYPE_STRING) {
-            if (!first_pass) strcat(str, ",");
-            strcat(str, result->results[i].key);
-            strcat(str, "=\"");
-            strcat(str, result->results[i].value.data_string);
-            strcat(str, "\"");
-            first_pass = false;
-        } else if (result->results[i].type == BD_TYPE_FLOAT) {
-            if (!first_pass) strcat(str, ",");
-            snprintf(buf, KAFKA_BUF_LEN, "%f", result->results[i].value.data_float);
-            strcat(str, result->results[i].key);
-            strcat(str, "=");
-            strcat(str, buf);
-            first_pass = false;
-        } else if (result->results[i].type == BD_TYPE_DOUBLE) {
-            if (!first_pass) strcat(str, ",");
-            snprintf(buf, KAFKA_BUF_LEN, "%lf", result->results[i].value.data_double);
-            strcat(str, result->results[i].key);
-            strcat(str, "=");
-            strcat(str, buf);
-            first_pass = false;
-        } else if (result->results[i].type == BD_TYPE_INT) {
-            if (!first_pass) strcat(str, ",");
-            snprintf(buf, KAFKA_BUF_LEN, "%li", result->results[i].value.data_int);
-            strcat(str, result->results[i].key);
-            strcat(str, "=");
-            strcat(str, buf);
-            // influx expects "i" at the end of a int64
-            strcat(str, "i");
-            first_pass = false;
-        // influxdb needs to be compiled with uint64 support. NOTE i at end
-        } else if (result->results[i].type == BD_TYPE_UINT) {
-            if (!first_pass) strcat(str, ",");
-            snprintf(buf, KAFKA_BUF_LEN, "%lu", result->results[i].value.data_uint);
-            strcat(str, result->results[i].key);
-            strcat(str, "=");
-            strcat(str, buf);
-            // influx expects "u" at the end of a uint64, however most versions dont
-            // support it yet unless compiled with a specific flag
-            strcat(str, "i");
-            first_pass = false;
-        } else if (result->results[i].type == BD_TYPE_BOOL) {
-            if (!first_pass) strcat(str, ",");
-            strcat(str, result->results[i].key);
-            strcat(str, "=");
-            if (result->results[i].value.data_bool) {
-                strcat(str, "t");
-            } else {
-                strcat(str, "f");
-            }
-            first_pass = false;
-        }
-    }
-
-    // add the timestamp if it was set
-    if (result->timestamp != 0) {
-        strcat(str, " ");
-        // influx expects timestamp in nanoseconds
-        snprintf(buf, KAFKA_BUF_LEN, "%lu", (result->timestamp*1000000)*1000);
-        strcat(str, buf);
-    }
-
-    return str;
 }
