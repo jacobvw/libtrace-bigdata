@@ -90,6 +90,10 @@ where:
     database: dbname
     username: dbusername
     password: dbpassword
+    # Enable to send results to influxdb in batches
+    batch_results: 0
+    # If batching results, how many to send at a time
+    batch_count: 200
 
   kafka:
     enabled: 0
@@ -105,8 +109,8 @@ where:
     require_user_auth: 1
     username: elasticuser
     password: elasticpassword
-    # Index results for elastic search in batches
+    # Enable to send results to influxdb in batches
     batch_results: 0
-    # Number of results required before processing the batch
+    # If batching results, how many to send at a time
     batch_count: 200
     

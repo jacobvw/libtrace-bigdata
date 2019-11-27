@@ -13,11 +13,15 @@ struct module_influxdb_conf {
     char *usr;
     char *pwd;
     bool ssl_verifypeer;
+    bool batch_results;
+    int batch_count;
 };
 static struct module_influxdb_conf *config;
 
 typedef struct module_influxdb_options {
     CURL *curl;
+    bd_result_set_t **results;
+    int num_results;
 } mod_influxdb_opts_t;
 
 void *module_influxdb_starting(void *tls);
@@ -26,7 +30,28 @@ void *module_influxdb_stopping(void *tls, void *mls);
 static char *module_influxdb_result_to_query(bd_result_set *result);
 
 void *module_influxdb_starting(void *tls) {
-    mod_influxdb_opts_t *opts = (mod_influxdb_opts_t *)malloc(sizeof(mod_influxdb_opts_t));
+
+    mod_influxdb_opts_t *opts;
+
+    // create local storage for the module
+    opts = (mod_influxdb_opts_t *)malloc(sizeof(mod_influxdb_opts_t));
+    if (opts == NULL) {
+        fprintf(stderr, "Unable to allocate memory. func. "
+            "module_influxdb_starting()\n");
+        exit(BD_OUTOFMEMORY);
+    }
+
+    // create pointer space for results if batch processing is enabled
+    if (config->batch_results) {
+        opts->results = (bd_result_set_t **)malloc(sizeof(
+            bd_result_set_t *) * config->batch_count);
+        if (opts->results == NULL) {
+            fprintf(stderr, "Unable to allocate memory. func. "
+                "module_influxdb_starting()\n");
+            exit(BD_OUTOFMEMORY);
+        }
+        opts->num_results = 0;
+    }
 
     // Initialise curl
     curl_global_init(CURL_GLOBAL_ALL);
@@ -53,31 +78,79 @@ void *module_influxdb_starting(void *tls) {
 
 int module_influxdb_post(bd_bigdata_t *bigdata, void *mls, bd_result_set *result) {
 
+    std::string out;
     char *query;
     CURLcode res;
+    int i;
+    bool output_res = 0;
+    bd_result_set_t *cur_res;
 
     mod_influxdb_opts_t *opts = (mod_influxdb_opts_t *)mls;
 
-    /* convert result set into influxDB query */
-    query = module_influxdb_result_to_query(result);
+    if (config->batch_results) {
 
-    /* Now specify the POST data */
-    curl_easy_setopt(opts->curl, CURLOPT_POSTFIELDS, query);
+        if (opts->num_results >= config->batch_count) {
 
-    /* Perform the request, res will get the return code */
-    res = curl_easy_perform(opts->curl);
-    /* Check for errors */
-    if(res != CURLE_OK) {
-      fprintf(stderr, "failed to post to influxDB: %s\n", curl_easy_strerror(res));
+            for (i = 0; i < opts->num_results; i++) {
+
+                // get the current result
+                cur_res = opts->results[i];
+                // convert to influxdb line protocol
+                query = module_influxdb_result_to_query(cur_res);
+
+                // join to the output string
+                out += query;
+                out += "\n";
+
+                // free the influx query
+                free(query);
+                // finished with this result so unlock it
+                bd_result_set_unlock(cur_res);
+            }
+
+            // reset the number of results held and flag a result
+            opts->num_results = 0;
+            output_res = 1;
+        }
+
+        // store the current result in the batch
+        bd_result_set_lock(result);
+        opts->results[opts->num_results] = result;
+        opts->num_results += 1;
+
+    // not batch processing
+    } else {
+
+        // convert the current result set into influxDB line query
+        query = module_influxdb_result_to_query(result);
+        out = query;
+        free(query);
+        output_res = 1;
+
     }
 
-    if (bigdata->global->config->debug) {
-        fprintf(stderr, "%s\n", query);
+    if (output_res) {
+
+        /* Now specify the POST data */
+        curl_easy_setopt(opts->curl, CURLOPT_POSTFIELDS, out.c_str());
+
+        /* Perform the request, res will get the return code */
+        res = curl_easy_perform(opts->curl);
+        /* Check for errors */
+        if(res != CURLE_OK) {
+            fprintf(stderr, "failed to post to influxDB: %s\n", curl_easy_strerror(res));
+        }
+
+        if (bigdata->global->config->debug) {
+            fprintf(stderr, "DEBUG: influxDB: %s\n", out.c_str());
+        }
+
+        // result sent to influxdb
+        return 0;
     }
 
-    free(query);
-
-    return res;
+    // result batched
+    return 1;
 }
 
 void *module_influxdb_stopping(void *tls, void *mls) {
@@ -150,6 +223,22 @@ int module_influxdb_config(yaml_parser_t *parser, yaml_event_t *event, int *leve
                     }
                     break;
                 }
+                if (strcmp((char *)event->data.scalar.value, "batch_results") == 0) {
+                    consume_event(parser, event, level);
+                    if (strcmp((char *)event->data.scalar.value, "1") == 0 ||
+                        strcmp((char *)event->data.scalar.value, "yes") == 0 ||
+                        strcmp((char *)event->data.scalar.value, "true") == 0 ||
+                        strcmp((char *)event->data.scalar.value, "t") == 0) {
+
+                        config->batch_results = 1;
+                    }
+                    break;
+                }
+                if (strcmp((char *)event->data.scalar.value, "batch_count") == 0) {
+                    consume_event(parser, event, level);
+                    config->batch_count = atoi((char *)event->data.scalar.value);
+                    break;
+                }
                 consume_event(parser, event, level);
                 break;
             default:
@@ -189,6 +278,8 @@ int module_influxdb_init(bd_bigdata_t *bigdata) {
     config->usr = NULL;
     config->pwd = NULL;
     config->ssl_verifypeer = 1;
+    config->batch_results = 0;
+    config->batch_count = 200;
 
     // create callback set
     config->callbacks = bd_create_cb_set("influxdb");
@@ -312,7 +403,7 @@ static char *module_influxdb_result_to_query(bd_result_set *result) {
     if (result->timestamp != 0) {
         strcat(str, " ");
         // influx expects timestamp in nanoseconds
-        snprintf(buf, INFLUX_BUF_LEN, "%lu", (result->timestamp*1000000)*1000);
+        snprintf(buf, INFLUX_BUF_LEN, "%lu", (result->timestamp*1000)*1000000);
         strcat(str, buf);
     }
 
