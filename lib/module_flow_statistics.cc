@@ -6,6 +6,7 @@ struct module_flow_statistics_config {
     bool enabled;
     int output_interval;
     bool protocol[LPI_PROTO_LAST];
+    bool category[LPI_CATEGORY_LAST];
 };
 /* global varible used to read from module configuration */
 static struct module_flow_statistics_config *config;
@@ -30,8 +31,9 @@ int module_flow_statistics_foreach_flow(Flow *flow, void *data) {
 
     /* ensure lpi_module is not NULL */
     if (flow_rec->lpi_module != NULL) {
-        /* check the protocol is a wanted one */
-        if (f->c->protocol[flow_rec->lpi_module->protocol]) {
+        /* check the protocol or category is a wanted one */
+        if (f->c->protocol[flow_rec->lpi_module->protocol] ||
+            f->c->category[flow_rec->lpi_module->category]) {
 
             bd_result_set_t *res = bd_result_set_create(f->bigdata, "flow_statistics");
             bd_result_set_insert_uint(res, "flow_id", flow->id.get_id_num());
@@ -85,9 +87,11 @@ int module_flow_statistics_protocol_updated(bd_bigdata_t *bigdata, void *mls, lp
     char ip_tmp[INET6_ADDRSTRLEN];
     struct timeval tv;
 
-    if (config->protocol[newproto]) {
+    flow_rec = bd_flow_get_record(bigdata->flow);
 
-        flow_rec = bd_flow_get_record(bigdata->flow);
+    // if the new protocol or category is set to output
+    if (config->protocol[newproto] ||
+        config->category[flow_rec->lpi_module->category]) {
 
         /* This is done here because the flowstart event does not yet
          * have the correct protocol with only the first packet
@@ -127,7 +131,10 @@ int module_flow_statistics_flowend(bd_bigdata_t *bigdata, void *mls, bd_flow_rec
 
     char ip_tmp[INET6_ADDRSTRLEN];
 
-    if(config->protocol[bd_flow_get_protocol(bigdata->flow)]) {
+
+    if(config->protocol[flow_record->lpi_module->protocol] ||
+       config->protocol[flow_record->lpi_module->category]) {
+
         bd_result_set_t *res = bd_result_set_create(bigdata, "flow_statistics");
         bd_result_set_insert_uint(res, "flow_id", bigdata->flow->id.get_id_num());
         bd_result_set_insert_tag(res, "protocol", lpi_print(bd_flow_get_protocol(bigdata->flow)));
@@ -232,6 +239,54 @@ int module_flow_statistics_config(yaml_parser_t *parser, yaml_event_t *event, in
                                     (char *)event->data.scalar.value);
                             }
                         }
+
+                        /* consume the event */
+                        consume_event(parser, event, level);
+                    }
+
+                    /* consume the final sequence end event */
+                    if (event->type == YAML_SEQUENCE_END_EVENT) {
+                        consume_event(parser, event, level);
+                    }
+
+                    break;
+
+                }
+                if (strcmp((char *)event->data.scalar.value, "categories") == 0) {
+                    /* consume protocols event */
+                    consume_event(parser, event, level);
+
+                    /* must be a yaml_sequence_start_event or conf is malformed */
+                    if (event->type != YAML_SEQUENCE_START_EVENT) {
+                        fprintf(stderr, "Malformed configuration: Section "
+                            "flow_statistics/categories\n");
+                        exit(BD_MALFORMED_CONF);
+                    }
+
+                    // consume yaml_mapping_start event
+                    consume_event(parser, event, level);
+
+                    // for each protocol supplied
+                    while (event->type != YAML_SEQUENCE_END_EVENT) {
+
+                        /* try to convert the category string supplied into a
+                         * lpi_category_t. Enable the category if found */
+                        /*lpi_category_t category;
+                        category = lpi_get_category_by_name((char *)event->data.scalar.value);
+                        if (category != LPI_CATEGORY_LAST) {
+                            if (config->enabled) {
+                                fprintf(stderr, "\tEnabling category: %s\n",
+                                    (char *)event->data.scalar.value);
+                            }
+                            config->category[category] = 1;
+                        } else {
+                            if (config->enabled) {
+                                fprintf(stderr, "\tCould not find category: %s\n",
+                                    (char *)event->data.scalar.value);
+                            }
+                        }*/
+
+                        config->category[LPI_CATEGORY_REMOTE] = 1;
 
                         /* consume the event */
                         consume_event(parser, event, level);
