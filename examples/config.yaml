@@ -105,3 +105,8 @@ where:
     require_user_auth: 1
     username: elasticuser
     password: elasticpassword
+    # Index results for elastic search in batches
+    batch_results: 0
+    # Number of results required before processing the batch
+    batch_count: 200
+    

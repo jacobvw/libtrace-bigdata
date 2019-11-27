@@ -18,6 +18,7 @@ bd_result_set_t *bd_result_set_create(bd_bigdata_t *bigdata, const char *mod) {
     res->num_results = 0;
     res->allocated_results = RESULT_SET_INIT_SIZE;
     res->timestamp = 0;
+    res->free_lock = 0;
 
     // insert the capture host into the result set
     bd_result_set_insert_tag(res, "capture_host", bigdata->global->config->hostname);
@@ -132,6 +133,13 @@ int bd_result_set_insert_tag(bd_result_set_t *result_set, char const *tag,
 
     return 0;
 }
+int bd_result_set_lock(bd_result_set_t *result_set) {
+    result_set->free_lock += 1;
+}
+int bd_result_set_unlock(bd_result_set_t *result_set) {
+    result_set->free_lock -= 1;
+    bd_result_set_free(result_set);
+}
 
 int bd_result_set_publish(bd_bigdata_t *bigdata, bd_result_set_t *result, uint64_t key) {
 
@@ -222,6 +230,11 @@ int bd_result_set_free(bd_result_set_t *result_set) {
 
     /* result set already cleared */
     if (result_set == NULL) {
+        return 0;
+    }
+
+    /* If a plugin has locked this result do not free it yet */
+    if (result_set->free_lock > 0) {
         return 0;
     }
 

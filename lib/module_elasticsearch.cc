@@ -1,5 +1,9 @@
 #include "module_elasticsearch.h"
 #include <curl/curl.h>
+#include <iostream>
+#include <string>
+
+#define BATCH_STRING_BUF 100
 
 struct module_elasticsearch_conf {
     bd_cb_set *callbacks;
@@ -10,14 +14,20 @@ struct module_elasticsearch_conf {
     char *username;
     char *password;
     bool require_user_auth;
+    bool batch_results;
+    int batch_count;
 };
 static struct module_elasticsearch_conf *config;
 
 typedef struct module_elasticsearch_options {
     CURL *curl;
+    bd_result_set_t **results;
+    int num_results;
 } mod_elastic_opts_t;
 
 void *module_elasticsearch_starting(void *tls) {
+
+    struct curl_slist *headers = NULL;
 
     mod_elastic_opts_t *opts = (mod_elastic_opts_t *)malloc(sizeof(
         mod_elastic_opts_t));
@@ -27,7 +37,17 @@ void *module_elasticsearch_starting(void *tls) {
         exit(BD_OUTOFMEMORY);
     }
 
-    struct curl_slist *headers = NULL;
+    // create pointer space for results if batching is enabled
+    if (config->batch_results) {
+        opts->results = (bd_result_set_t **)malloc(sizeof(
+            bd_result_set_t *) * config->batch_count);
+        if (opts->results == NULL) {
+            fprintf(stderr, "Unable to allocate memory. func. "
+                "module_elasticsearch_starting()\n");
+            exit(BD_OUTOFMEMORY);
+        }
+        opts->num_results = 0;
+    }
 
     // init curl
     curl_global_init(CURL_GLOBAL_ALL);
@@ -38,8 +58,9 @@ void *module_elasticsearch_starting(void *tls) {
 
         curl_easy_setopt(opts->curl, CURLOPT_PORT, config->port);
 
-        headers = curl_slist_append(headers, "Content-Type: application/json");
+        headers = curl_slist_append(headers, "Content-Type: application/x-ndjson");
         curl_easy_setopt(opts->curl, CURLOPT_HTTPHEADER, headers);
+        curl_easy_setopt(opts->curl, CURLOPT_POST, 1L);
 
         // if user auth is required
         if (config->require_user_auth) {
@@ -67,24 +88,84 @@ static size_t module_elasticsearch_callback(void *buffer, size_t size, size_t nm
 
 int module_elasticsearch_result(bd_bigdata_t *bigdata, void *mls, bd_result_set *result) {
 
-    char buf[200];
-    CURLcode res;
+    std::string out;
     char *json;
+    char buf[200];
+    char buf2[200];
+    CURLcode res;
+    int i;
+    bd_result_set_t *cur_res;
+    bool output_res = 0;
     mod_elastic_opts_t *opts = (mod_elastic_opts_t *)mls;
 
-    if (opts->curl) {
+    if (config->batch_results) {
+
+        // if its time to output results construct a batch result all of them.
+        if (opts->num_results >= config->batch_count) {
+
+            // setup curl url for the batched results
+            snprintf(buf, sizeof(buf), "%s%s%d%s%s%s", config->host, ":", config->port,
+                "/", result->module, "/_bulk");
+
+            // generate json a single json string for all results
+            for (i = 0; i < opts->num_results; i++) {
+
+                // get the current result
+                cur_res = opts->results[i];
+
+                // build the batch command
+                snprintf(buf2, sizeof(buf2), "%s%s%s", "{\"index\":{\"_index\":\"",
+                    cur_res->module, "\",\"_type\":\"_doc\"}}");
+                // build the json string
+                json = bd_result_set_to_json_string(cur_res);
+
+                out += buf2;
+                out += "\n";
+                out += json;
+                out += "\n";
+
+                free(json);
+                // finished with this result so unlock it
+                bd_result_set_unlock(cur_res);
+            }
+
+            // reset the number of results held
+            opts->num_results = 0;
+            output_res = 1;
+
+       }
+
+        // Store the current result in the batch
+        // lock the result set
+        bd_result_set_lock(result);
+        // add to the array of results
+        opts->results[opts->num_results] = result;
+        // increment number of results
+        opts->num_results += 1;
+
+    } else {
+
+        // setup curl url for a single result
         snprintf(buf, sizeof(buf), "%s%s%d%s%s%s", config->host, ":", config->port,
             "/", result->module, "/_doc");
 
-        curl_easy_setopt(opts->curl, CURLOPT_URL, buf);
+        json = bd_result_set_to_json_string(result);
+        out = json;
+        free(json);
+        output_res = 1;
+    }
 
+    if (opts->curl && output_res) {
+
+        // set the URL in curl
+        curl_easy_setopt(opts->curl, CURLOPT_URL, buf);
+        // set the payload in curl
+        curl_easy_setopt(opts->curl, CURLOPT_POSTFIELDS, out.c_str());
         // set callback to prevent libcurl sending spam to stdout
         curl_easy_setopt(opts->curl, CURLOPT_WRITEFUNCTION,
             module_elasticsearch_callback);
 
-        json = bd_result_set_to_json_string(result);
-        curl_easy_setopt(opts->curl, CURLOPT_POSTFIELDS, json);
-
+        // send to elasticsearch
         res = curl_easy_perform(opts->curl);
 
         if (res != CURLE_OK) {
@@ -93,13 +174,13 @@ int module_elasticsearch_result(bd_bigdata_t *bigdata, void *mls, bd_result_set 
         }
 
         if (bigdata->global->config->debug) {
-            fprintf(stderr, "DEBUG: elasticsearch: %s\n", json);
+            fprintf(stderr, "DEBUG: elasticsearch: %s\n", out.c_str());
         }
 
-        free(json);
+        return 0;
     }
 
-    return 0;
+    return 1;
 }
 
 int module_elasticsearch_stopping(void *tls, void *mls) {
@@ -138,6 +219,22 @@ int module_elasticsearch_config(yaml_parser_t *parser, yaml_event_t *event, int 
                 if (strcmp((char *)event->data.scalar.value, "host") == 0) {
                     consume_event(parser, event, level);
                     config->host = strdup((char *)event->data.scalar.value);
+                    break;
+                }
+                if (strcmp((char *)event->data.scalar.value, "batch_results") == 0) {
+                    consume_event(parser, event, level);
+                    if (strcmp((char *)event->data.scalar.value, "1") == 0 ||
+                        strcmp((char *)event->data.scalar.value, "yes") == 0 ||
+                        strcmp((char *)event->data.scalar.value, "true") == 0 ||
+                        strcmp((char *)event->data.scalar.value, "t") == 0) {
+
+                        config->batch_results = 1;
+                    }
+                    break;
+                }
+                if (strcmp((char *)event->data.scalar.value, "batch_count") == 0) {
+                    consume_event(parser, event, level);
+                    config->batch_count = atoi((char *)event->data.scalar.value);
                     break;
                 }
                 if (strcmp((char *)event->data.scalar.value, "ssl_verify_peer") == 0) {
@@ -212,6 +309,8 @@ int module_elasticsearch_init(bd_bigdata_t *bigdata) {
     config->username = NULL;
     config->password = NULL;
     config->require_user_auth = 0;
+    config->batch_results = 0;
+    config->batch_count = 200;
 
     // create callback structure
     config->callbacks = bd_create_cb_set("elasticsearch");

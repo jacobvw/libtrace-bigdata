@@ -50,6 +50,10 @@ typedef struct bd_result_set {
     int num_results;
     int allocated_results;
     uint64_t timestamp;
+    /* The free lock allows output plugins to prevent the application core
+     * from free'ing the result. Used to when output plugins wish to batch
+     * process results */
+    int free_lock;
 } bd_result_set_t;
 
 /* Structure to hold a result set or opauqe structure and identify if
@@ -162,6 +166,24 @@ int bd_result_set_insert_timestamp(bd_result_set_t *result_set, uint64_t timesta
 int bd_result_set_insert_tag(bd_result_set_t *result_set, char const *tag,
     const char *value);
 
+/* Locks the result set to prevent the application core from free'ing it. This
+ * then must be unlocked when finished with the result.
+ *
+ * @param	result_set - the result set.
+ * @returns	0 on success.
+ *		-1 on error.
+ */
+int bd_result_set_lock(bd_result_set_t *result_set);
+
+/* Unlocks the result set to which was previously locked with bd_result_set_lock.
+ * If no more locks are present on the result the result set will be free'd
+ *
+ * @param       result_set - the result set.
+ * @returns     0 on success.
+ *              -1 on error.
+ */
+int bd_result_set_unlock(bd_result_set_t *result_set);
+
 /* Publishes a result set to any output plugins for exporting.
  *
  * @params	bigdata - bigdata structure.
@@ -204,6 +226,12 @@ int bd_result_set_free(bd_result_set_t *result_set);
  */
 int bd_result_set_wrap_free(bd_result_set_wrap_t *r);
 
+/* Converts the result_set into its JSON string representation.
+ *
+ * @params	result_set - the result_set.
+ * @returns	malloc'd JSON string which must be free'd when done with on success.
+ *		NULL pointer on error.
+ */
 char *bd_result_set_to_json_string(bd_result_set_t *result);
 
 #endif
