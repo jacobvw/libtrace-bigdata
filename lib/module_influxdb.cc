@@ -29,7 +29,7 @@ typedef struct module_influxdb_options {
 void *module_influxdb_starting(void *tls);
 int module_influxdb_post(bd_bigdata_t *bigdata, void *mls, bd_result_set *result);
 void *module_influxdb_stopping(void *tls, void *mls);
-static char *module_influxdb_result_to_query(bd_result_set *result);
+static std::string module_influxdb_result_to_query(bd_result_set *result);
 
 void *module_influxdb_starting(void *tls) {
 
@@ -81,7 +81,7 @@ void *module_influxdb_starting(void *tls) {
 int module_influxdb_post(bd_bigdata_t *bigdata, void *mls, bd_result_set *result) {
 
     std::string out;
-    char *query;
+    std::string influx_line;;
     CURLcode res;
     int i;
     bool output_res = 0;
@@ -98,14 +98,12 @@ int module_influxdb_post(bd_bigdata_t *bigdata, void *mls, bd_result_set *result
                 // get the current result
                 cur_res = opts->results[i];
                 // convert to influxdb line protocol
-                query = module_influxdb_result_to_query(cur_res);
+                influx_line = module_influxdb_result_to_query(cur_res);
 
                 // join to the output string
-                out += query;
+                out += influx_line;
                 out += "\n";
 
-                // free the influx query
-                free(query);
                 // finished with this result so unlock it
                 bd_result_set_unlock(cur_res);
             }
@@ -124,9 +122,8 @@ int module_influxdb_post(bd_bigdata_t *bigdata, void *mls, bd_result_set *result
     } else {
 
         // convert the current result set into influxDB line query
-        query = module_influxdb_result_to_query(result);
-        out = query;
-        free(query);
+        influx_line = module_influxdb_result_to_query(result);
+        out = influx_line;
         output_res = 1;
 
     }
@@ -295,121 +292,118 @@ int module_influxdb_init(bd_bigdata_t *bigdata) {
     return 0;
 }
 
-static char *module_influxdb_result_to_query(bd_result_set *result) {
+static std::string module_influxdb_result_to_query(bd_result_set *result) {
 
     bool first_pass = true;
-    char *str;
+    std::string influx_line;
     char buf[INFLUX_BUF_LEN] = "";
 
-    str = (char *)malloc(INFLUX_LINE_LEN);
-    if (str == NULL) {
-        fprintf(stderr, "Unable to allocate memory. func. module_influxdb_post()\n");
-        exit(BD_OUTOFMEMORY);
-    }
-    str[0] = '\0';
-
     // insert measurement/module name
-    strcat(str, result->module);
-    strcat(str, ",");
+    influx_line += result->module;
+    influx_line += ",";
 
     // add tag sets. This is meta data that doesnt change
-    strcat(str, "capture_application=libtrace-bigdata");
+    influx_line += "capture_application=libtrace-bigdata";
     for (int i = 0; i < result->num_results; i++) {
         if (result->results[i].type == BD_TYPE_TAG) {
-            strcat(str, ",");
+            influx_line += ",";
             /* if the tag key contains a space */
             if (strstr(result->results[i].key, " ")) {
                 // escape all spaces
                 char *w = bd_replaceWord(result->results[i].key, " ", "\\ ");
-                strcat(str, w);
+                influx_line += w;
                 free(w);
             } else {
-                strcat(str, result->results[i].key);
+                influx_line += result->results[i].key;
             }
 
-            strcat(str, "=");
+            influx_line += "=";
 
             /* if the tag result contains a space */
             if (strstr(result->results[i].value.data_string, " ")) {
                 /* escape all spaces */
                 char *w = bd_replaceWord(result->results[i].value.data_string,
                     " ", "\\ ");
-                strcat(str, w);
+                influx_line += w;
                 free(w);
             } else {
-                strcat(str, result->results[i].value.data_string);
+                influx_line += result->results[i].value.data_string;
             }
         }
     }
 
     // a space is required between tags and values
-    strcat(str, " ");
+    influx_line += " ";
 
     // add data as field sets. This is data that does change
     for (int i = 0; i < result->num_results; i++) {
-        if (result->results[i].type == BD_TYPE_STRING) {
-            if (!first_pass) strcat(str, ",");
-            strcat(str, result->results[i].key);
-            strcat(str, "=\"");
-            strcat(str, result->results[i].value.data_string);
-            strcat(str, "\"");
-            first_pass = false;
-        } else if (result->results[i].type == BD_TYPE_FLOAT) {
-            if (!first_pass) strcat(str, ",");
-            snprintf(buf, INFLUX_BUF_LEN, "%f", result->results[i].value.data_float);
-            strcat(str, result->results[i].key);
-            strcat(str, "=");
-            strcat(str, buf);
-            first_pass = false;
-        } else if (result->results[i].type == BD_TYPE_DOUBLE) {
-            if (!first_pass) strcat(str, ",");
-            snprintf(buf, INFLUX_BUF_LEN, "%lf", result->results[i].value.data_double);
-            strcat(str, result->results[i].key);
-            strcat(str, "=");
-            strcat(str, buf);
-            first_pass = false;
-        } else if (result->results[i].type == BD_TYPE_INT) {
-            if (!first_pass) strcat(str, ",");
-            snprintf(buf, INFLUX_BUF_LEN, "%li", result->results[i].value.data_int);
-            strcat(str, result->results[i].key);
-            strcat(str, "=");
-            strcat(str, buf);
-            // influx expects "i" at the end of a int64
-            strcat(str, "i");
-            first_pass = false;
-        // influxdb needs to be compiled with uint64 support. NOTE i at end
-        } else if (result->results[i].type == BD_TYPE_UINT) {
-            if (!first_pass) strcat(str, ",");
-            snprintf(buf, INFLUX_BUF_LEN, "%lu", result->results[i].value.data_uint);
-            strcat(str, result->results[i].key);
-            strcat(str, "=");
-            strcat(str, buf);
-            // influx expects "u" at the end of a uint64, however most versions dont
-            // support it yet unless compiled with a specific flag
-            strcat(str, "i");
-            first_pass = false;
-        } else if (result->results[i].type == BD_TYPE_BOOL) {
-            if (!first_pass) strcat(str, ",");
-            strcat(str, result->results[i].key);
-            strcat(str, "=");
-            if (result->results[i].value.data_bool) {
-                strcat(str, "t");
-            } else {
-                strcat(str, "f");
-            }
-            first_pass = false;
+
+        if (!first_pass && result->results[i].type != BD_TYPE_TAG) {
+            influx_line += ",";
+        }
+
+        switch (result->results[i].type) {
+            case BD_TYPE_STRING:
+                influx_line += result->results[i].key;
+                influx_line += "=\"";
+                influx_line += result->results[i].value.data_string;
+                influx_line += "\"";
+                first_pass = 0;
+                break;
+            case BD_TYPE_FLOAT:
+                snprintf(buf, INFLUX_BUF_LEN, "%f", result->results[i].value.data_float);
+                influx_line += result->results[i].key;
+                influx_line += "=";
+                influx_line += buf;
+                first_pass = 0;
+                break;
+            case BD_TYPE_DOUBLE:
+                snprintf(buf, INFLUX_BUF_LEN, "%lf", result->results[i].value.data_double);
+                influx_line += result->results[i].key;
+                influx_line += "=";
+                influx_line += buf;
+                first_pass = 0;
+                break;
+            case BD_TYPE_INT:
+                snprintf(buf, INFLUX_BUF_LEN, "%li", result->results[i].value.data_int);
+                /* influxDB expects "i" and the end of a integer */
+                influx_line += result->results[i].key;
+                influx_line += "=";
+                influx_line += buf;
+                influx_line += "i";
+                first_pass = 0;
+                break;
+            case BD_TYPE_UINT:
+                snprintf(buf, INFLUX_BUF_LEN, "%li", result->results[i].value.data_uint);
+                /* influxDB expects "u" at the end of uint however most versions do not
+                   support it yet */
+                influx_line += result->results[i].key;
+                influx_line += "=";
+                influx_line += buf;
+                influx_line += "i";
+                first_pass = 0;
+                break;
+            case BD_TYPE_BOOL:
+                influx_line += result->results[i].key;
+                influx_line += "=";
+                if (result->results[i].value.data_bool) { influx_line += "t"; }
+                else { influx_line += "f"; }
+                first_pass = 0;
+                break;
+            default:
+                break;
         }
     }
 
     // add the timestamp if it was set
     if (result->timestamp != 0) {
-        strcat(str, " ");
+        influx_line += " ";
         // influx expects timestamp in nanoseconds
         snprintf(buf, INFLUX_BUF_LEN, "%lu", (result->timestamp*1000)*1000000);
-        strcat(str, buf);
+        influx_line += buf;
     }
 
-    return str;
+    return influx_line;
 }
 
 
