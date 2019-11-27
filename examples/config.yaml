@@ -45,7 +45,8 @@ foreach:
       - packet_count
       # export the number of flows per protocol
       - flow_count
-      #
+      # export the number unique local src/dst IPs and unique
+      # external src/dst IPs
       - ip_count
       # export in/out bitrate per protocol
       - bitrate
@@ -101,7 +102,7 @@ where:
     topic: topicname
 
   elasticsearch:
-    enabled: 1
+    enabled: 0
     host: http://127.0.0.1
     port: 9200
     ssl_verify_peer: 1
