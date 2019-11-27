@@ -89,7 +89,7 @@ static size_t module_elasticsearch_callback(void *buffer, size_t size, size_t nm
 int module_elasticsearch_result(bd_bigdata_t *bigdata, void *mls, bd_result_set *result) {
 
     std::string out;
-    char *json;
+    std::string json;
     char buf[200];
     char buf2[200];
     CURLcode res;
@@ -124,7 +124,6 @@ int module_elasticsearch_result(bd_bigdata_t *bigdata, void *mls, bd_result_set 
                 out += json;
                 out += "\n";
 
-                free(json);
                 // finished with this result so unlock it
                 bd_result_set_unlock(cur_res);
             }
@@ -151,7 +150,6 @@ int module_elasticsearch_result(bd_bigdata_t *bigdata, void *mls, bd_result_set 
 
         json = bd_result_set_to_json_string(result);
         out = json;
-        free(json);
         output_res = 1;
     }
 

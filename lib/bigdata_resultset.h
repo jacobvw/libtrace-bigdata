@@ -232,6 +232,6 @@ int bd_result_set_wrap_free(bd_result_set_wrap_t *r);
  * @returns	malloc'd JSON string which must be free'd when done with on success.
  *		NULL pointer on error.
  */
-char *bd_result_set_to_json_string(bd_result_set_t *result);
+std::string bd_result_set_to_json_string(bd_result_set_t *result);
 
 #endif

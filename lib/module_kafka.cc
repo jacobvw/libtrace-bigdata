@@ -75,18 +75,18 @@ void *module_kafka_starting(void *tls) {
 
 int module_kafka_post(bd_bigdata_t *bigdata, void *mls, bd_result_set *result) {
 
-    char *query;
+    std::string json;
 
     // get kafka options
     mod_kafka_opts_t *opts = (mod_kafka_opts_t *)mls;
 
-    query = result_to_query(result);
+    json = bd_result_set_to_json_string(result);
 
     if(rd_kafka_produce(opts->rkt,
                         RD_KAFKA_PARTITION_UA,
                         RD_KAFKA_MSG_F_COPY,
-                        query,
-                        strlen(query),
+                        (void *)json.c_str(),
+                        json.size(),
                         NULL,
                         0,
                         NULL) == -1) {
@@ -98,9 +98,6 @@ int module_kafka_post(bd_bigdata_t *bigdata, void *mls, bd_result_set *result) {
 
     // serve the delivery report queue. posibly add this to tick event?
     rd_kafka_poll(opts->rk, 1000);
-
-    // libkafka is set to free query when it is done with it
-    free(query);
 
     return 0;
 }

@@ -1,5 +1,7 @@
 #include "bigdata.h"
 #include "bigdata_resultset.h"
+#include <iostream>
+#include <string>
 
 bd_result_set_t *bd_result_set_create(bd_bigdata_t *bigdata, const char *mod) {
     // create result set structure
@@ -291,66 +293,59 @@ int bd_result_set_wrap_free(bd_result_set_wrap_t *r) {
     return ret;
 }
 
-char *bd_result_set_to_json_string(bd_result_set_t *result) {
+std::string bd_result_set_to_json_string(bd_result_set_t *result) {
 
+    std::string json_string;
     bool first_pass = true;
     char *str;
     char buf[JSON_BUF_LEN] = "";
 
-    str = (char *)malloc(JSON_LINE_LEN);
-    if (str == NULL) {
-        fprintf(stderr, "Unable to allocate memory. func. bd_result_set_to_json_string()\n");
-        exit(BD_OUTOFMEMORY);
-    }
-    str[0] = '\0';
-
     // start the json string
-    strcat(str, "{");
+    json_string += "{";
 
     // insert capture application and hostname
-    strcat(str, "\"capture_application\":\"libtrace-bigdata\"");
+    json_string += "\"capture_application\":\"libtrace-bigdata\"";
 
     // convert all tag fields
     for (int i = 0; i < result->num_results; i++) {
 
-        strcat(str, ",\"");
-        strcat(str, result->results[i].key);
-        strcat(str, "\":");
+        json_string += ",\"";
+        json_string += result->results[i].key;
+        json_string += "\":";
 
         switch (result->results[i].type) {
             case BD_TYPE_TAG:
             case BD_TYPE_STRING:
-                strcat(str, "\"");
-                strcat(str, result->results[i].value.data_string);
-                strcat(str, "\"");
+                json_string += "\"";
+                json_string += result->results[i].value.data_string;
+                json_string += "\"";
                 break;
             case BD_TYPE_FLOAT:
                 snprintf(buf, JSON_BUF_LEN, "%f",
                     result->results[i].value.data_float);
-                strcat(str, buf);
+                json_string += buf;
                 break;
             case BD_TYPE_DOUBLE:
                 snprintf(buf, JSON_BUF_LEN, "%lf",
                     result->results[i].value.data_double);
-                strcat(str, buf);
+                json_string += buf;
                 break;
             case BD_TYPE_INT:
                 snprintf(buf, JSON_BUF_LEN, "%li",
                     result->results[i].value.data_int);
-                strcat(str, buf);
+                json_string += buf;
                 break;
             case BD_TYPE_UINT:
                 snprintf(buf, JSON_BUF_LEN, "%lu",
                     result->results[i].value.data_uint);
-                strcat(str, buf);
+                json_string += buf;
                 break;
             case BD_TYPE_BOOL:
                 if (result->results[i].value.data_bool) {
-                    snprintf(buf, JSON_BUF_LEN, "%s", "true");
+                    json_string += "true";
                 } else {
-                    snprintf(buf, JSON_BUF_LEN, "%s", "false");
+                    json_string += "false";
                 }
-                strcat(str, buf);
                 break;
             default:
                 break;
@@ -359,14 +354,14 @@ char *bd_result_set_to_json_string(bd_result_set_t *result) {
 
     // insert timestamp into the string
     if (result->timestamp != 0) {
-        strcat(str, ",\"timestamp\":");
+        json_string += ",\"timestamp\":";
         // timestamp in milliseconds
         snprintf(buf, JSON_BUF_LEN, "%lu", (result->timestamp)*1000);
-        strcat(str, buf);
+        json_string += buf;
     }
 
     // end the json string
-    strcat(str, "}");
+    json_string += "}";
 
-    return str;
+    return json_string;
 }
