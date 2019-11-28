@@ -227,6 +227,8 @@ int module_protocol_statistics_stopping(void *tls, void *mls) {
 
 int module_protocol_statistics_tick(bd_bigdata_t *bigdata, void *mls, uint64_t tick) {
 
+    int i;
+
     // gain access to the stats
     mod_proto_stats_t *stats = (mod_proto_stats_t *)mls;
 
@@ -240,26 +242,39 @@ int module_protocol_statistics_tick(bd_bigdata_t *bigdata, void *mls, uint64_t t
     }
 
     // copy over protocol stats
-    for (int i = 0; i < LPI_PROTO_LAST; i++) {
+    for (i = 0; i < LPI_PROTO_LAST; i++) {
+        // init the proto stats for the combined result
+        module_protocol_statistics_init_proto_stats(&(combine->proto_stats[i]));
+
         // copy over packet/byte counts
         combine->proto_stats[i].in_bytes = stats->proto_stats[i].in_bytes;
         combine->proto_stats[i].out_bytes = stats->proto_stats[i].out_bytes;
         combine->proto_stats[i].in_packets = stats->proto_stats[i].in_packets;
         combine->proto_stats[i].out_packets = stats->proto_stats[i].out_packets;
+
         // copy over src/dst ips
-        combine->proto_stats[i].esrc_ips = stats->proto_stats[i].esrc_ips;
-        combine->proto_stats[i].edst_ips = stats->proto_stats[i].edst_ips;
+        combine->proto_stats[i].esrc_ips->insert(stats->proto_stats[i].esrc_ips->begin(),
+            stats->proto_stats[i].esrc_ips->end());
+        combine->proto_stats[i].edst_ips->insert(stats->proto_stats[i].edst_ips->begin(),
+            stats->proto_stats[i].edst_ips->end());
+
         // copy over internal src/dst ips
-        combine->proto_stats[i].isrc_ips = stats->proto_stats[i].isrc_ips;
-        combine->proto_stats[i].idst_ips = stats->proto_stats[i].idst_ips;
+        combine->proto_stats[i].isrc_ips->insert(stats->proto_stats[i].isrc_ips->begin(),
+            stats->proto_stats[i].isrc_ips->end());
+        combine->proto_stats[i].idst_ips->insert(stats->proto_stats[i].idst_ips->begin(),
+            stats->proto_stats[i].idst_ips->end());
+
         // copy over flow ids
-        combine->proto_stats[i].flow_ids = stats->proto_stats[i].flow_ids;
+        combine->proto_stats[i].flow_ids->insert(stats->proto_stats[i].flow_ids->begin(),
+            stats->proto_stats[i].flow_ids->end());
+
         // copy over the protocol and category
         combine->proto_stats[i].protocol = stats->proto_stats[i].protocol;
         combine->proto_stats[i].category = stats->proto_stats[i].category;
 
         // clear stats for current protocol
         module_protocol_statistics_clear_proto_stats(&(stats->proto_stats[i]));
+
     }
 
     // send result to the combiner function
@@ -409,9 +424,13 @@ int module_protocol_statistics_combiner(bd_bigdata_t *bigdata, void *mls,
         // assignment is enough
         tally->proto_stats[i].protocol = res->proto_stats[i].protocol;
         tally->proto_stats[i].category = res->proto_stats[i].category;
+
+        // delete proto stats for the combined result
+        module_protocol_statistics_delete_proto_stats(&(res->proto_stats[i]));
     }
 
     // free the result passed to combiner
+    
     free(res);
 
     return 0;
