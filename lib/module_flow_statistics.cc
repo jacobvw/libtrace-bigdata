@@ -271,9 +271,9 @@ int module_flow_statistics_config(yaml_parser_t *parser, yaml_event_t *event, in
 
                         /* try to convert the category string supplied into a
                          * lpi_category_t. Enable the category if found */
-                        /*lpi_category_t category;
+                        lpi_category_t category;
                         category = lpi_get_category_by_name((char *)event->data.scalar.value);
-                        if (category != LPI_CATEGORY_LAST) {
+                        /*if (category != LPI_CATEGORY_LAST) {
                             if (config->enabled) {
                                 fprintf(stderr, "\tEnabling category: %s\n",
                                     (char *)event->data.scalar.value);
@@ -284,9 +284,7 @@ int module_flow_statistics_config(yaml_parser_t *parser, yaml_event_t *event, in
                                 fprintf(stderr, "\tCould not find category: %s\n",
                                     (char *)event->data.scalar.value);
                             }
-                        }*/
-
-                        config->category[LPI_CATEGORY_REMOTE] = 1;
+                        }/* // DISABLED TILL lpi_get_category_by_name is implemented in libprotoident
 
                         /* consume the event */
                         consume_event(parser, event, level);
