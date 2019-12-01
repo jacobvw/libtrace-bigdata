@@ -1,6 +1,5 @@
 #include "module_influxdb.h"
 #include <curl/curl.h>
-#include <iostream>
 #include <string>
 
 #define INFLUX_BUF_LEN 2000

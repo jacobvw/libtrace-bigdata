@@ -2,6 +2,7 @@
 #define BIGDATA_RESULTSET_H
 
 #include "bigdata.h"
+#include <string>
 
 #define RESULT_SET_INIT_SIZE 20
 #define RESULT_SET_INC_SIZE 10

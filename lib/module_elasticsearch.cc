@@ -1,6 +1,5 @@
 #include "module_elasticsearch.h"
 #include <curl/curl.h>
-#include <iostream>
 #include <string>
 
 #define BATCH_STRING_BUF 100

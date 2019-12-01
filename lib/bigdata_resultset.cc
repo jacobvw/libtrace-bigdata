@@ -1,6 +1,5 @@
 #include "bigdata.h"
 #include "bigdata_resultset.h"
-#include <iostream>
 #include <string>
 
 bd_result_set_t *bd_result_set_create(bd_bigdata_t *bigdata, const char *mod) {
