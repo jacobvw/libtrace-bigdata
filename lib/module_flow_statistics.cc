@@ -101,7 +101,7 @@ int module_flow_statistics_protocol_updated(bd_bigdata_t *bigdata, void *mls, lp
         bd_result_set_insert_tag(res, "protocol", lpi_print(newproto));
         bd_result_set_insert_tag(res, "category", lpi_print_category(
             bd_flow_get_category(bigdata->flow)));
-        bd_result_set_insert_string(res, "type", "flow_start");
+        bd_result_set_insert_tag(res, "type", "flow_start");
 
         bd_result_set_insert_uint(res, "start_ts",
            bd_flow_get_start_time_milliseconds(bigdata->flow));
@@ -140,7 +140,7 @@ int module_flow_statistics_flowend(bd_bigdata_t *bigdata, void *mls, bd_flow_rec
         bd_result_set_insert_tag(res, "protocol", lpi_print(bd_flow_get_protocol(bigdata->flow)));
         bd_result_set_insert_tag(res, "category", lpi_print_category(
             bd_flow_get_category(bigdata->flow)));
-        bd_result_set_insert_string(res, "type", "flow_end");
+        bd_result_set_insert_tag(res, "type", "flow_end");
 
         bd_result_set_insert_uint(res, "start_ts",
             bd_flow_get_start_time_milliseconds(bigdata->flow));
