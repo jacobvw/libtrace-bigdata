@@ -324,6 +324,8 @@ int module_flow_statistics_config(yaml_parser_t *parser, yaml_event_t *event, in
  * core on startup */
 int module_flow_statistics_init(bd_bigdata_t *bigdata) {
 
+    int i;
+
     /* create storage for the plugins conf structure */
     config = (struct module_flow_statistics_config *)malloc(sizeof(struct
         module_flow_statistics_config));
@@ -340,6 +342,10 @@ int module_flow_statistics_init(bd_bigdata_t *bigdata) {
     /* initialise all protocols to false */
     for (int i = 0; i < LPI_PROTO_LAST; i++) {
         config->protocol[i] = 0;
+    }
+    /* initialise all categories to false */
+    for (i = 0; i < LPI_CATEGORY_LAST; i++) {
+        config->category[i] = 0;
     }
 
     /* create callback set used to map callback functions to each event */
