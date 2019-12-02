@@ -154,8 +154,8 @@ int module_dns_packet(bd_bigdata_t *bigdata, void *mls) {
 
         /* flip source/dst IPs because this is the response packet, want them to match
          * the request packet */
-        bd_result_set_insert_string(result_set, "src_ip", req->dst_ip);
-        bd_result_set_insert_string(result_set, "dst_ip", req->src_ip);
+        bd_result_set_insert_ip_string(result_set, "source_ip", req->dst_ip);
+        bd_result_set_insert_ip_string(result_set, "destination_ip", req->src_ip);
         bd_result_set_insert_tag(result_set, "protocol", is_udp ? "udp" : "tcp");
 
         bd_result_set_insert_uint(result_set, "question_count", (uint64_t)resp->qdcount);

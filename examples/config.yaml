@@ -88,6 +88,10 @@ filter:
     # Location of the maxmind database to use and can be obtained from
     # https://dev.maxmind.com/geoip/geoip2/geolite2/
     database: /etc/bigdata/GeoLite2-City.mmdb
+    metrics:
+      - coordinates
+      - city
+      - country
 
 # output modules
 where:

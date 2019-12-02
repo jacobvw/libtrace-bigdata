@@ -164,6 +164,8 @@ int bd_result_set_publish(bd_bigdata_t *bigdata, bd_result_set_t *result, uint64
        directly */
     if (trace_get_perpkt_thread_id(bigdata->thread) == -1) {
 
+        bd_callback_trigger_reporter_filter(bigdata, result);
+
         bd_callback_trigger_output(bigdata, result);
 
         /* and the result set now needs to be free'd when not running through

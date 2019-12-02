@@ -9,6 +9,9 @@ typedef struct module_maxmind_config {
     bd_cb_set *callbacks;
     bool enabled;
     char *database;
+    bool coordinates;
+    bool city;
+    bool country;
 } mod_max_conf;
 static mod_max_conf *config;
 
@@ -53,6 +56,7 @@ int module_maxmind_result_cb(bd_bigdata_t *bigdata, void *mls, bd_result_set *re
     MMDB_entry_data_s entry_data;
     int status;
     char buf[100];
+    char buf2[100];
 
     /* try to find a IP address in this result */
     for (int i = 0; i < result->num_results; i++) {
@@ -65,26 +69,61 @@ int module_maxmind_result_cb(bd_bigdata_t *bigdata, void *mls, bd_result_set *re
                 mmdb_result = MMDB_lookup_string(&(storage->mmdb), ip, &gai_error, &mmdb_error);
                 if (mmdb_result.found_entry) {
 
-                    // get the longitude
-                    status = MMDB_get_value(&(mmdb_result.entry), &entry_data, "location",
-                        "longitude", NULL);
-                    if (status == MMDB_SUCCESS) {
-                        if (entry_data.has_data) {
-                            // insert longitude into the result set
-                            snprintf(buf, sizeof(buf), "%s_longitude", result->results[i].key);
-                            bd_result_set_insert_double(result, buf, entry_data.double_value);
-                            fprintf(stderr, "Longitude %lf\n", entry_data.double_value);
+                    // If coordinates are set to output
+                    if (config->coordinates) {
+                        // get the longitude
+                        status = MMDB_get_value(&(mmdb_result.entry), &entry_data,
+                            "location", "longitude", NULL);
+                        if (status == MMDB_SUCCESS) {
+                            if (entry_data.has_data) {
+                                // insert longitude into the result set
+                                snprintf(buf, sizeof(buf), "%s_longitude",
+                                    result->results[i].key);
+                                bd_result_set_insert_double(result, buf,
+                                    entry_data.double_value);
+                            }
+                        }
+
+                        // get the latitude
+                        status = MMDB_get_value(&(mmdb_result.entry), &entry_data,
+                            "location", "latitude", NULL);
+                        if (status == MMDB_SUCCESS) {
+                            if (entry_data.has_data) {
+                                snprintf(buf, sizeof(buf), "%s_latitude",
+                                    result->results[i].key);
+                                bd_result_set_insert_double(result, buf,
+                                    entry_data.double_value);
+                            }
                         }
                     }
 
-                    // get the latitude
-                    status = MMDB_get_value(&(mmdb_result.entry), &entry_data, "location",
-                        "latitude", NULL);
-                    if (status == MMDB_SUCCESS) {
-                        if (entry_data.has_data) {
-                            snprintf(buf, sizeof(buf), "%s_latitude", result->results[i].key);
-                            bd_result_set_insert_double(result, buf, entry_data.double_value);
-                            fprintf(stderr, "Latitude %lf\n", entry_data.double_value);
+                    // If city name is set to output
+                    if (config->city) {
+                        status = MMDB_get_value(&(mmdb_result.entry), &entry_data,
+                            "city", "names", "en", NULL);
+                        if (status == MMDB_SUCCESS) {
+                            if (entry_data.has_data) {
+                                snprintf(buf, sizeof(buf), "%s_city",
+                                    result->results[i].key);
+                                snprintf(buf2, entry_data.data_size + 1, "%s",
+                                    entry_data.utf8_string);
+                                bd_result_set_insert_string(result, buf, buf2);
+                            }
+                        }
+                    }
+
+                    // If country name is set to output
+                    if (config->country) {
+                        status = MMDB_get_value(&(mmdb_result.entry), &entry_data,
+                            "country", "names", "en", NULL);
+                        if (status == MMDB_SUCCESS) {
+                            if (entry_data.has_data) {
+                                snprintf(buf, sizeof(buf), "%s_country",
+                                    result->results[i].key);
+                                snprintf(buf2, entry_data.data_size + 1, "%s",
+                                    entry_data.utf8_string);
+                                bd_result_set_insert_string(result, buf, buf2);
+                            }
                         }
                     }
                 }
@@ -128,6 +167,22 @@ int module_maxmind_config_cb(yaml_parser_t *parser, yaml_event_t *event, int *le
                     config->database = strdup((char *)event->data.scalar.value);
                     break;
                 }
+                if (strcmp((char *)event->data.scalar.value, "coordinates") == 0) {
+                    consume_event(parser, event, level);
+                    config->coordinates = 1;
+                    break;
+                }
+                if (strcmp((char *)event->data.scalar.value, "city") == 0) {
+                    consume_event(parser, event, level);
+                    config->city = 1;
+                    break;
+                }
+                if (strcmp((char *)event->data.scalar.value, "country") == 0) {
+                    consume_event(parser, event, level);
+                    config->country = 1;
+                    break;
+                }
+
                 consume_event(parser, event, level);
                 break;
             default:
@@ -161,6 +216,9 @@ int module_maxmind_init(bd_bigdata_t *bigdata) {
 
     config->enabled = 0;
     config->database = NULL;
+    config->coordinates = 0;
+    config->city = 0;
+    config->country = 0;
 
     // create callback set
     config->callbacks = bd_create_cb_set("maxmind");
