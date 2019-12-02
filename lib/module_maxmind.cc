@@ -143,7 +143,7 @@ int module_maxmind_config_cb(yaml_parser_t *parser, yaml_event_t *event, int *le
         bd_register_reporter_filter_event(config->callbacks, module_maxmind_result_cb);
         bd_register_reporter_stop_event(config->callbacks, module_maxmind_stopping_cb);
 
-        fprintf(stdout, "Enabling Maxmind Plugin\n");
+        fprintf(stdout, "Maxmind Plugin Enabled\n");
 
     }
 
