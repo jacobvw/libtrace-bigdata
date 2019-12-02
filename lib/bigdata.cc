@@ -16,6 +16,9 @@ static void init_modules(bd_bigdata_t *bigdata) {
     module_kafka_init(bigdata);
 #endif
     module_flow_statistics_init(bigdata);
+#ifdef HAVE_LIBMAXMINDDB
+    module_maxmind_init(bigdata);
+#endif
 }
 
 static void libtrace_cleanup(libtrace_t *trace, libtrace_callback_set_t *processing,
@@ -216,6 +219,9 @@ static void reporter_result(libtrace_t *trace, libtrace_thread_t *thread,
        // trigger combiner callback
        bd_callback_trigger_combiner(&bigdata, result);
     } else if (result->type == BD_RESULT_PUBLISH) {
+       // trigger output filter callback
+       bd_callback_trigger_reporter_filter(&bigdata, (bd_result_set_t *)result->value);
+
        // trigger output callback
        bd_callback_trigger_output(&bigdata, (bd_result_set_t *)result->value);
     }

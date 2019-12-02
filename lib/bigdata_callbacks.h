@@ -21,6 +21,7 @@ typedef int (*cb_category) (bd_bigdata_t *bigdata, void *mls);
 
 /* result event prototypes - Reporter thread */
 typedef void* (*cb_reporter_start) (void *tls);
+typedef int (*cb_reporter_filter) (bd_bigdata_t *bigdata, void *mls, bd_result_set *result);
 typedef int (*cb_reporter_output) (bd_bigdata_t *bigdata, void *mls, bd_result_set *result);
 typedef int (*cb_reporter_combiner) (bd_bigdata_t *bigdata, void *mls, uint64_t tick, void *result);
 typedef int (*cb_reporter_stop) (void *tls, void *mls);
@@ -40,6 +41,7 @@ typedef struct bigdata_callback_set {
     cb_stop stop_cb;
     // reporter thread callbacks
     cb_reporter_start reporter_start_cb;
+    cb_reporter_filter reporter_filter_cb;
     cb_reporter_output reporter_output_cb;
     cb_reporter_combiner reporter_combiner_cb;
     cb_reporter_stop reporter_stop_cb;
@@ -76,6 +78,7 @@ int bd_callback_trigger_protocol_updated(bd_bigdata_t *bigdata, lpi_protocol_t o
 int bd_callback_trigger_starting(bd_bigdata_t *bigdata);
 int bd_callback_trigger_stopping(bd_bigdata_t *bigdata);
 int bd_callback_trigger_reporter_starting(bd_bigdata_t *bigdata);
+int bd_callback_trigger_reporter_filter(bd_bigdata_t *bigdata, bd_result_set_t *result);
 int bd_callback_trigger_reporter_stopping(bd_bigdata_t *bigdata);
 int bd_callback_trigger_category(bd_bigdata_t *bigdata, lpi_category_t category);
 
@@ -258,5 +261,14 @@ int bd_register_flowstart_event(bd_cb_set *cbset, cb_flowstart callback);
  *              -1 on error
  */
 int bd_register_flowend_event(bd_cb_set *cbset, cb_flowend callback);
+
+/* Register a callback funtion to the result filter event.
+ *
+ * @params	cbset - Callback set
+ *		callback - The callback function
+ * @returns	0 on success
+ *		-1 on error
+ */
+int bd_register_reporter_filter_event(bd_cb_set *cbset, cb_reporter_filter callback);
 
 #endif

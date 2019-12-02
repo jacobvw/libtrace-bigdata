@@ -79,6 +79,16 @@ foreach:
       - tcp_packet_count
       - udp_packet_count
 
+# filtering modules
+filter:
+  # The maxmind plugin will insert latitude and longitude coordinates for each
+  # IP address inserted into a result set.
+  maxmind:
+    enabled: 0
+    # Location of the maxmind database to use and can be obtained from
+    # https://dev.maxmind.com/geoip/geoip2/geolite2/
+    database: /etc/bigdata/GeoLite2-City.mmdb
+
 # output modules
 where:
 

@@ -38,6 +38,9 @@ typedef struct bigdata_flow_record bd_flow_record_t;
 #include "module_protocol_statistics.h"
 #include "module_flow_statistics.h"
 
+// Filter plugins
+#include "module_maxmind.h"
+
 // Output Plugins
 #ifdef HAVE_LIBCURL
     #include "module_influxdb.h"
@@ -58,6 +61,7 @@ enum {
     BD_STARTUP_ERROR = 7,
     BD_INVALID_PARAMS = 8,
     BD_INVALID_INTERFACE = 9,
+    BD_FILTER_INIT = 10,
 };
 
 /* Enumeration of events supported */

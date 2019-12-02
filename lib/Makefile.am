@@ -12,6 +12,12 @@ else
 CURLSOURCES =
 endif
 
+if HAVE_MAXMINDDB
+MAXMINDSOURCES = module_maxmind.cc module_maxmind.h
+else
+MAXMINDSOURCE =
+endif
+
 bin_PROGRAMS = bigdata
 bigdata_SOURCES = bigdata.cc bigdata.h \
 		bigdata_common.cc bigdata_common.h \
@@ -25,4 +31,5 @@ bigdata_SOURCES = bigdata.cc bigdata.h \
 		module_statistics.cc module_statistics.h \
                 module_flow_statistics.cc module_flow_statistics.h \
 		$(KAFKASOURCE) \
-		$(CURLSOURCES)
+		$(CURLSOURCES) \
+		$(MAXMINDSOURCES)

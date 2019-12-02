@@ -45,9 +45,9 @@ int module_flow_statistics_foreach_flow(Flow *flow, void *data) {
             bd_result_set_insert_double(res, "duration", flow_rec->end_ts - flow_rec->start_ts);
 
             bd_flow_get_source_ip_string(flow, ip_tmp, INET6_ADDRSTRLEN);
-            bd_result_set_insert_string(res, "source_ip", ip_tmp);
+            bd_result_set_insert_ip_string(res, "source_ip", ip_tmp);
             bd_flow_get_destination_ip_string(flow, ip_tmp, INET6_ADDRSTRLEN);
-            bd_result_set_insert_string(res, "destination_ip", ip_tmp);
+            bd_result_set_insert_ip_string(res, "destination_ip", ip_tmp);
 
             bd_result_set_insert_int(res, "src_port", flow_rec->src_port);
             bd_result_set_insert_int(res, "dst_port", flow_rec->dst_port);
@@ -108,9 +108,9 @@ int module_flow_statistics_protocol_updated(bd_bigdata_t *bigdata, void *mls, lp
         bd_result_set_insert_double(res, "duration", flow_rec->end_ts - flow_rec->start_ts);
 
         bd_flow_get_source_ip_string(bigdata->flow, ip_tmp, INET6_ADDRSTRLEN);
-        bd_result_set_insert_string(res, "source_ip", ip_tmp);
+        bd_result_set_insert_ip_string(res, "source_ip", ip_tmp);
         bd_flow_get_destination_ip_string(bigdata->flow, ip_tmp, INET6_ADDRSTRLEN);
-        bd_result_set_insert_string(res, "destination_ip", ip_tmp);
+        bd_result_set_insert_ip_string(res, "destination_ip", ip_tmp);
 
         bd_result_set_insert_int(res, "src_port", flow_rec->src_port);
         bd_result_set_insert_int(res, "dst_port", flow_rec->dst_port);
@@ -149,9 +149,9 @@ int module_flow_statistics_flowend(bd_bigdata_t *bigdata, void *mls, bd_flow_rec
             bd_flow_get_end_time_milliseconds(bigdata->flow));
 
         bd_flow_get_source_ip_string(bigdata->flow, ip_tmp, INET6_ADDRSTRLEN);
-        bd_result_set_insert_string(res, "source_ip", ip_tmp);
+        bd_result_set_insert_ip_string(res, "source_ip", ip_tmp);
         bd_flow_get_destination_ip_string(bigdata->flow, ip_tmp, INET6_ADDRSTRLEN);
-        bd_result_set_insert_string(res, "destination_ip", ip_tmp);
+        bd_result_set_insert_ip_string(res, "destination_ip", ip_tmp);
 
 
         bd_result_set_insert_int(res, "src_port", flow_record->src_port);
@@ -252,7 +252,7 @@ int module_flow_statistics_config(yaml_parser_t *parser, yaml_event_t *event, in
                     break;
 
                 }
-                if (strcmp((char *)event->data.scalar.value, "categories") == 0) {
+                if (strcmp((char *)event->data.scalar.value, "protocol_categories") == 0) {
                     /* consume protocols event */
                     consume_event(parser, event, level);
 
@@ -272,7 +272,7 @@ int module_flow_statistics_config(yaml_parser_t *parser, yaml_event_t *event, in
                         /* try to convert the category string supplied into a
                          * lpi_category_t. Enable the category if found */
                         lpi_category_t category;
-                        /*category = lpi_get_category_by_name((char *)event->data.scalar.value);
+                        category = lpi_get_category_by_name((char *)event->data.scalar.value);
                         if (category != LPI_CATEGORY_LAST) {
                             if (config->enabled) {
                                 fprintf(stderr, "\tEnabling category: %s\n",
@@ -284,7 +284,7 @@ int module_flow_statistics_config(yaml_parser_t *parser, yaml_event_t *event, in
                                 fprintf(stderr, "\tCould not find category: %s\n",
                                     (char *)event->data.scalar.value);
                             }
-                        }/* // DISABLED TILL lpi_get_category_by_name is implemented in libprotoident
+                        }
 
                         /* consume the event */
                         consume_event(parser, event, level);
@@ -340,7 +340,7 @@ int module_flow_statistics_init(bd_bigdata_t *bigdata) {
     config->enabled = 0;
     config->output_interval = 0;
     /* initialise all protocols to false */
-    for (int i = 0; i < LPI_PROTO_LAST; i++) {
+    for (i = 0; i < LPI_PROTO_LAST; i++) {
         config->protocol[i] = 0;
     }
     /* initialise all categories to false */

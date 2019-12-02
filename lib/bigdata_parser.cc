@@ -347,7 +347,8 @@ bd_conf_t *parse_config(char *filename, bd_global_t *g_data) {
 
                 // capture/output modules config
                 if (strcmp((char *)event.data.scalar.value, "foreach") == 0 ||
-                    strcmp((char *)event.data.scalar.value, "where") == 0) {
+                    strcmp((char *)event.data.scalar.value, "where") == 0 ||
+                    strcmp((char *)event.data.scalar.value, "filter") == 0) {
 
                     int enter_level = level;
                     bool first_pass = 1;

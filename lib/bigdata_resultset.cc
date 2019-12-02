@@ -134,6 +134,17 @@ int bd_result_set_insert_tag(bd_result_set_t *result_set, char const *tag,
 
     return 0;
 }
+int bd_result_set_insert_ip_string(bd_result_set_t *result_set, char const *key,
+    const char *value) {
+
+    union bd_record_value val;
+    val.data_string = strdup(value);
+    if (val.data_string == NULL) {
+        fprintf(stderr, "Unable to allocate memory. func. bd_result_set_insert_ip_string()\n");
+        exit(BD_OUTOFMEMORY);
+    }
+    bd_result_set_insert(result_set, key, BD_TYPE_IP_STRING, val);
+}
 int bd_result_set_lock(bd_result_set_t *result_set) {
     result_set->free_lock += 1;
 }
@@ -245,7 +256,8 @@ int bd_result_set_free(bd_result_set_t *result_set) {
 
             /* free the value */
             if (result_set->results[i].type == BD_TYPE_STRING ||
-                result_set->results[i].type == BD_TYPE_TAG) {
+                result_set->results[i].type == BD_TYPE_TAG ||
+                result_set->results[i].type == BD_TYPE_IP_STRING) {
 
                 if (result_set->results[i].value.data_string != NULL) {
                     free(result_set->results[i].value.data_string);
@@ -314,6 +326,7 @@ std::string bd_result_set_to_json_string(bd_result_set_t *result) {
 
         switch (result->results[i].type) {
             case BD_TYPE_TAG:
+            case BD_TYPE_IP_STRING:
             case BD_TYPE_STRING:
                 json_string += "\"";
                 json_string += result->results[i].value.data_string;

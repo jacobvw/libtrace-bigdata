@@ -130,6 +130,11 @@ int bd_register_flowend_event(bd_cb_set *cbset, cb_flowend callback) {
     return 0;
 }
 
+int bd_register_reporter_filter_event(bd_cb_set *cbset, cb_reporter_filter callback) {
+    cbset->reporter_filter_cb = callback;
+    return 0;
+}
+
 
 int bd_callback_trigger_output(bd_bigdata_t *bigdata, bd_result_set_t *result) {
 
@@ -420,6 +425,22 @@ int bd_callback_trigger_reporter_starting(bd_bigdata_t *bigdata) {
     }
 
     return 0;
+}
+
+int bd_callback_trigger_reporter_filter(bd_bigdata_t *bigdata, bd_result_set_t *result) {
+
+    int ret = 0;
+    int cb_counter = 0;
+    bd_global_t *global = bigdata->global;
+    bd_rthread_local_t *local = (bd_rthread_local_t *)bigdata->tls;
+    bd_cb_set *cbs = global->callbacks;
+
+    for (; cbs != NULL; cbs = cbs->next) {
+        if (cbs->reporter_filter_cb != NULL) {
+            ret = cbs->reporter_filter_cb(bigdata, local->mls[cb_counter], result);
+        }
+        cb_counter += 1;
+    }
 }
 
 int bd_callback_trigger_reporter_stopping(bd_bigdata_t *bigdata) {

@@ -342,6 +342,7 @@ static std::string module_influxdb_result_to_query(bd_result_set *result) {
         }
 
         switch (result->results[i].type) {
+            case BD_TYPE_IP_STRING:
             case BD_TYPE_STRING:
                 influx_line += result->results[i].key;
                 influx_line += "=\"";

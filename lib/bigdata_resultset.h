@@ -24,7 +24,8 @@ enum bd_record_type {
     BD_TYPE_INT,
     BD_TYPE_BOOL,
     BD_TYPE_UINT,
-    BD_TYPE_TAG
+    BD_TYPE_TAG,
+    BD_TYPE_IP_STRING,
 };
 
 /* Union of values for each result */
@@ -165,6 +166,17 @@ int bd_result_set_insert_timestamp(bd_result_set_t *result_set, uint64_t timesta
  *              -1 on error.
  */
 int bd_result_set_insert_tag(bd_result_set_t *result_set, char const *tag,
+    const char *value);
+
+/* Inserts a IP string into a result set.
+ *
+ * @param       result_set - the result set.
+ *              key - the key for the result.
+ *              value - the result.
+ * @returns     0 on success.
+ *              -1 on error.
+ */
+int bd_result_set_insert_ip_string(bd_result_set_t *result_set, char const *key,
     const char *value);
 
 /* Locks the result set to prevent the application core from free'ing it. This

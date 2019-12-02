@@ -43,6 +43,12 @@ if test "x$curlfound" = xfalse; then
     AC_MSG_WARN(Libcurl not found. InfluxDB plugin will not be compiled)
 fi
 
+maxminddbfound=true
+AC_CHECK_LIB([maxminddb], [MMDB_open],, [maxminddbfound=false])
+if test "x$maxminddbfound" = xfalse; then
+    AC_MSG_WARN(Libmaxminddb not found. Maxmind plugins will not be compiled)
+fi
+
 # check for doxygen
 AC_CHECK_PROG([bd_doxygen], [doxygen], [true], [false])
 
@@ -66,6 +72,7 @@ AC_CHECK_FUNCS([memchr memset modf pow strdup])
 AM_CONDITIONAL([HAVE_LIBRDKAFKA], [test "x$rdkafkafound" = xtrue])
 AM_CONDITIONAL([HAVE_LIBCURL], [test "x$curlfound" = xtrue])
 AM_CONDITIONAL([HAVE_DOXYGEN], [test x"$bd_doxygen" = xtrue])
+AM_CONDITIONAL([HAVE_MAXMINDDB], [test "x$maxminddbfound" = xtrue])
 
 AM_COND_IF([HAVE_DOXYGEN], [AC_CONFIG_FILES([docs/Doxyfile docs/Makefile])])
 
