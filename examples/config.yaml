@@ -90,6 +90,7 @@ filter:
     database: /etc/bigdata/GeoLite2-City.mmdb
     metrics:
       - coordinates
+      - geohash
       - city
       - country
 
