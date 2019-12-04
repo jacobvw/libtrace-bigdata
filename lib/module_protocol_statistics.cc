@@ -68,9 +68,6 @@ typedef struct module_protocol_statistics_proto {
     // keep track of all the flow ids - used as a way to count number of flows
     std::set<uint64_t> *flow_ids;
 
-    // lpi protocol and category
-    lpi_protocol_t protocol;
-    lpi_category_t category;
 } mod_proto_stats_proto_t;
 
 typedef struct module_protocol_statistics {
@@ -94,9 +91,6 @@ static void module_protocol_statistics_init_proto_stats(mod_proto_stats_proto_t 
     proto->idst_ips = new std::set<struct sockaddr_storage,
         module_protocol_statistics_ip_compare>;
     proto->flow_ids = new std::set<uint64_t>;
-
-    proto->protocol = LPI_PROTO_UNKNOWN;
-    proto->category = LPI_CATEGORY_UNKNOWN;
 }
 
 static void module_protocol_statistics_clear_proto_stats(mod_proto_stats_proto_t *proto) {
@@ -109,9 +103,6 @@ static void module_protocol_statistics_clear_proto_stats(mod_proto_stats_proto_t
     proto->isrc_ips->clear();
     proto->idst_ips->clear();
     proto->flow_ids->clear();
-
-    proto->protocol = LPI_PROTO_UNKNOWN;
-    proto->category = LPI_CATEGORY_UNKNOWN;
 }
 
 static void module_protocol_statistics_delete_proto_stats(mod_proto_stats_proto_t *proto) {
@@ -204,11 +195,6 @@ int module_protocol_statistics_packet(bd_bigdata_t *bigdata, void *mls) {
         proto->flow_ids->insert(flow->id.get_id_num());
     }
 
-    // update lpi protocol
-    proto->protocol = bd_flow_get_protocol(bigdata->flow);
-    // update lpi category
-    proto->category = bd_flow_get_category(bigdata->flow);
-
     return 0;
 }
 
@@ -268,10 +254,6 @@ int module_protocol_statistics_tick(bd_bigdata_t *bigdata, void *mls, uint64_t t
         combine->proto_stats[i].flow_ids->insert(stats->proto_stats[i].flow_ids->begin(),
             stats->proto_stats[i].flow_ids->end());
 
-        // copy over the protocol and category
-        combine->proto_stats[i].protocol = stats->proto_stats[i].protocol;
-        combine->proto_stats[i].category = stats->proto_stats[i].category;
-
         // clear stats for current protocol
         module_protocol_statistics_clear_proto_stats(&(stats->proto_stats[i]));
 
@@ -318,6 +300,8 @@ int module_protocol_statistics_combiner(bd_bigdata_t *bigdata, void *mls,
 
     mod_proto_stats_t *tally = (mod_proto_stats_t *)mls;
     mod_proto_stats_t *res = (mod_proto_stats_t *)result;
+    lpi_protocol_t protocol;
+    lpi_category_t category;
 
     if (tally->lastkey == 0) {
         tally->lastkey = tick;
@@ -327,21 +311,17 @@ int module_protocol_statistics_combiner(bd_bigdata_t *bigdata, void *mls,
     // and clear it
     if (tally->lastkey < tick) {
         for (int i = 0; i < LPI_PROTO_LAST; i++) {
-            // get pointer to current protocol
+            // get pointer to current protocol stats
             mod_proto_stats_proto_t *proto = &(tally->proto_stats[i]);
+
+            protocol = (lpi_protocol_t)i;
+            category = lpi_get_category_by_protocol((lpi_protocol_t)i);
 
             // create and populate the result set
             bd_result_set_t *result_set = bd_result_set_create(bigdata, "protocol_statistics");
 
-            // the i (counter) is used so we can get the correct protocol name even for protocols
-            // not yet seen
-            bd_result_set_insert_tag(result_set, "protocol",
-                lpi_print((lpi_protocol_t)i));
-            // libprotoident does not currently have a function to get the category for a protocol
-            // via the lpi_protocol. This limits us by only allowing to print category names
-            // for protocols that have seen that type of packet.
-            bd_result_set_insert_tag(result_set, "category",
-                lpi_print_category(proto->category));
+            bd_result_set_insert_tag(result_set, "protocol", lpi_print(protocol) );
+            bd_result_set_insert_tag(result_set, "category", lpi_print_category(category) );
 
             if (config->packet_count) {
                 bd_result_set_insert_uint(result_set, "in_packets", proto->in_packets);
@@ -420,17 +400,12 @@ int module_protocol_statistics_combiner(bd_bigdata_t *bigdata, void *mls,
         tally->proto_stats[i].flow_ids->insert(res->proto_stats[i].flow_ids->begin(),
             res->proto_stats[i].flow_ids->end());
 
-        // merge protocol and category. Should be the same between threads so an
-        // assignment is enough
-        tally->proto_stats[i].protocol = res->proto_stats[i].protocol;
-        tally->proto_stats[i].category = res->proto_stats[i].category;
-
         // delete proto stats for the combined result
         module_protocol_statistics_delete_proto_stats(&(res->proto_stats[i]));
     }
 
     // free the result passed to combiner
-    
+
     free(res);
 
     return 0;
