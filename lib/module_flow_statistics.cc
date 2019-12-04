@@ -272,7 +272,7 @@ int module_flow_statistics_config(yaml_parser_t *parser, yaml_event_t *event, in
                         /* try to convert the category string supplied into a
                          * lpi_category_t. Enable the category if found */
                         lpi_category_t category;
-                        /*category = lpi_get_category_by_name((char *)event->data.scalar.value);
+                        category = lpi_get_category_by_name((char *)event->data.scalar.value);
                         if (category != LPI_CATEGORY_LAST) {
                             if (config->enabled) {
                                 fprintf(stderr, "\tEnabling category: %s\n",
@@ -284,7 +284,7 @@ int module_flow_statistics_config(yaml_parser_t *parser, yaml_event_t *event, in
                                 fprintf(stderr, "\tCould not find category: %s\n",
                                     (char *)event->data.scalar.value);
                             }
-                        } DISABLED TILL LIBPROTOIDENT SUPPORTS lpi_get_category_by_name func */
+                        }
 
                         /* consume the event */
                         consume_event(parser, event, level);
