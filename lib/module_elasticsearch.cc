@@ -141,6 +141,9 @@ int module_elasticsearch_result(bd_bigdata_t *bigdata, void *mls, bd_result_set 
         // increment number of results
         opts->num_results += 1;
 
+        // result batched
+        return 1;
+
     } else {
 
         // setup curl url for a single result
@@ -165,19 +168,20 @@ int module_elasticsearch_result(bd_bigdata_t *bigdata, void *mls, bd_result_set 
         // send to elasticsearch
         res = curl_easy_perform(opts->curl);
 
+        if (bigdata->global->config->debug) {
+            fprintf(stderr, "DEBUG: elasticsearch: %s\n", out.c_str());
+        }
+
         if (res != CURLE_OK) {
             fprintf(stderr, "Failed to post to elasticsearch: %s\n",
                 curl_easy_strerror(res));
-        }
-
-        if (bigdata->global->config->debug) {
-            fprintf(stderr, "DEBUG: elasticsearch: %s\n", out.c_str());
+            return -1;
         }
 
         return 0;
     }
 
-    return 1;
+    return -1;
 }
 
 int module_elasticsearch_stopping(void *tls, void *mls) {
