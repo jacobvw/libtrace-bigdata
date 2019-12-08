@@ -61,6 +61,9 @@ typedef struct bigdata_callback_set {
     cb_protocol protocol_cb[LPI_PROTO_LAST];
     cb_protocol_updated protocol_updated_cb;
     cb_category category_cb[LPI_CATEGORY_LAST];
+    /* file pointer to export results to if external database is
+     * not accessable */
+    FILE *temp_stor;
     bd_cb_set *next;
 } bd_cb_set;
 

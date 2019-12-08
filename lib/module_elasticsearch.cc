@@ -141,9 +141,6 @@ int module_elasticsearch_result(bd_bigdata_t *bigdata, void *mls, bd_result_set 
         // increment number of results
         opts->num_results += 1;
 
-        // result batched
-        return 1;
-
     } else {
 
         // setup curl url for a single result
@@ -181,7 +178,8 @@ int module_elasticsearch_result(bd_bigdata_t *bigdata, void *mls, bd_result_set 
         return 0;
     }
 
-    return -1;
+    // result batched
+    return 1;
 }
 
 int module_elasticsearch_stopping(void *tls, void *mls) {

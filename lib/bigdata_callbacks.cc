@@ -144,6 +144,7 @@ int bd_callback_trigger_output(bd_bigdata_t *bigdata, bd_result_set_t *result) {
     bd_global_t *global = bigdata->global;
     bd_rthread_local_t *l_data = (bd_rthread_local_t *)bigdata->tls;
     bd_cb_set *cbs = global->callbacks;
+    std::string json_result;
 
     // call each registered output module passing the result set
     for (; cbs != NULL; cbs = cbs->next) {
@@ -152,7 +153,12 @@ int bd_callback_trigger_output(bd_bigdata_t *bigdata, bd_result_set_t *result) {
 
             // if ret isnt 0 output failed so store and output and try again later??
             if (ret == -1) {
-                fprintf(stderr, "Failed posting result to %s\n", cbs->name);
+                // if the output plugin returns -1 the result is not batched and cannot
+                // be exported. Store the result in the temp storage and try process it
+                // again later.
+                json_result = bd_result_set_to_json_string(result);
+                fprintf(cbs->temp_stor, "%s\n", json_result.c_str());
+                fprintf(stderr, "result written\n");
             } else if (global->config->debug) {
                 if (ret == 0) {
                     fprintf(stderr, "DEBUG: Result posted to %s\n", cbs->name);
@@ -416,11 +422,20 @@ int bd_callback_trigger_reporter_starting(bd_bigdata_t *bigdata) {
     bd_global_t *global = bigdata->global;
     bd_rthread_local_t *local = (bd_rthread_local_t *)bigdata->tls;
     bd_cb_set *cbs = global->callbacks;
+    char buf[100];
 
     for (; cbs != NULL; cbs = cbs->next) {
         if (cbs->reporter_start_cb != NULL) {
             local->mls[cb_counter] = (void *)cbs->reporter_start_cb(local);
         }
+
+        // setup temp file storage used to hold results when external datastores
+        // are not available. only applicable to plugins with the output event
+        if (cbs->reporter_output_cb != NULL) {
+            snprintf(buf, sizeof(buf), "/tmp/libtrace-bigdata.%s", cbs->name);
+            cbs->temp_stor = fopen(buf, "a+");
+        }
+
         cb_counter += 1;
     }
 
@@ -455,6 +470,12 @@ int bd_callback_trigger_reporter_stopping(bd_bigdata_t *bigdata) {
         if (cbs->reporter_stop_cb != NULL) {
             ret = cbs->reporter_stop_cb(bigdata->tls, local->mls[cb_counter]);
         }
+
+        // close the temp file storage
+        if (cbs->reporter_output_cb != NULL) {
+            fclose(cbs->temp_stor);
+        }
+
         cb_counter += 1;
     }
 

@@ -134,13 +134,15 @@ int module_influxdb_post(bd_bigdata_t *bigdata, void *mls, bd_result_set *result
 
         /* Perform the request, res will get the return code */
         res = curl_easy_perform(opts->curl);
-        /* Check for errors */
-        if(res != CURLE_OK) {
-            fprintf(stderr, "failed to post to influxDB: %s\n", curl_easy_strerror(res));
-        }
 
         if (bigdata->global->config->debug) {
             fprintf(stderr, "DEBUG: influxDB: %s\n", out.c_str());
+        }
+
+        /* Check for errors */
+        if(res != CURLE_OK) {
+            fprintf(stderr, "failed to post to influxDB: %s\n", curl_easy_strerror(res));
+            return -1;
         }
 
         // result sent to influxdb

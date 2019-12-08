@@ -379,3 +379,7 @@ std::string bd_result_set_to_json_string(bd_result_set_t *result) {
 
     return json_string;
 }
+
+bd_result_set_t *bd_result_set_parse_json_string(std::string json) {
+
+}
