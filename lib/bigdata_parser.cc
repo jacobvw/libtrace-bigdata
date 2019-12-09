@@ -328,18 +328,11 @@ bd_conf_t *parse_config(char *filename, bd_global_t *g_data) {
                     // should now be a YAML_SCALAR_EVENT,
                     //  if not config is incorrect.
                     if (event.type != YAML_SCALAR_EVENT) {
-                        fprintf(stderr, "Config error: Expected boolean after "
+                        fprintf(stderr, "Config error: Expected integer for "
                             "debug\n");
                         return NULL;
                     }
-                    if (strcmp((char *)event.data.scalar.value, "1") == 0 ||
-                        strcmp((char *)event.data.scalar.value, "true") == 0 ||
-                        strcmp((char *)event.data.scalar.value, "yes") == 0) {
-
-                        conf->debug = 1;
-                    } else {
-                        conf->debug = 0;
-                    }
+                    conf->debug = atoi((char *)event.data.scalar.value);
                     // consume the event
                     consume_event(&parser, &event, &level);
                     break;

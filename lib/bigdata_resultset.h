@@ -239,6 +239,11 @@ int bd_result_set_free(bd_result_set_t *result_set);
  */
 int bd_result_set_wrap_free(bd_result_set_wrap_t *r);
 
+
+int bd_result_string_store(bd_cb_set *cbs, std::string result);
+
+char *bd_result_string_read(bd_cb_set *cbs);
+
 /* Converts the result_set into its JSON string representation.
  *
  * @params	result_set - the result_set.

@@ -23,6 +23,7 @@ typedef struct module_influxdb_options {
     CURL *curl;
     bd_result_set_t **results;
     int num_results;
+    bool influx_online;
 } mod_influxdb_opts_t;
 
 void *module_influxdb_starting(void *tls);
@@ -53,6 +54,7 @@ void *module_influxdb_starting(void *tls) {
         }
         opts->num_results = 0;
     }
+    opts->influx_online = 0;
 
     // Initialise curl
     curl_global_init(CURL_GLOBAL_ALL);
@@ -77,16 +79,69 @@ void *module_influxdb_starting(void *tls) {
     return opts;
 }
 
+int module_influxdb_export_result(bd_bigdata_t *bigdata, mod_influxdb_opts_t *opts,
+    const char *result) {
+
+    CURLcode ret;
+
+    curl_easy_setopt(opts->curl, CURLOPT_POSTFIELDS, result);
+
+    /* Perform the request, ret will get the return code */
+    ret = curl_easy_perform(opts->curl);
+
+    /* Check for errors */
+    if(ret != CURLE_OK) {
+
+        if (bigdata->global->config->debug > 0) {
+            fprintf(stderr, "DEBUG 1: InfluxDB is offline, result written to temp storage\n");
+
+            if (bigdata->global->config->debug > 1) {
+                fprintf(stderr, "DEBUG 2: Failed to post to influxDB: %s.\n",
+                    curl_easy_strerror(ret));
+            }
+        }
+
+        /* Set influxDB to offline */
+        opts->influx_online = 0;
+
+        /* Send the result to the temp file */
+        bd_result_string_store(config->callbacks, result);
+
+        return 2;
+    } else {
+
+        if (!opts->influx_online && bigdata->global->config->debug > 0) {
+            fprintf(stderr, "DEBUG 1: InfluxDB is online.\n");
+        }
+
+        opts->influx_online = 1;
+
+        return 0;
+    }
+}
+
 int module_influxdb_post(bd_bigdata_t *bigdata, void *mls, bd_result_set *result) {
 
     std::string out;
     std::string influx_line;;
-    CURLcode res;
     int i;
-    bool output_res = 0;
     bd_result_set_t *cur_res;
+    char *result_queue;
+    int ret = 1;
 
     mod_influxdb_opts_t *opts = (mod_influxdb_opts_t *)mls;
+
+    // if influx is online try to proccess any results that may be stored within influx's
+    // temp file
+    if (opts->influx_online) {
+        if ((result_queue = bd_result_string_read(config->callbacks)) != NULL) {
+
+            /* Export the queued results */
+            ret = module_influxdb_export_result(bigdata, opts, result_queue);
+
+            free(result_queue);
+        }
+    }
 
     if (config->batch_results) {
 
@@ -107,12 +162,13 @@ int module_influxdb_post(bd_bigdata_t *bigdata, void *mls, bd_result_set *result
                 bd_result_set_unlock(cur_res);
             }
 
-            // reset the number of results held and flag a result
+            // reset the number of results held and export result
             opts->num_results = 0;
-            output_res = 1;
+
+            ret = module_influxdb_export_result(bigdata, opts, out.c_str());
         }
 
-        // store the current result in the batch
+        // store the current result in the batch set
         bd_result_set_lock(result);
         opts->results[opts->num_results] = result;
         opts->num_results += 1;
@@ -123,34 +179,11 @@ int module_influxdb_post(bd_bigdata_t *bigdata, void *mls, bd_result_set *result
         // convert the current result set into influxDB line query
         influx_line = module_influxdb_result_to_query(result);
         out = influx_line;
-        output_res = 1;
 
+        ret = module_influxdb_export_result(bigdata, opts, out.c_str());
     }
 
-    if (output_res) {
-
-        /* Now specify the POST data */
-        curl_easy_setopt(opts->curl, CURLOPT_POSTFIELDS, out.c_str());
-
-        /* Perform the request, res will get the return code */
-        res = curl_easy_perform(opts->curl);
-
-        if (bigdata->global->config->debug) {
-            fprintf(stderr, "DEBUG: influxDB: %s\n", out.c_str());
-        }
-
-        /* Check for errors */
-        if(res != CURLE_OK) {
-            fprintf(stderr, "failed to post to influxDB: %s\n", curl_easy_strerror(res));
-            return -1;
-        }
-
-        // result sent to influxdb
-        return 0;
-    }
-
-    // result batched
-    return 1;
+    return ret;
 }
 
 void *module_influxdb_stopping(void *tls, void *mls) {

@@ -1,6 +1,8 @@
 #include "bigdata.h"
 #include "bigdata_resultset.h"
 #include <string>
+#include <iostream>
+#include <stdio.h>
 
 bd_result_set_t *bd_result_set_create(bd_bigdata_t *bigdata, const char *mod) {
     // create result set structure
@@ -304,6 +306,46 @@ int bd_result_set_wrap_free(bd_result_set_wrap_t *r) {
     r = NULL;
 
     return ret;
+}
+
+int bd_result_string_store(bd_cb_set *cbs, std::string result) {
+
+    return fprintf(cbs->temp_stor, "%s\n", result.c_str());
+}
+
+char *bd_result_string_read(bd_cb_set *cbs) {
+
+    char *buf;
+    long filesize;
+    char filename[100];
+
+    // flush the files output buffer
+    fflush(cbs->temp_stor);
+
+    // determine the filesize
+    fseek(cbs->temp_stor, 0, SEEK_END);
+    filesize = ftell(cbs->temp_stor);
+    fseek(cbs->temp_stor, 0, SEEK_SET);
+
+    // if filesize is 0 nothing in file so return NULL
+    if (filesize == 0) {
+        return NULL;
+    }
+
+    // allocate space for the file
+    buf = (char *)malloc(filesize + 1);
+
+    // read the file into the buffer
+    fread(buf, 1, filesize, cbs->temp_stor);
+    buf[filesize] = '\0';
+
+    // close the file, remove it, and recreate
+    fclose(cbs->temp_stor);
+    snprintf(filename, sizeof(filename), "/tmp/libtrace-bigdata.%s", cbs->name);
+    remove(filename);
+    cbs->temp_stor = fopen(filename, "a+");
+
+    return buf;
 }
 
 std::string bd_result_set_to_json_string(bd_result_set_t *result) {

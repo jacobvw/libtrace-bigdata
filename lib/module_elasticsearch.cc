@@ -22,6 +22,7 @@ typedef struct module_elasticsearch_options {
     CURL *curl;
     bd_result_set_t **results;
     int num_results;
+    bool elastic_online;
 } mod_elastic_opts_t;
 
 void *module_elasticsearch_starting(void *tls) {
@@ -47,6 +48,7 @@ void *module_elasticsearch_starting(void *tls) {
         }
         opts->num_results = 0;
     }
+    opts->elastic_online = 0;
 
     // init curl
     curl_global_init(CURL_GLOBAL_ALL);
@@ -85,26 +87,84 @@ static size_t module_elasticsearch_callback(void *buffer, size_t size, size_t nm
     return size * nmemb;
 }
 
+static int module_elasticsearch_export(bd_bigdata_t *bigdata, mod_elastic_opts_t *opts,
+    const char *result, char *url) {
+
+    CURLcode ret;
+
+    // set the URL in curl
+    curl_easy_setopt(opts->curl, CURLOPT_URL, url);
+    // set the payload in curl
+    curl_easy_setopt(opts->curl, CURLOPT_POSTFIELDS, result);
+    // set callback to prevent libcurl sending spam to stdout
+    curl_easy_setopt(opts->curl, CURLOPT_WRITEFUNCTION,
+        module_elasticsearch_callback);
+
+    // send to elasticsearch
+    ret = curl_easy_perform(opts->curl);
+
+    if (ret != CURLE_OK) {
+
+        if (bigdata->global->config->debug > 0) {
+            fprintf(stderr, "DEBUG 1: Elasticsearch is offline, result written to "
+                "temp storage.\n");
+
+            if (bigdata->global->config->debug > 1) {
+                fprintf(stderr, "DEBUG 2: Failed to post to elasticsearch: %s.\n",
+                    curl_easy_strerror(ret));
+            }
+        }
+
+        /* set elasticsearch to offline */
+        opts->elastic_online = 0;
+
+        /* send the result to the temp file */
+        bd_result_string_store(config->callbacks, result);
+
+        return 2;
+    } else {
+
+        if (!opts->elastic_online && bigdata->global->config->debug > 0) {
+            fprintf(stderr, "DEBUG 1: Elasticsearch is online.\n");
+        }
+
+        opts->elastic_online = 1;
+
+        return 0;
+    }
+}
+
 int module_elasticsearch_result(bd_bigdata_t *bigdata, void *mls, bd_result_set *result) {
 
     std::string out;
     std::string json;
     char buf[200];
     char buf2[200];
-    CURLcode res;
     int i;
     bd_result_set_t *cur_res;
-    bool output_res = 0;
+    int ret = 1;
+    char *result_queue;
     mod_elastic_opts_t *opts = (mod_elastic_opts_t *)mls;
+
+    /* build the curl url */
+    snprintf(buf, sizeof(buf), "%s%s%d%s%s%s", config->host, ":", config->port,
+        "/", result->module, "/_bulk");
+
+    /* If elasticsearch is online try to procces any results that may be stored within
+     * elasticsearch's temp file */
+    if (opts->elastic_online) {
+        if ((result_queue = bd_result_string_read(config->callbacks)) != NULL) {
+
+            ret = module_elasticsearch_export(bigdata, opts, result_queue, buf);
+
+            free(result_queue);
+        }
+    }
 
     if (config->batch_results) {
 
         // if its time to output results construct a batch result all of them.
         if (opts->num_results >= config->batch_count) {
-
-            // setup curl url for the batched results
-            snprintf(buf, sizeof(buf), "%s%s%d%s%s%s", config->host, ":", config->port,
-                "/", result->module, "/_bulk");
 
             // generate json a single json string for all results
             for (i = 0; i < opts->num_results; i++) {
@@ -129,7 +189,8 @@ int module_elasticsearch_result(bd_bigdata_t *bigdata, void *mls, bd_result_set 
 
             // reset the number of results held
             opts->num_results = 0;
-            output_res = 1;
+
+            ret = module_elasticsearch_export(bigdata, opts, out.c_str(), buf);
 
        }
 
@@ -143,43 +204,19 @@ int module_elasticsearch_result(bd_bigdata_t *bigdata, void *mls, bd_result_set 
 
     } else {
 
-        // setup curl url for a single result
-        snprintf(buf, sizeof(buf), "%s%s%d%s%s%s", config->host, ":", config->port,
-            "/", result->module, "/_doc");
-
+        // build the index string
+        snprintf(buf2, sizeof(buf2), "%s%s%s", "{\"index\":{\"_index\":\"",
+            cur_res->module, "\",\"_type\":\"_doc\"}}");
+        /* get the json representation for the result */
         json = bd_result_set_to_json_string(result);
-        out = json;
-        output_res = 1;
+
+        out = buf2;
+        out += json;
+
+        ret = module_elasticsearch_export(bigdata, opts, out.c_str(), buf);
     }
 
-    if (opts->curl && output_res) {
-
-        // set the URL in curl
-        curl_easy_setopt(opts->curl, CURLOPT_URL, buf);
-        // set the payload in curl
-        curl_easy_setopt(opts->curl, CURLOPT_POSTFIELDS, out.c_str());
-        // set callback to prevent libcurl sending spam to stdout
-        curl_easy_setopt(opts->curl, CURLOPT_WRITEFUNCTION,
-            module_elasticsearch_callback);
-
-        // send to elasticsearch
-        res = curl_easy_perform(opts->curl);
-
-        if (bigdata->global->config->debug) {
-            fprintf(stderr, "DEBUG: elasticsearch: %s\n", out.c_str());
-        }
-
-        if (res != CURLE_OK) {
-            fprintf(stderr, "Failed to post to elasticsearch: %s\n",
-                curl_easy_strerror(res));
-            return -1;
-        }
-
-        return 0;
-    }
-
-    // result batched
-    return 1;
+    return ret;
 }
 
 int module_elasticsearch_stopping(void *tls, void *mls) {
