@@ -22,7 +22,6 @@ Flow *flow_per_packet(bd_bigdata_t *bigdata) {
     /* Libflowmanager only deals with IP traffic, so ignore anything
      * that does not have an IP header */
     ip = (libtrace_ip_t *)trace_get_layer3(bigdata->packet, &l3_type, NULL);
-    if (l3_type != 0x0800) { return NULL; }
     if (ip == NULL) { return NULL; }
 
     /* Get the direction of the packet */
