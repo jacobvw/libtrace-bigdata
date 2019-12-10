@@ -56,6 +56,7 @@ curl -X PUT "localhost:9200/dns/_mapping" -H 'Content-Type: application/json' -d
       "nameserver_count": { "type": "long" },
       "opcode": { "type": "long" },
       "protocol": { "type": "text", "fields": { "keyword": { "type": "keyword" } } },
+      "ethertype": { "type": "text", "fields": { "keyword": { "type": "keyword" } } },
       "question0": { "type": "text" },
       "question0_type": { "type": "text" },
       "question_count": { "type": "long" },

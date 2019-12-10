@@ -55,6 +55,7 @@ int module_dns_packet(bd_bigdata_t *bigdata, void *mls) {
     libtrace_udp_t *udp;
     libtrace_tcp_t *tcp;
     bool is_udp;
+    bool is_ip4;
     uint32_t remaining;
     uint16_t ethertype;
     void *payload;
@@ -68,6 +69,7 @@ int module_dns_packet(bd_bigdata_t *bigdata, void *mls) {
     // no remaining packet
     if (remaining == 0) { return 1; }
 
+    // check if packet is udp or tcp
     if ((udp = trace_get_udp(packet)) == NULL) {
         if ((tcp = trace_get_tcp(packet)) == NULL) {
             return 1;
@@ -78,8 +80,14 @@ int module_dns_packet(bd_bigdata_t *bigdata, void *mls) {
         is_udp = 1;
         payload = trace_get_payload_from_udp(udp, &remaining);
     }
-    // no payload
-    if (payload == NULL) { return -1; }
+
+    // check if ip4 or ip6 - assume ip4
+    is_ip4 = 1;
+    if (ethertype == 0x0800) {
+        is_ip4 = 1;
+    } else if (ethertype == 0x86DD) {
+        is_ip4 = 0;
+    }
 
     // decode the dns packet
     dns_decoded_t bufresult[DNS_DECODEBUF_8K];
@@ -157,6 +165,7 @@ int module_dns_packet(bd_bigdata_t *bigdata, void *mls) {
         bd_result_set_insert_ip_string(result_set, "source_ip", req->dst_ip);
         bd_result_set_insert_ip_string(result_set, "destination_ip", req->src_ip);
         bd_result_set_insert_tag(result_set, "protocol", is_udp ? "udp" : "tcp");
+        bd_result_set_insert_tag(result_set, "ethertype", is_ip4 ? "ipv4" : "ipv6");
 
         bd_result_set_insert_uint(result_set, "question_count", (uint64_t)resp->qdcount);
         bd_result_set_insert_uint(result_set, "answer_count", (uint64_t)resp->ancount);
