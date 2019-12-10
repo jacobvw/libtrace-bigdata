@@ -151,9 +151,8 @@ int bd_callback_trigger_output(bd_bigdata_t *bigdata, bd_result_set_t *result) {
         if (cbs->reporter_output_cb != NULL) {
             ret = cbs->reporter_output_cb(bigdata, l_data->mls[cb_counter], result);
 
-            // if ret isnt 0 output failed so store and output and try again later??
             if (ret == -1) {
-                
+                /* something failed in the output plugin */
             } else if (global->config->debug) {
 
                 if (ret == 0) {
@@ -165,7 +164,6 @@ int bd_callback_trigger_output(bd_bigdata_t *bigdata, bd_result_set_t *result) {
                         fprintf(stderr, "DEBUG 2: Result batched for %s\n", cbs->name);
                     }
                 } else if (ret == 2) {
-                    /* result export failed */
                     if (bigdata->global->config->debug > 1) {
                         fprintf(stderr, "DEBUG 2: Result export failed for %s. %s should "
                             "have exported the result to a temp file.\n", cbs->name,
@@ -368,19 +366,6 @@ int bd_callback_trigger_tick(bd_bigdata_t *bigdata, uint64_t tick) {
 
     // get the thread local data
     bd_thread_local_t *l_data = (bd_thread_local_t *)bigdata->tls;
-
-    /*
-    struct timeval tv;
-    uint64_t ts = tick;
-    tv.tv_sec = tick >> 32;
-    ts = (ts & 0xffffffffULL) * 1000000;
-    ts += 0x80000000;
-    tv.tv_usec = ts >> 32;
-    if (tv.tv_usec >= 1000000) {
-        tv.tv_usec -= 1000000;
-        tv.tv_sec += 1;
-    }
-    */
 
     // convert ERF timestamp to seconds
     uint64_t timestamp_seconds = tick >> 32;
