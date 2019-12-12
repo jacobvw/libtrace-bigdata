@@ -13,6 +13,7 @@ curl -X PUT "localhost:9200/flow_statistics/_mapping" -H 'Content-Type: applicat
       "destination_ip_longitude": { "type": "float" },
       "dst_port": { "type": "long" },
       "duration": { "type": "float" },
+      "ttfb": { "type": "double" },
       "end_ts": { "type": "date", "format": "epoch_millis" },
       "flow_id": { "type": "long" },
       "in_bytes": { "type": "long" },

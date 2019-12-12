@@ -1,3 +1,4 @@
+
 #include "module_flow_statistics.h"
 
 /* configuration structure for the plugin */
@@ -45,6 +46,7 @@ int module_flow_statistics_foreach_flow(Flow *flow, void *data) {
 
             bd_result_set_insert_uint(res, "start_ts", bd_flow_get_start_time_milliseconds(flow));
             bd_result_set_insert_double(res, "duration", flow_rec->end_ts - flow_rec->start_ts);
+            bd_result_set_insert_double(res, "ttfb", flow_rec->ttfb);
 
             bd_flow_get_source_ip_string(flow, ip_tmp, INET6_ADDRSTRLEN);
             bd_result_set_insert_ip_string(res, "source_ip", ip_tmp);
@@ -109,6 +111,7 @@ int module_flow_statistics_protocol_updated(bd_bigdata_t *bigdata, void *mls, lp
         bd_result_set_insert_uint(res, "start_ts",
            bd_flow_get_start_time_milliseconds(bigdata->flow));
         bd_result_set_insert_double(res, "duration", flow_rec->end_ts - flow_rec->start_ts);
+        bd_result_set_insert_double(res, "ttfb", flow_rec->ttfb);
 
         bd_flow_get_source_ip_string(bigdata->flow, ip_tmp, INET6_ADDRSTRLEN);
         bd_result_set_insert_ip_string(res, "source_ip", ip_tmp);
@@ -149,6 +152,7 @@ int module_flow_statistics_flowend(bd_bigdata_t *bigdata, void *mls, bd_flow_rec
         bd_result_set_insert_uint(res, "start_ts",
             bd_flow_get_start_time_milliseconds(bigdata->flow));
         bd_result_set_insert_double(res, "duration", flow_record->end_ts - flow_record->start_ts);
+        bd_result_set_insert_double(res, "ttfb", flow_record->ttfb);
         bd_result_set_insert_uint(res, "end_ts",
             bd_flow_get_end_time_milliseconds(bigdata->flow));
 

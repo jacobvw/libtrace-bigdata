@@ -7,6 +7,7 @@
 /* Flow record structure */
 typedef struct bigdata_flow_record {
     double start_ts;
+    double ttfb;			/* time to first byte */
     double end_ts;
     struct sockaddr_storage src_ip;
     struct sockaddr_storage dst_ip;
@@ -201,5 +202,13 @@ struct timeval bd_flow_get_end_timeval(Flow *flow);
  *              0 on error.
  */
 uint64_t bd_flow_get_end_time_milliseconds(Flow *flow);
+
+/* Returns the time to first byte for the supplied flow
+ *
+ * @params	flow - The flow.
+ * @returns	the time to first byte for the flow on success.
+ *		0 on error.
+ */
+double bd_flow_get_time_to_first_byte(Flow *flow);
 
 #endif

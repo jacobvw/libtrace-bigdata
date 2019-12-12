@@ -84,6 +84,7 @@ static int flow_init_metrics(bd_bigdata_t *bigdata, uint8_t dir, double ts) {
     flow_record->src_port = trace_get_source_port(bigdata->packet);
     flow_record->dst_port = trace_get_destination_port(bigdata->packet);
     flow_record->start_ts = ts;
+    flow_record->ttfb = 0;
     flow_record->end_ts = ts;
     flow_record->init_dir = dir;
     flow_record->in_packets = 0;
@@ -129,6 +130,10 @@ static int flow_process_metrics(bd_bigdata_t *bigdata, double dir, double ts) {
 
     /* Otherwise if this is not a new flow but lpi has updated */
     } else if (lpi_updated) {
+
+        /* can we assume when libprotoident updates we can calculate
+         * the time to first byte?? */
+        flow_record->ttfb = flow_record->end_ts - flow_record->start_ts;
 
         /* keep track of the old protocol */
         lpi_protocol_t oldproto = flow_record->lpi_module->protocol;
@@ -442,6 +447,18 @@ uint64_t bd_flow_get_end_time_milliseconds(Flow *flow) {
     struct timeval tv = bd_flow_get_end_timeval(flow);
 
     return (tv.tv_sec * (uint64_t)1000) + (tv.tv_usec / 1000);
+}
+
+double bd_flow_get_time_to_first_byte(Flow *flow) {
+
+    bd_flow_record_t *flow_record = bd_flow_get_record(flow);
+
+    /* invalid flow just return 0? */
+    if (flow_record == NULL) {
+        return 0;
+    }
+
+    return flow_record->ttfb;
 }
 
 /* PRIVATE FUNCTIONS */
