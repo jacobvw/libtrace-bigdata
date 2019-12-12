@@ -114,6 +114,10 @@ int module_influxdb_export_result(bd_bigdata_t *bigdata, mod_influxdb_opts_t *op
             fprintf(stderr, "DEBUG 1: InfluxDB is online.\n");
         }
 
+        if (bigdata->global->config->debug >= 3) {
+            fprintf(stderr, "DEBUG 3: InfluxDB executed %s\n", result);
+        }
+
         opts->influx_online = 1;
 
         return 0;
