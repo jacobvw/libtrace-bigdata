@@ -80,6 +80,13 @@ typedef enum {
     BD_EVENT_REPORTER_STOPPING,
 } bd_event_t;
 
+/* How to determine the direction of the packet */
+typedef enum {
+    DIR_METHOD_TRACE,
+    DIR_METHOD_PORT,
+    DIR_METHOD_NETWORK
+} bd_dir_method_t;
+
 /* Cached fields */
 typedef struct bigdata_cache {
     int packet_direction;
@@ -102,10 +109,10 @@ typedef struct bigdata_config {
     char *interface;
     int processing_threads;
     bool enable_bidirectional_hasher;
-    bool local_networks_as_direction;
     int debug;
     bd_network_t **local_subnets;
     int local_subnets_count;
+    bd_dir_method_t dir_method;
 } bd_conf_t;
 
 typedef struct bigdata_network {

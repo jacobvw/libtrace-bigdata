@@ -7,10 +7,15 @@ interface: eth0
 # number of packet processing threads
 threads: 4
 
-# Use local_networks to determine if a packet is inbound or outbound.
-# Falls back to trace_get_direction() if disabled.
-local_networks_as_direction: 1
+# Method used to determin a packets direction. i.e. inbound vs outbound.
+# available options
+#	DIR_METHOD_TRACE   - Use libtrace trace_get_direction API method.
+#	DIR_METHOD_PORT    - Guess the direction based on server/client ports.
+#	DIR_METHOD_NETWORK - For this method to function local_networks must contain
+#	                     the network prefix/s for each local network.  
+direction_method: DIR_METHOD_NETWORK
 
+# local networks
 local_networks:
   - 192.168.1.0/24
 
@@ -125,7 +130,7 @@ where:
     require_user_auth: 1
     username: elasticuser
     password: elasticpassword
-    # Enable to send results to influxdb in batches
+    # Enable to send results to elasticsearch in batches
     batch_results: 0
     # If batching results, how many to send at a time
     batch_count: 200

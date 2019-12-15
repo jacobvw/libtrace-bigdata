@@ -147,11 +147,12 @@ bd_conf_t *parse_config(char *filename, bd_global_t *g_data) {
     bd_conf_t *conf = (bd_conf_t *)malloc(sizeof(bd_conf_t));
     conf->interface = NULL;
     conf->processing_threads = 0;
-    conf->local_networks_as_direction = 0;
     conf->local_subnets = NULL;
     conf->local_subnets_count = 0;
     conf->enable_bidirectional_hasher = 1;
     conf->debug = 0;
+    conf->dir_method = DIR_METHOD_PORT;
+
 
     int level = 0;
 
@@ -247,21 +248,23 @@ bd_conf_t *parse_config(char *filename, bd_global_t *g_data) {
                     break;
                 }
 
-                if (strcmp((char *)event.data.scalar.value, "local_networks_as_direction") == 0) {
+                if (strcmp((char *)event.data.scalar.value, "direction_method") == 0) {
                     // consume the first event which contains the key
                     consume_event(&parser, &event, &level);
                     if (event.type != YAML_SCALAR_EVENT) {
-                        fprintf(stderr, "Config error: Expected boolean after local_networks_"
-                            "as_direction\n");
+                        fprintf(stderr, "Config error: Expect direction method after "
+                            "direction_method\n");
                         return NULL;
                     }
-                    if (strcmp((char *)event.data.scalar.value, "1") == 0 ||
-                        strcmp((char *)event.data.scalar.value, "true") == 0 ||
-                        strcmp((char *)event.data.scalar.value, "yes") == 0) {
-
-                        conf->local_networks_as_direction = 1;
+                    if (strcmp((char *)event.data.scalar.value, "DIR_METHOD_TRACE") == 0) {
+                        conf->dir_method = DIR_METHOD_TRACE;
+                    } else if (strcmp((char *)event.data.scalar.value, "DIR_METHOD_PORT") == 0) {
+                        conf->dir_method = DIR_METHOD_PORT;
+                    } else  if (strcmp((char *)event.data.scalar.value, "DIR_METHOD_NETWORK") == 0) {
+                        conf->dir_method = DIR_METHOD_NETWORK;
                     } else {
-                        conf->local_networks_as_direction = 0;
+                        conf->dir_method = DIR_METHOD_TRACE;
+                        fprintf(stderr, "Unknown direction method, setting to DIR_METHOD_TRACE\n");
                     }
                     break;
                 }

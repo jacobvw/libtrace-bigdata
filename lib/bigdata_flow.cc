@@ -17,19 +17,23 @@ Flow *flow_per_packet(bd_bigdata_t *bigdata) {
     uint8_t dir;
     bool is_new = false;
     libtrace_ip_t *ip = NULL;
-
     uint16_t l3_type;
+
     /* Libflowmanager only deals with IP traffic, so ignore anything
-     * that does not have an IP header */
+     * that is not ipv4 or ipv6 */
     ip = (libtrace_ip_t *)trace_get_layer3(bigdata->packet, &l3_type, NULL);
-    if (ip == NULL) { return NULL; }
+    if (l3_type != TRACE_ETHERTYPE_IP && l3_type != TRACE_ETHERTYPE_IPV6) {
+        return NULL;
+    }
+    /* ignore packets with no ip header */
+    if (ip == NULL) {
+        return NULL;
+    }
 
     /* Get the direction of the packet */
     dir = bd_get_packet_direction(bigdata);
-
-    /* Ignore packets where the IP addresses are the same - something is
-     * probably screwy and it's REALLY hard to determine direction */
-    if (ip->ip_src.s_addr == ip->ip_dst.s_addr) {
+    /* Ignore packets with a invalid direction */
+    if (dir != 0 && dir != 1) {
         return NULL;
     }
 
