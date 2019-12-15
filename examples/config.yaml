@@ -11,8 +11,7 @@ threads: 4
 # available options
 #	DIR_METHOD_TRACE   - Use libtrace trace_get_direction API method.
 #	DIR_METHOD_PORT    - Guess the direction based on server/client ports.
-#	DIR_METHOD_NETWORK - For this method to function local_networks must contain
-#	                     the network prefix/s for each local network.  
+#	DIR_METHOD_NETWORK - Use network prefix/s from local_networks.  
 direction_method: DIR_METHOD_NETWORK
 
 # local networks
@@ -24,7 +23,7 @@ local_networks:
 # for the same flow to the same Libtrace thread.
 enable_bidirectional_hasher: 1
 
-# Enable debug output to stderr
+# Debug level 0-3
 debug: 0
 
 # capture modules
