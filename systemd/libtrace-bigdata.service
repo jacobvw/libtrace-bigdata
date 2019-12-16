@@ -1,0 +1,14 @@
+[Unit]
+Description=Libtrace-bigdata daemon
+After=network.target
+Documentation=https://github.com/jacobvw/libtrace-bigdata/wiki
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/bigdata /etc/bigdata/config.yaml
+ExecReload=/bin/kill -s HUP $MAINPID
+ExecStop=/bin/kill -s TERM $MAINPID
+Restart=on-abnormal
+
+[Install]
+WantedBy=multi-user.target
