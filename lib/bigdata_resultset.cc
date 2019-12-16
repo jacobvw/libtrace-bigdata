@@ -318,6 +318,7 @@ char *bd_result_string_read(bd_cb_set *cbs) {
     char *buf;
     long filesize;
     char filename[100];
+    size_t readsize;
 
     // flush the files output buffer
     fflush(cbs->temp_stor);
@@ -332,14 +333,23 @@ char *bd_result_string_read(bd_cb_set *cbs) {
         return NULL;
     }
 
-    // allocate space for the file
+    /* allocate space to read the file into. include space to null terminate the string */
     buf = (char *)malloc(filesize + 1);
+    if (buf == NULL) {
+        fprintf(stderr, "Unable to allocate memory. func. bd_result_string_read()\n");
+        exit(BD_OUTOFMEMORY);
+    }
 
-    // read the file into the buffer
-    fread(buf, 1, filesize, cbs->temp_stor);
+    /* read the file into the buffer, this could become problematic if a datastore is down
+     * for a long period of time causing a very large temp file. */
+    readsize = fread(buf, 1, filesize, cbs->temp_stor);
+    /* make sure something was actually read, if not return */
+    if (readsize == 0) {
+        return NULL;
+    }
     buf[filesize] = '\0';
 
-    // close the file, remove it, and recreate
+    /* close the temp file, remove it, and recreate it */
     fclose(cbs->temp_stor);
     snprintf(filename, sizeof(filename), "/tmp/libtrace-bigdata.%s", cbs->name);
     remove(filename);
