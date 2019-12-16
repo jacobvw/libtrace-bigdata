@@ -6,7 +6,7 @@ struct module_flow_statistics_config {
     bd_cb_set *callbacks;
     bool enabled;
     int output_interval;
-    bool all_protocols;
+    bool monitor_all;
     bool protocol[LPI_PROTO_LAST];
     bool category[LPI_CATEGORY_LAST];
 };
@@ -36,7 +36,7 @@ int module_flow_statistics_foreach_flow(Flow *flow, void *data) {
         /* check the protocol or category is a wanted one */
         if (f->c->protocol[flow_rec->lpi_module->protocol] ||
             f->c->category[flow_rec->lpi_module->category] ||
-            f->c->all_protocols) {
+            f->c->monitor_all) {
 
             bd_result_set_t *res = bd_result_set_create(f->bigdata, "flow_statistics");
             bd_result_set_insert_uint(res, "flow_id", flow->id.get_id_num());
@@ -96,7 +96,7 @@ int module_flow_statistics_protocol_updated(bd_bigdata_t *bigdata, void *mls, lp
     // if the new protocol or category is set to output
     if (config->protocol[newproto] ||
         config->category[flow_rec->lpi_module->category] ||
-        config->all_protocols) {
+        config->monitor_all) {
 
         /* This is done here because the flowstart event does not yet
          * have the correct protocol with only the first packet
@@ -140,7 +140,7 @@ int module_flow_statistics_flowend(bd_bigdata_t *bigdata, void *mls, bd_flow_rec
 
     if(config->protocol[flow_record->lpi_module->protocol] ||
        config->protocol[flow_record->lpi_module->category] ||
-       config->all_protocols) {
+       config->monitor_all) {
 
         bd_result_set_t *res = bd_result_set_create(bigdata, "flow_statistics");
         bd_result_set_insert_uint(res, "flow_id", bigdata->flow->id.get_id_num());
@@ -180,9 +180,7 @@ int module_flow_statistics_flowend(bd_bigdata_t *bigdata, void *mls, bd_flow_rec
 /* define the configuration function */
 int module_flow_statistics_config(yaml_parser_t *parser, yaml_event_t *event, int *level) {
 
-    /* parse the plugins configuration from the configuration file. Currently this
-     * plugin only supports the enabled parameter
-     */
+    /* parse the plugins configuration from the configuration file. */
     int enter_level = *level;
     bool first_pass = 1;
 
@@ -233,25 +231,25 @@ int module_flow_statistics_config(yaml_parser_t *parser, yaml_event_t *event, in
 
                         // check if this option is ALL, if so enabled all protocols
                         if (strcmp("ALL", (char *)event->data.scalar.value) == 0) {
-                            config->all_protocols = 1;
+                            config->monitor_all = 1;
                             fprintf(stdout, "\tEnabling ALL protocols\n");
                         }
 
-                        /* only need to enable indidual protcols if all is not set */
-                        if (!config->all_protocols) {
+                        /* only need to enable indidual protocols if all is not set */
+                        if (!config->monitor_all) {
                             /* try to convert the protocol string supplied into a
                              * lpi_protocol_t. Enable the protocol if found */
                             lpi_protocol_t protocol;
                             protocol = lpi_get_protocol_by_name((char *)event->data.scalar.value);
                             if (protocol != LPI_PROTO_UNKNOWN) {
                                 if (config->enabled) {
-                                    fprintf(stdout, "\tEnabling Protocol: %s\n",
+                                    fprintf(stdout, "\tEnabling protocol: %s\n",
                                         (char *)event->data.scalar.value);
                                 }
                                 config->protocol[protocol] = 1;
                             } else {
                                 if (config->enabled) {
-                                    fprintf(stdout, "\tCould Not Find Protocol: %s\n",
+                                    fprintf(stdout, "\tCould not find protocol: %s\n",
                                         (char *)event->data.scalar.value);
                                 }
                             }
@@ -286,20 +284,29 @@ int module_flow_statistics_config(yaml_parser_t *parser, yaml_event_t *event, in
                     // for each protocol supplied
                     while (event->type != YAML_SEQUENCE_END_EVENT) {
 
-                        /* try to convert the category string supplied into a
-                         * lpi_category_t. Enable the category if found */
-                        lpi_category_t category;
-                        category = lpi_get_category_by_name((char *)event->data.scalar.value);
-                        if (category != LPI_CATEGORY_UNKNOWN) {
-                            if (config->enabled) {
-                                fprintf(stderr, "\tEnabling category: %s\n",
-                                    (char *)event->data.scalar.value);
-                            }
-                            config->category[category] = 1;
-                        } else {
-                            if (config->enabled) {
-                                fprintf(stderr, "\tCould not find category: %s\n",
-                                    (char *)event->data.scalar.value);
+                        // check if this option is ALL, if so enabled all protocols
+                        if (strcmp("ALL", (char *)event->data.scalar.value) == 0) {
+                            config->monitor_all = 1;
+                            fprintf(stdout, "\tEnabling ALL categories\n");
+                        }
+
+                        /* Only need to enable seperate categories if all is not set */
+                        if (!config->monitor_all) {
+                            /* try to convert the category string supplied into a
+                             * lpi_category_t. Enable the category if found */
+                            lpi_category_t category;
+                            category = lpi_get_category_by_name((char *)event->data.scalar.value);
+                            if (category != LPI_CATEGORY_UNKNOWN) {
+                                if (config->enabled) {
+                                    fprintf(stderr, "\tEnabling category: %s\n",
+                                        (char *)event->data.scalar.value);
+                                }
+                                config->category[category] = 1;
+                            } else {
+                                if (config->enabled) {
+                                    fprintf(stderr, "\tCould not find category: %s\n",
+                                        (char *)event->data.scalar.value);
+                                }
                             }
                         }
 
@@ -356,7 +363,7 @@ int module_flow_statistics_init(bd_bigdata_t *bigdata) {
     /* init the config structure */
     config->enabled = 0;
     config->output_interval = 0;
-    config->all_protocols = 0;
+    config->monitor_all = 0;
     /* initialise all protocols to false */
     for (i = 0; i < LPI_PROTO_LAST; i++) {
         config->protocol[i] = 0;

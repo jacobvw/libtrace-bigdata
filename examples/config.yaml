@@ -63,12 +63,13 @@ foreach:
     # how often to output results (seconds)
     output_interval: 60
     # protocols to output flow information for. Refer to each Libprotoident
-    # (https://github.com/wanduow/libprotoident) plugins for correct names.
+    # (https://github.com/wanduow/libprotoident) for correct names protocol names.
+    # ALL can be used to monitor all protocols.
     protocols:
       - HTTP
       - HTTPS
     # protocol categories to output flow information for. Refer to Libprotoident
-    # for category names. NOT YET IMPLEMENTED
+    # for category names. ALL can be used to monitor all categories.
     protocol_categories:
       - Remote_Access
 
