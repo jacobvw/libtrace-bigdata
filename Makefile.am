@@ -2,7 +2,7 @@ DISTCHECK_CONFIGURE_FLAGS = \
         --with-systemdsystemunitdir=$$dc_install_base/$(systemdsystemunitdir)
 
 SUBDIRS = lib
-EXTRA_DIST = examples/config.yaml systemd/libtrace-bigdata.service
+EXTRA_DIST = examples/config.yaml
 
 AUTOMAKE_OPTIONS=foreign
 
@@ -11,7 +11,7 @@ SUBDIRS += docs
 endif
 
 if HAVE_SYSTEMD
-systemdsystemunit_DATA = systemd/libtrace-bigdata.service
+SUBDIRS += systemd
 endif
 
 bigdataconfdir = $(sysconfdir)/bigdata

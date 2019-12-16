@@ -5,7 +5,7 @@ Documentation=https://github.com/jacobvw/libtrace-bigdata/wiki
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/bigdata /etc/bigdata/config.yaml
+ExecStart=@bindir@bigdata @sysconfdir@bigdata/config.yaml
 ExecReload=/bin/kill -s HUP $MAINPID
 ExecStop=/bin/kill -s TERM $MAINPID
 Restart=on-abnormal
