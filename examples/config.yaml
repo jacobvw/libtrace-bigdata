@@ -1,10 +1,11 @@
-# host
-hostname: prmx-02
+# Hostname
+hostname: hostname
 
-# network interface to capture data on. 
-interface: enp7s0f1
+# Network interface to capture data on. Any URI supported by libtrace works
+# here. 
+interface: eth0
 
-# number of packet processing threads
+# Number of packet processing threads
 threads: 1
 
 # Method used to determin a packets direction. i.e. inbound vs outbound.
@@ -14,14 +15,14 @@ threads: 1
 #	DIR_METHOD_NETWORK - Use network prefix/s from local_networks.  
 direction_method: DIR_METHOD_NETWORK
 
-# local networks
+# local networks. IPv4 and IPv6 networks are supported here.
 local_networks:
-  - 192.168.20.0/24
-  - 2406:1E00:B910:2600::/56
+  - 192.168.1.0/24
 
 # Enable libtrace HASHER_BIDIRECTIONAL hasher.
-# Only enable if you do NOT have another mechanism for assigning packets
-# for the same flow to the same Libtrace thread.
+# Only enable if you are using more than 1 packet processing thread and you
+# do NOT have another mechanism for assigning packets form the same flow to
+# the same Libtrace thread.
 enable_bidirectional_hasher: 0
 
 # Debug level 0-3
@@ -32,7 +33,7 @@ foreach:
 
   # dns module
   dns:
-    enabled: 1
+    enabled: 0
     # timeout to flush old requests that have not received a response (seconds)
     timeout_request: 20
     # how often to check for timed out requests with no response (seconds)
@@ -40,7 +41,7 @@ foreach:
 
   # protocol statistics module
   protocol_statistics:
-    enabled: 1
+    enabled: 0
     # how often to output results (seconds)
     output_interval: 60
     metrics:
@@ -58,17 +59,18 @@ foreach:
 
   # flow statistics
   flow_statistics:
-    enabled: 1
+    enabled: 0
     # how often to output results (seconds)
     output_interval: 60
     # protocols to output flow information for. Refer to each Libprotoident
     # (https://github.com/wanduow/libprotoident) plugins for correct names.
     protocols:
-      - ALL
+      - HTTP
+      - HTTPS
     # protocol categories to output flow information for. Refer to Libprotoident
     # for category names. NOT YET IMPLEMENTED
     protocol_categories:
-      - ALL
+      - Remote_Access
 
   # statistics module
   statistics:
@@ -87,7 +89,7 @@ filter:
   # The maxmind plugin will insert latitude and longitude coordinates for each
   # IP address inserted into a result set.
   maxmind:
-    enabled: 1
+    enabled: 0
     # Location of the maxmind database to use and can be obtained from
     # https://dev.maxmind.com/geoip/geoip2/geolite2/
     database: /etc/bigdata/GeoLite2-City.mmdb
@@ -110,7 +112,7 @@ where:
     username: dbusername
     password: dbpassword
     # Enable to send results to influxdb in batches
-    batch_results: 0
+    batch_results: 1
     # If batching results, how many to send at a time
     batch_count: 200
 
@@ -120,7 +122,7 @@ where:
     topic: topicname
 
   elasticsearch:
-    enabled: 1
+    enabled: 0
     host: http://192.168.20.40
     port: 9200
     ssl_verify_peer: 1
@@ -131,5 +133,5 @@ where:
     # Enable to send results to elasticsearch in batches
     batch_results: 1
     # If batching results, how many to send at a time
-    batch_count: 500
+    batch_count: 200
     
