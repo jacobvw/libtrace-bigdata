@@ -1,11 +1,11 @@
 # host
-hostname: hostname
+hostname: prmx-02
 
 # network interface to capture data on. 
-interface: eth0
+interface: enp7s0f1
 
 # number of packet processing threads
-threads: 4
+threads: 1
 
 # Method used to determin a packets direction. i.e. inbound vs outbound.
 # available options
@@ -17,22 +17,23 @@ direction_method: DIR_METHOD_NETWORK
 
 # local networks
 local_networks:
-  - 192.168.1.0/24
+  - 192.168.20.0/24
+  - 2406:1E00:B910:2600::/56
 
 # Enable libtrace HASHER_BIDIRECTIONAL hasher.
 # Only enable if you do NOT have another mechanism for assigning packets
 # for the same flow to the same Libtrace thread.
-enable_bidirectional_hasher: 1
+enable_bidirectional_hasher: 0
 
 # Enable debug output to stderr
-debug: 0
+debug: 3
 
 # capture modules
 foreach:
 
   # dns module
   dns:
-    enabled: 0
+    enabled: 1
     # timeout to flush old requests that have not received a response (seconds)
     timeout_request: 20
     # how often to check for timed out requests with no response (seconds)
@@ -40,7 +41,7 @@ foreach:
 
   # protocol statistics module
   protocol_statistics:
-    enabled: 0
+    enabled: 1
     # how often to output results (seconds)
     output_interval: 60
     metrics:
@@ -58,19 +59,17 @@ foreach:
 
   # flow statistics
   flow_statistics:
-    enabled: 0
+    enabled: 1
     # how often to output results (seconds)
     output_interval: 60
     # protocols to output flow information for. Refer to each Libprotoident
     # (https://github.com/wanduow/libprotoident) plugins for correct names.
     protocols:
-      - HTTP
-      - SSH
-      - HTTPS
+      - ALL
     # protocol categories to output flow information for. Refer to Libprotoident
     # for category names. NOT YET IMPLEMENTED
     protocol_categories:
-      - Remote_Access
+      - ALL
 
   # statistics module
   statistics:
@@ -89,7 +88,7 @@ filter:
   # The maxmind plugin will insert latitude and longitude coordinates for each
   # IP address inserted into a result set.
   maxmind:
-    enabled: 0
+    enabled: 1
     # Location of the maxmind database to use and can be obtained from
     # https://dev.maxmind.com/geoip/geoip2/geolite2/
     database: /etc/bigdata/GeoLite2-City.mmdb
@@ -122,16 +121,16 @@ where:
     topic: topicname
 
   elasticsearch:
-    enabled: 0
-    host: http://127.0.0.1
+    enabled: 1
+    host: http://192.168.20.40
     port: 9200
     ssl_verify_peer: 1
     # Does elasticsearch require user/pass authentication (Normally when using X-Pack)
-    require_user_auth: 1
+    require_user_auth: 0
     username: elasticuser
     password: elasticpassword
     # Enable to send results to elasticsearch in batches
-    batch_results: 0
+    batch_results: 1
     # If batching results, how many to send at a time
-    batch_count: 200
+    batch_count: 500
     

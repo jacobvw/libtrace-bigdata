@@ -24,10 +24,11 @@ AC_PROG_MKDIR_P
 # Checks for header files.
 AC_CHECK_HEADERS([arpa/inet.h limits.h netdb.h netinet/in.h stddef.h stdint.h stdlib.h string.h sys/socket.h])
 
-AC_CHECK_LIB([trace], [trace_pstart],,[AC_MSG_ERROR(Libtrace is required to compile Libtrace-bigdata)])
-AC_CHECK_LIB([protoident], [lpi_init_library],,[AC_MSG_ERROR(Libprotoident is required to compile Libtrace-bigdata)])
+AC_CHECK_LIB([trace], [trace_pstart],,[AC_MSG_ERROR(Libtrace 4.0.1 or greater is required to compile Libtrace-bigdata)])
+AC_CHECK_LIB([protoident], [lpi_get_category_by_protocol],,[AC_MSG_ERROR(Libprotoident 2.0.15 or greater is required to compile Libtrace-bigdata)])
 AC_CHECK_LIB([yaml], [yaml_parser_initialize],,[AC_MSG_ERROR(Libyaml is required to compile Libtrace-bigdata)])
 AC_CHECK_LIB([flowmanager], [lfm_version_three],,[AC_MSG_ERROR(Libflowmanager 3.0.0 or greater is required to compile Libtrace-bigdata)])
+AC_CHECK_LIB([curl], [curl_global_init],,[AC_MSG_ERROR(Libcurl is required to compile Libtrace-bigdata)])
 
 # check for librdkafka
 rdkafkafound=true
@@ -36,17 +37,11 @@ if test "x$rdkafkafound" = xfalse; then
     AC_MSG_WARN(Librdkafka not found. Kafka plugin will not be compiled)
 fi
 
-# check for libcurl
-curlfound=true
-AC_CHECK_LIB([curl], [curl_global_init],,[curlfound=false])
-if test "x$curlfound" = xfalse; then
-    AC_MSG_WARN(Libcurl not found. InfluxDB plugin will not be compiled)
-fi
-
+# check for libmaxminddb
 maxminddbfound=true
 AC_CHECK_LIB([maxminddb], [MMDB_open],, [maxminddbfound=false])
 if test "x$maxminddbfound" = xfalse; then
-    AC_MSG_WARN(Libmaxminddb not found. Maxmind plugins will not be compiled)
+    AC_MSG_WARN(Libmaxminddb not found. Maxmind plugin will not be compiled)
 fi
 
 # check for doxygen
@@ -70,7 +65,6 @@ AC_FUNC_STRTOD
 AC_CHECK_FUNCS([memchr memset modf pow strdup])
 
 AM_CONDITIONAL([HAVE_LIBRDKAFKA], [test "x$rdkafkafound" = xtrue])
-AM_CONDITIONAL([HAVE_LIBCURL], [test "x$curlfound" = xtrue])
 AM_CONDITIONAL([HAVE_DOXYGEN], [test x"$bd_doxygen" = xtrue])
 AM_CONDITIONAL([HAVE_MAXMINDDB], [test "x$maxminddbfound" = xtrue])
 

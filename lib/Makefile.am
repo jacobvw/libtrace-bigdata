@@ -5,13 +5,6 @@ else
 KAFKASOURCE=
 endif
 
-if HAVE_LIBCURL
-CURLSOURCES = module_influxdb.cc module_influxdb.h
-CURLSOURCES += module_elasticsearch.cc module_elasticsearch.h
-else
-CURLSOURCES =
-endif
-
 if HAVE_MAXMINDDB
 MAXMINDSOURCES = module_maxmind.cc module_maxmind.h
 else
@@ -29,7 +22,8 @@ bigdata_SOURCES = bigdata.cc bigdata.h \
 		module_dns_spcdns_mappings.c module_dns_spcdns_mappings.h \
 		module_protocol_statistics.cc module_protocol_statistics.h \
 		module_statistics.cc module_statistics.h \
-                module_flow_statistics.cc module_flow_statistics.h \
+		module_flow_statistics.cc module_flow_statistics.h \
+		module_influxdb.cc module_influxdb.h \
+		module_elasticsearch.cc module_elasticsearch.h \
 		$(KAFKASOURCE) \
-		$(CURLSOURCES) \
 		$(MAXMINDSOURCES)
