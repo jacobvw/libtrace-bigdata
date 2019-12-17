@@ -380,7 +380,6 @@ double bd_flow_get_duration(Flow *flow) {
 uint64_t bd_flow_get_id(Flow *flow) {
 
     if (flow == NULL) {
-        fprintf(stderr, "NULL flow. func. bd_flow_get_id()\n");
         return 0;
     }
 
