@@ -5,7 +5,8 @@ hostname: hostname
 # here. 
 interface: eth0
 
-# Number of packet processing threads
+# Number of packet processing threads. Check enable_bidirectional_hasher
+# before increasing the number of threads.
 threads: 1
 
 # Method used to determin a packets direction. i.e. inbound vs outbound.
@@ -13,7 +14,7 @@ threads: 1
 #	DIR_METHOD_TRACE   - Use libtrace trace_get_direction API method.
 #	DIR_METHOD_PORT    - Guess the direction based on server/client ports.
 #	DIR_METHOD_NETWORK - Use network prefix/s from local_networks.  
-direction_method: DIR_METHOD_NETWORK
+direction_method: DIR_METHOD_PORT
 
 # local networks. IPv4 and IPv6 networks are supported here.
 local_networks:
@@ -21,7 +22,7 @@ local_networks:
 
 # Enable libtrace HASHER_BIDIRECTIONAL hasher.
 # Only enable if you are using more than 1 packet processing thread and you
-# do NOT have another mechanism for assigning packets form the same flow to
+# do NOT have another mechanism for assigning packets from the same flow to
 # the same Libtrace thread.
 enable_bidirectional_hasher: 0
 
@@ -85,9 +86,13 @@ foreach:
       - tcp_packet_count
       - udp_packet_count
 
-  # HTTP module - NOT COMPLETE
+  # HTTP module
   http:
-    enabled: 1
+    enabled: 0
+    # timeout to flush old requests that have not received a response (seconds)
+    timeout_request: 20
+    # how often to check for timed out requests with no response (seconds)
+    timeout_check: 20
 
 # filtering modules
 filter:
