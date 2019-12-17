@@ -2,6 +2,9 @@
 
 #include <unordered_map>
 
+/* buffer size to use for http header names and values */
+#define HEADER_LEN 150
+
 struct module_http_conf {
     bd_cb_set *callbacks;
     bool enabled;
@@ -54,8 +57,9 @@ int module_http_packet(bd_bigdata_t *bigdata, void *mls) {
     mod_http_req *request;
     mod_http_stor *storage;
     uint64_t flow_id;
-    char header_name[100];
-    char header_value[100];
+    char header_name[HEADER_LEN];
+    char header_value[HEADER_LEN];
+    char ip_tmp[INET6_ADDRSTRLEN];
 
     storage = (mod_http_stor *)mls;
     payload = NULL;
@@ -161,6 +165,12 @@ int module_http_packet(bd_bigdata_t *bigdata, void *mls) {
 
                 /* create a result set */
                 bd_result_set_t *result_set = bd_result_set_create(bigdata, "http");
+
+                /* insert source/destination ips */
+                bd_flow_get_source_ip_string(bigdata->flow, ip_tmp, INET6_ADDRSTRLEN);
+                bd_result_set_insert_ip_string(result_set, "source_ip", ip_tmp);
+                bd_flow_get_destination_ip_string(bigdata->flow, ip_tmp, INET6_ADDRSTRLEN);
+                bd_result_set_insert_ip_string(result_set, "destination_ip", ip_tmp);
 
                 /* insert request data */
                 bd_result_set_insert_tag(result_set, "request_method", request->method);
