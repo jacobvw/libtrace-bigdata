@@ -26,6 +26,6 @@ bigdata_SOURCES = bigdata.cc bigdata.h \
 		module_influxdb.cc module_influxdb.h \
 		module_elasticsearch.cc module_elasticsearch.h \
                 module_http.cc module_http.h \
-                ../picohttpparser/picohttpparser.cc ../picohttpparser/picohttpparser.h \
+                module_http_picoparser.c module_http_picoparser.h \
 		$(KAFKASOURCE) \
 		$(MAXMINDSOURCES)

@@ -1,5 +1,4 @@
 #include "module_http.h"
-#include "../picohttpparser/picohttpparser.h"
 
 struct module_http_conf {
     bd_cb_set *callbacks;
