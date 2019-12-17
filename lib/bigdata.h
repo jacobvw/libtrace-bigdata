@@ -37,6 +37,7 @@ typedef struct bigdata_flow_record bd_flow_record_t;
 #include "module_statistics.h"
 #include "module_protocol_statistics.h"
 #include "module_flow_statistics.h"
+#include "module_http.h"
 
 // Filter plugins
 #include "module_maxmind.h"

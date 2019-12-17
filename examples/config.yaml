@@ -85,13 +85,17 @@ foreach:
       - tcp_packet_count
       - udp_packet_count
 
+  # HTTP module - NOT COMPLETE
+  http:
+    enabled: 1
+
 # filtering modules
 filter:
   # The maxmind plugin will insert latitude and longitude coordinates for each
-  # IP address inserted into a result set.
+  # IP address within a result.
   maxmind:
     enabled: 0
-    # Location of the maxmind database to use and can be obtained from
+    # Location of the maxmind database to use. Can be obtained from
     # https://dev.maxmind.com/geoip/geoip2/geolite2/
     database: /etc/bigdata/GeoLite2-City.mmdb
     metrics:
@@ -124,7 +128,7 @@ where:
 
   elasticsearch:
     enabled: 0
-    host: http://192.168.20.40
+    host: http://127.0.0.1
     port: 9200
     ssl_verify_peer: 1
     # Does elasticsearch require user/pass authentication (Normally when using X-Pack)

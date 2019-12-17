@@ -8,6 +8,7 @@ static void init_modules(bd_bigdata_t *bigdata) {
     module_statistics_init(bigdata);
     module_protocol_statistics_init(bigdata);
     module_dns_init(bigdata);
+    module_http_init(bigdata);
     module_influxdb_init(bigdata);
     module_elasticsearch_init(bigdata);
 #ifdef HAVE_LIBRDKAFKA
