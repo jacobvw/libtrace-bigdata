@@ -54,7 +54,8 @@ int module_http_packet(bd_bigdata_t *bigdata, void *mls) {
     mod_http_req *request;
     mod_http_stor *storage;
     uint64_t flow_id;
-    char buf2[100];
+    char header_name[100];
+    char header_value[100];
 
     storage = (mod_http_stor *)mls;
     payload = NULL;
@@ -165,14 +166,22 @@ int module_http_packet(bd_bigdata_t *bigdata, void *mls) {
                 bd_result_set_insert_tag(result_set, "request_method", request->method);
                 bd_result_set_insert_string(result_set, "request_path", request->path);
                 for (int i = 0; i != request->num_headers; ++i) {
-                    snprintf(buf2, sizeof(buf2), "%s_%s", "request", request->headers[i].name);
-                    bd_result_set_insert_string(result_set, buf2, request->headers[i].value);
+                    snprintf(header_name, sizeof(header_name), "%s_%s", "request",
+                        request->headers[i].name);
+                    bd_result_set_insert_string(result_set, header_name, request->headers[i].value);
                     free(request->headers[i].name);
                     free(request->headers[i].value);
                 }
 
                 /* insert response data */
                 bd_result_set_insert_int(result_set, "response_code", status);
+                for (int i = 0; i != num_headers; ++i) {
+                    snprintf(header_name, sizeof(header_name), "%s_%.*s", "response",
+                        (int)headers[i].name_len, headers[i].name);
+                    snprintf(header_value, sizeof(header_value), "%.*s", (int)headers[i].value_len,
+                        headers[i].value);
+                    bd_result_set_insert_string(result_set, header_name, header_value);
+                }
 
                 /* insert the timestamp */
                 struct timeval tv = trace_get_timeval(bigdata->packet);
