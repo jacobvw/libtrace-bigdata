@@ -279,6 +279,9 @@ int module_dns_ending(void *tls, void *mls) {
     // delete the unordered_map
     delete(map);
 
+    /* free the storage structure */
+    free(storage);
+
     return 0;
 }
 
