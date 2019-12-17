@@ -344,6 +344,8 @@ static std::string module_influxdb_result_to_query(bd_result_set *result) {
     influx_line += "capture_application=libtrace-bigdata";
     for (int i = 0; i < result->num_results; i++) {
         if (result->results[i].type == BD_TYPE_TAG) {
+            /* tag keys and tag values should escape commas, equal signs and spaces */
+
             influx_line += ",";
             /* if the tag key contains a space */
             if (strstr(result->results[i].key, " ")) {
@@ -381,11 +383,21 @@ static std::string module_influxdb_result_to_query(bd_result_set *result) {
         }
 
         switch (result->results[i].type) {
+            /* field keys should escape commas, equal signs and spaces */
             case BD_TYPE_IP_STRING:
             case BD_TYPE_STRING:
                 influx_line += result->results[i].key;
                 influx_line += "=\"";
-                influx_line += result->results[i].value.data_string;
+
+                /* string field values should escape double quotes and backslashes */
+                if (strstr(result->results[i].value.data_string, "\"")) {
+                    char *w = bd_replaceWord(result->results[i].value.data_string,
+                        "\"", "\\\"");
+                    influx_line += w;
+                    free(w);
+                } else {
+                    influx_line += result->results[i].value.data_string;
+                }
                 influx_line += "\"";
                 first_pass = 0;
                 break;
@@ -445,4 +457,36 @@ static std::string module_influxdb_result_to_query(bd_result_set *result) {
     return influx_line;
 }
 
+static int module_influxdb_contains_invalid_field_value(char *value) {
 
+    for (int i = 0; i <= sizeof(value); i++) {
+        if (value[i] == '"') {
+            return 1;
+        }
+
+        if (value[i] == '\\') {
+            return 2;
+        }
+    }
+
+    return 0;
+}
+
+static int module_influxdb_contains_invalid_tag(char *value) {
+
+    for (int i = 0; i <= sizeof(value); i++) {
+        if (value[i] == ',') {
+            return 1;
+        }
+
+        if (value[2] == '=') {
+           return 2;
+        }
+
+        if (value[3] == ' ') {
+            return 3;
+        }
+    }
+
+    return 0;
+}
