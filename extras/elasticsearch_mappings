@@ -101,3 +101,18 @@ curl -X PUT "localhost:9200/protocol_statistics/_mapping" -H 'Content-Type: appl
     }
 }
 '
+
+curl -X PUT "localhost:9200/http"
+curl -X PUT "localhost:9200/http/_mapping" -H 'Content-Type: application/json' -d'
+{
+    "properties": {
+      "capture_application": { "type": "text", "fields": { "keyword": { "type": "keyword" } } },
+      "capture_host": { "type": "text", "fields": { "keyword": { "type": "keyword" } } },
+      "destination_ip": { "type": "ip" },
+      "destination_ip_geohash": { "type": "geo_point" },
+      "source_ip": { "type": "ip" },
+      "source_ip_geohash": { "type": "geo_point" },
+      "timestamp": { "type": "date", "format": "epoch_millis" }
+    }
+}
+'
