@@ -21,6 +21,7 @@
 
 struct module_bgp_conf {
     bd_cb_set *callbacks;
+    bool enabled;
 };
 static struct module_bgp_conf *config;
 
@@ -157,6 +158,41 @@ int module_bgp_packet(bd_bigdata_t *bigdata, void *mls) {
     fprintf(stderr, "\n");
 }
 
+int module_bgp_config(yaml_parser_t *parser, yaml_event_t *event, int *level) {
+
+    int enter_level = *level;
+    bool first_pass = 1;
+
+    while (enter_level != *level || first_pass) {
+        first_pass = 0;
+        switch(event->type) {
+            case YAML_SCALAR_EVENT:
+                if (strcmp((char *)event->data.scalar.value, "enabled") == 0) {
+                    consume_event(parser, event, level);
+                    if (strcmp((char *)event->data.scalar.value, "1") == 0 ||
+                        strcmp((char *)event->data.scalar.value, "yes") == 0 ||
+                        strcmp((char *)event->data.scalar.value, "true") == 0 ||
+                        strcmp((char *)event->data.scalar.value, "t") == 0) {
+
+                        config->enabled = 1;
+                    }
+                    break;
+                }
+                consume_event(parser, event, level);
+                break;
+            default:
+                consume_event(parser, event, level);
+                break;
+        }
+    }
+
+    if (config->enabled) {
+
+        bd_register_packet_event(config->callbacks, (cb_packet)module_bgp_packet);
+        bd_add_filter_to_cb_set(config->callbacks, "port 179");
+    }
+}
+
 int module_bgp_init(bd_bigdata_t *bigdata) {
 
     config = (module_bgp_conf *)malloc(sizeof(struct module_bgp_conf));
@@ -167,9 +203,9 @@ int module_bgp_init(bd_bigdata_t *bigdata) {
     }
 
     config->callbacks = bd_create_cb_set("bgp");
+    config->enabled = 0;
 
-    bd_register_packet_event(config->callbacks, (cb_packet)module_bgp_packet);
-    //bd_add_filter_to_cb_set(config->callbacks, "port 179");
+    bd_register_config_event(config->callbacks, (cb_config)module_bgp_config);
 
     bd_register_cb_set(bigdata, config->callbacks);
 
