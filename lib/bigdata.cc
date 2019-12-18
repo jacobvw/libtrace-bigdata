@@ -236,7 +236,7 @@ static void reporter_stopping(libtrace_t *trace, libtrace_thread_t *thread,
     bd_bigdata_t bigdata;
 
     // get thread local storage
-    bd_thread_local_t *l_data = (bd_thread_local_t *)tls;
+    bd_rthread_local_t *l_data = (bd_rthread_local_t *)tls;
 
     // init bigdata structure
     init_bigdata(&bigdata, trace, thread, NULL, NULL, (bd_global_t *)global,
