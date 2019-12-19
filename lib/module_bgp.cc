@@ -217,6 +217,8 @@ int module_bgp_packet(bd_bigdata_t *bigdata, void *mls) {
                 opt = (struct module_bgp_open_opt *)pos;
 
                 snprintf(buf, sizeof(buf), "option_%d", counter);
+                bd_result_set_insert_int(result, buf, opt->param_type);
+                snprintf(buf, sizeof(buf), "option_%d_string", counter);
                 bd_result_set_insert_string(result, buf, module_bgp_capability_string(opt->param_type));
 
                 snprintf(buf, sizeof(buf), "option_%d_length", counter);
@@ -457,6 +459,25 @@ static const char *module_bgp_capability_string(uint8_t type) {
         case MODULE_BGP_CAPABILITY_MULTIPROTOCOL: return "multi_protocol";
         case MODULE_BGP_CAPABILITY_ROUTEREFRESH: return "route_refresh";
         case MODULE_BGP_CAPABILITY_ROUTEFILTER: return "route_filter";
+        case 0x04: return "multiple routes to a destination capability (deprecated)";
+        case 0x05: return "extended next hop encoding";
+        case 0x06: return "bgp extended message";
+        case 0x07: return "bgpsec capability";
+        case 0x08: return "multiple labels capability";
+        case 0x09: return "bgp role";
+        /* 10 - 63 unassigned */
+        case 64: return "graceful restart capability";
+        case 65: return "support for 4-octet AS number capability";
+        case 66: return "deprecated";
+        case 67: return "support for dynamic capability";
+        case 68: return "multisession bgp capability";
+        case 69: return "add-path capability";
+        case 70: return "enhanced route refresh capability";
+        case 71: return "long-lived graceful restart capability";
+        /* 72 unassigned */
+        case 73: return "fqdn capability";
+        /* 74 - 127 unassigned */
+        /* 128 - 255 reserved for private use */
         default: return "unknown";
     }
 }
