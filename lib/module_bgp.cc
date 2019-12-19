@@ -259,7 +259,7 @@ int module_bgp_packet(bd_bigdata_t *bigdata, void *mls) {
                 //fprintf(stderr, "\n");
 
                 /* reduce withdrawn length */
-                withdrawn_len -= (w_route->len + sizeof(struct module_bgp_update_withdrawn_route));
+                withdrawn_len -= (sizeof(struct module_bgp_update_withdrawn_route) + ((w_route->len+8-1)/8));
                 /* advance pos to the next withdrawn route or to path attribute length */
                 pos += w_route->len;
                 counter += 1;
@@ -296,7 +296,7 @@ int module_bgp_packet(bd_bigdata_t *bigdata, void *mls) {
                 //fprintf(stderr, "\n");
                 /* TODO convert this into the correct format and insert into result */
 
-                attribute_len -= (a_path->len + sizeof(struct module_bgp_update_attribute_path));
+                attribute_len -= (sizeof(struct module_bgp_update_attribute_path) + a_path->len);
                 pos += a_path->len;
                 counter += 1;
             }
