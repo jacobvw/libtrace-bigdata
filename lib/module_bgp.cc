@@ -14,11 +14,6 @@
 #define MODULE_BGP_LINK_TYPE_DOWN 0x02
 #define MODULE_BGP_LINK_TYPE_HLINK 0x03
 
-/* https://www.iana.org/assignments/capability-codes/capability-codes.xhtml */
-#define MODULE_BGP_CAPABILITY_MULTIPROTOCOL 0x01
-#define MODULE_BGP_CAPABILITY_ROUTEREFRESH 0x02
-#define MODULE_BGP_CAPABILITY_ROUTEFILTER 0x03
-
 #define MODULE_BGP_UPDATE_DIRECTION_UP 0x01
 #define MODULE_BGP_UPDATE_DIRECTION_DOWN 0x02
 #define MODULE_BGP_UPDATE_DIRECTION_HLINK 0x03
@@ -272,7 +267,7 @@ int module_bgp_packet(bd_bigdata_t *bigdata, void *mls) {
 
             attribute = (struct module_bgp_update_attribute *)pos;
 
-            bd_result_set_insert_int(result, "path_attribute_length", ntohs(attribute_len));
+            bd_result_set_insert_int(result, "path_attribute_length", ntohs(attribute->attribute_len));
 
             /* advance pos over attribute len */
             pos += sizeof(struct module_bgp_update_attribute);
@@ -456,26 +451,27 @@ static const char *module_bgp_type_string(uint8_t type) {
 static const char *module_bgp_capability_string(uint8_t type) {
 
     switch (type) {
-        case MODULE_BGP_CAPABILITY_MULTIPROTOCOL: return "multi_protocol";
-        case MODULE_BGP_CAPABILITY_ROUTEREFRESH: return "route_refresh";
-        case MODULE_BGP_CAPABILITY_ROUTEFILTER: return "route_filter";
-        case 0x04: return "multiple routes to a destination capability (deprecated)";
+        /* 0 - reserved */
+        case 0x01: return "multi protocol extensions";
+        case 0x02: return "route refresh";
+        case 0x03: return "outbound route filtering";
+        case 0x04: return "multiple routes to a destination (deprecated)";
         case 0x05: return "extended next hop encoding";
-        case 0x06: return "bgp extended message";
-        case 0x07: return "bgpsec capability";
-        case 0x08: return "multiple labels capability";
-        case 0x09: return "bgp role";
+        case 0x06: return "BGP extended message";
+        case 0x07: return "BGPsec";
+        case 0x08: return "multiple labels";
+        case 0x09: return "BGP role";
         /* 10 - 63 unassigned */
-        case 64: return "graceful restart capability";
-        case 65: return "support for 4-octet AS number capability";
+        case 64: return "graceful restart";
+        case 65: return "support for 4-octet AS number";
         case 66: return "deprecated";
-        case 67: return "support for dynamic capability";
-        case 68: return "multisession bgp capability";
-        case 69: return "add-path capability";
-        case 70: return "enhanced route refresh capability";
-        case 71: return "long-lived graceful restart capability";
+        case 67: return "support for dynamic";
+        case 68: return "multisession BGP";
+        case 69: return "ADD-PATH";
+        case 70: return "enhanced route refresh";
+        case 71: return "long-lived graceful restart";
         /* 72 unassigned */
-        case 73: return "fqdn capability";
+        case 73: return "FQDN";
         /* 74 - 127 unassigned */
         /* 128 - 255 reserved for private use */
         default: return "unknown";
@@ -485,11 +481,11 @@ static const char *module_bgp_capability_string(uint8_t type) {
 static const char *module_bgp_notification_error_string(uint8_t type) {
 
     switch (type) {
-        case 0x01: return "message_header";
-        case 0x02: return "open_message";
-        case 0x03: return "update_message";
-        case 0x04: return "hold_timer_expired";
-        case 0x05: return "finite_state_machine";
+        case 0x01: return "message header";
+        case 0x02: return "open message";
+        case 0x03: return "update message";
+        case 0x04: return "hold timer expired";
+        case 0x05: return "finite state machine";
         case 0x06: return "cease";
         default: return "unknown";
     }
