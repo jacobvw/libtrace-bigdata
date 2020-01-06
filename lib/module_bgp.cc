@@ -7,7 +7,6 @@
 #define MODULE_BGP_TYPE_UPDATE 0x02
 #define MODULE_BGP_TYPE_NOTIFICATION 0x03
 #define MOUDLE_BGP_TYPE_KEEPALIVE 0x04
-#define MODULE_BGP_TYPE_OPEN_CONFIRM 0x05
 
 #define MODULE_BGP_LINK_TYPE_INTERNAL 0x00
 #define MODULE_BGP_LINK_TYPE_UP 0x01
@@ -38,12 +37,18 @@
 
 static const char *module_bgp_get_path_attr_type_string(uint8_t type);
 static const char *module_bgp_type_string(uint8_t type);
+static const char *module_bgp_open_parameter_string(uint8_t type);
 static const char *module_bgp_capability_string(uint8_t type);
 static const char *module_bgp_notification_error_string(uint8_t type);
 static const char *module_bgp_notification_subcode_error_string(uint8_t error,
     uint8_t subcode);
 
+
 char *module_bgp_parse_open(char *pos);
+char *module_bgp_parse_open_optional_capability(char *pos);
+
+char *module_bgp_parse_update(char *pos, struct module_bgp_header *bgp_header);
+
 char *module_bgp_parse_notification(char *pos, struct module_bgp_header *header);
 
 struct module_bgp_conf {
@@ -67,9 +72,17 @@ struct module_bgp_open {
     uint32_t bgp_identifier;
     uint8_t opt_len;
 } PACKED;
+/* BGP open optional paramter */
 struct module_bgp_open_opt {
     uint8_t param_type;
     uint8_t param_len;
+    /* varible length field decoded based on the param_type */
+} PACKED;
+/* BGP open capability */
+struct module_bgp_open_cap {
+    uint8_t cap_code;
+    uint8_t cap_len;
+    /* varible length field decoded based on the cap_code */
 } PACKED;
 
 /* update message */
@@ -88,6 +101,12 @@ struct module_bgp_update_attribute_path {
     uint8_t attr_flags;
     uint8_t attr_type;
     uint8_t len;
+    /* varible prefix field here. length depends on above len*/
+} PACKED;
+struct module_bgp_update_attribute_path2 {
+    uint8_t attr_flags;
+    uint8_t attr_type;
+    uint16_t len;
     /* varible prefix field here. length depends on above len*/
 } PACKED;
 struct module_bgp_update_nlri {
@@ -114,9 +133,6 @@ int module_bgp_packet(bd_bigdata_t *bigdata, void *mls) {
     char src_ip[INET6_ADDRSTRLEN];
     char dst_ip[INET6_ADDRSTRLEN];
     char *source_ip, *destination_ip;
-    int counter;
-    char buf[100];
-
     struct module_bgp_header *bgp_header;
 
     payload = NULL;
@@ -151,159 +167,45 @@ int module_bgp_packet(bd_bigdata_t *bigdata, void *mls) {
     }
 
     pos = payload;
-    bgp_header = (struct module_bgp_header *)payload;
 
-    /* filter out BGP packets with a invalid marker. All bgp packets should have 16bytes of 0xff */
-    for (int i = 0; i < 16; i++ ) {
-        if (bgp_header->marker[i] != 0xFF) {
-            return 0;
+    /* a single BGP packet can contain multiple messages */
+    while ((payload + remaining) > pos) {
+
+        bgp_header = (struct module_bgp_header *)pos;
+
+        /* Ignore the BGP message if a invalid marker is found.
+         * All BGP packets should have 16 bytes of 0xff */
+        for (int i = 0; i < 16; i++ ) {
+            if (bgp_header->marker[i] != 0xFF) {
+                return 0;
+            }
+        }
+
+        fprintf(stderr, "BGP message\n");
+        fprintf(stderr, "length %u\n", ntohs(bgp_header->length));
+
+        /* advance pos past the BGP header */
+        pos = (payload + sizeof(struct module_bgp_header));
+
+        /* parse the correct BGP message type */
+        switch (bgp_header->type) {
+            case MODULE_BGP_TYPE_OPEN:
+                pos = module_bgp_parse_open(pos);
+                break;
+            case MODULE_BGP_TYPE_UPDATE:
+                pos = module_bgp_parse_update(pos, bgp_header);
+                break;
+            case MODULE_BGP_TYPE_NOTIFICATION:
+                pos = module_bgp_parse_notification(pos, bgp_header);
+                break;
+            case MOUDLE_BGP_TYPE_KEEPALIVE:
+
+            default:
+                break;
         }
     }
 
-    /* advance pos past the BGP header */
-    pos = (payload + sizeof(struct module_bgp_header));
-
-    struct module_bgp_open *open;
-    struct module_bgp_open_opt *opt;
-    struct module_bgp_notification *noti;
-    struct module_bgp_update_withdrawn *withdrawn;
-    struct module_bgp_update_withdrawn_route *w_route;
-    struct module_bgp_update_attribute *attribute;
-    struct module_bgp_update_attribute_path *a_path;
-    struct module_bgp_update_nlri *nlri;
-    uint8_t opt_len;
-    int i;
-
-    uint16_t withdrawn_len;
-    uint16_t attribute_len;
-    uint16_t nlri_len;
-
-    uint32_t ident;
-
-    /* create result structure */
-    bd_result_set_t *result = bd_result_set_create(bigdata, "bgp");
-    bd_result_set_insert_ip_string(result, "source_ip", source_ip);
-    bd_result_set_insert_ip_string(result, "destination_ip", destination_ip);
-    bd_result_set_insert_uint(result, "flow_id", bd_flow_get_id(bigdata->flow));
-    bd_result_set_insert_tag(result, "type", module_bgp_type_string(bgp_header->type));
-
-    switch (bgp_header->type) {
-        case MODULE_BGP_TYPE_OPEN:
-            module_bgp_parse_open(pos);
-            break;
-        case MODULE_BGP_TYPE_UPDATE:
-            /* jump over BGP header to the update header */
-            withdrawn = (struct module_bgp_update_withdrawn *)pos;
-
-            fprintf(stderr, "BGP update packet\n");
-            fprintf(stderr, "withdrawn route length %u\n", ntohs(withdrawn->withdrawn_len));
-
-            /* advance pos over withdrawn routes len */
-            pos += sizeof(struct module_bgp_update_withdrawn);
-            withdrawn_len = ntohs(withdrawn->withdrawn_len);
-            counter = 0;
-            while (withdrawn_len > 0) {
-                w_route = (struct module_bgp_update_withdrawn_route *)pos;
-
-                /* advance pos past the withdrawn prefix length */
-                pos += sizeof(struct module_bgp_update_withdrawn_route);
-
-                //snprintf(buf, sizeof(buf), "withdrawn_route_%d_length", counter);
-                //bd_result_set_insert_int(result, buf, w_route->len);
-
-                //snprintf(buf, sizeof(buf), "withdrawn_route_%d_prefix", counter);
-                /* TODO convert withdrawn prefix and insert into result */
-
-                //fprintf(stderr, "Withdrawn prefix: ");
-                //for (int i = 0; i < w_route->len; i++) {
-                //    fprintf(stderr, "%02x ", pos[i] & 0xff);
-                //}
-                //fprintf(stderr, "\n");
-
-                /* reduce withdrawn length */
-                withdrawn_len -= (sizeof(struct module_bgp_update_withdrawn_route) + ((w_route->len+8-1)/8));
-                /* advance pos to the next withdrawn route or to path attribute length */
-                pos += w_route->len;
-                counter += 1;
-            }
-
-            attribute = (struct module_bgp_update_attribute *)pos;
-
-            //bd_result_set_insert_int(result, "path_attribute_length", ntohs(attribute->attribute_len));
-            fprintf(stderr, "path attribute length %u\n", ntohs(attribute->attribute_len));
-
-            /* advance pos over attribute len */
-            pos += sizeof(struct module_bgp_update_attribute);
-            attribute_len = ntohs(attribute->attribute_len);
-            counter = 0;
-            while (attribute_len > 0) {
-                a_path = (struct module_bgp_update_attribute_path *)pos;
-
-                fprintf(stderr, "Path attribute flags %u\n", a_path->attr_flags);
-                fprintf(stderr, "Path attribute type %s\n", module_bgp_get_path_attr_type_string(a_path->attr_type));
-                fprintf(stderr, "Path attribute length %u\n", a_path->len);
-
-                //snprintf(buf, sizeof(buf), "path_attribute_%d_flags", counter);
-                //bd_result_set_insert_int(result, buf, a_path->attr_flags); /* expand this out into each flag */
-
-                //snprintf(buf, sizeof(buf), "path_attribute_%d_type", counter);
-                //bd_result_set_insert_string(result, buf, module_bgp_get_path_attr_type_string(a_path->attr_type));
-
-                /* move past the current path attribute header */
-                pos += sizeof(struct module_bgp_update_attribute_path);
-
-                //fprintf(stderr, "Path attribute prefix: ");
-                //for (int i = 0; i < a_path->len; i++) {
-                //    fprintf(stderr, "%02x ", pos[i] & 0xff);
-                //}
-                //fprintf(stderr, "\n");
-                /* TODO convert this into the correct format and insert into result */
-
-                attribute_len -= (sizeof(struct module_bgp_update_attribute_path) + a_path->len);
-                pos += a_path->len;
-                counter += 1;
-            }
-
-            /* does this packet have network layer reachability information? */
-            nlri_len = ntohs(bgp_header->length) - 23 -
-                ntohs(withdrawn->withdrawn_len) - ntohs(attribute->attribute_len);
-            counter = 0;
-            while (nlri_len > 0) {
-                nlri = (struct module_bgp_update_nlri *)pos;
-
-                //snprintf(buf, sizeof(buf), "nlri_%d_length", counter);
-                //bd_result_set_insert_int(result, buf, nlri->len);
-                fprintf(stderr, "nlri length %d\n", counter);
-
-                /* move forward to the varible length data */
-                pos += sizeof(struct module_bgp_update_nlri);
-
-                uint16_t bytes = ((nlri->len+8-1)/8);
-                fprintf(stderr, "NLRI prefix: ");
-                for (int i = 0; i < bytes; i++) {
-                    fprintf(stderr, "%02x ", pos[i] & 0xff);
-                }
-                fprintf(stderr, "\n");
-                /* TODO convert this into the correct format and insert into result */
-
-                nlri_len -= (sizeof(struct module_bgp_update_nlri) + ((nlri->len+8-1)/8));
-                pos += nlri->len;
-                counter += 1;
-            }
-
-            break;
-        case MODULE_BGP_TYPE_NOTIFICATION:
-            module_bgp_parse_notification(pos, bgp_header);
-            break;
-        case MOUDLE_BGP_TYPE_KEEPALIVE:
-        case MODULE_BGP_TYPE_OPEN_CONFIRM:
-        default:
-            break;
-    }
-
-    /* insert the timestamp and publish the result */
-    bd_result_set_insert_timestamp(result, trace_get_seconds(bigdata->packet));
-    bd_result_set_publish(bigdata, result, trace_get_seconds(bigdata->packet));
+    fprintf(stderr, "\n");
 }
 
 int module_bgp_config(yaml_parser_t *parser, yaml_event_t *event, int *level) {
@@ -362,12 +264,130 @@ int module_bgp_init(bd_bigdata_t *bigdata) {
     return 0;
 }
 
-char *module_bgp_parse_withdrawn_routes(char *pos) {
+char *module_bgp_parse_update(char *pos, struct module_bgp_header *bgp_header) {
 
-}
+    int counter;
 
-char *module_bgp_parse_path_attributes(char *pos) {
+    /* first block is withdrawn routes */
+    struct module_bgp_update_withdrawn *withdrawn;
+    struct module_bgp_update_withdrawn_route *w_route;
+    uint16_t withdrawn_len;
 
+    withdrawn = (struct module_bgp_update_withdrawn *)pos;
+
+    fprintf(stderr, "BGP update packet\n");
+    fprintf(stderr, "withdrawn route length %u\n", ntohs(withdrawn->withdrawn_len));
+
+    /* advance pos over withdrawn routes len */
+    pos += sizeof(struct module_bgp_update_withdrawn);
+    withdrawn_len = ntohs(withdrawn->withdrawn_len);
+    counter = 0;
+    while (withdrawn_len > 0) {
+        w_route = (struct module_bgp_update_withdrawn_route *)pos;
+
+        /* advance pos past the withdrawn prefix length */
+        pos += sizeof(struct module_bgp_update_withdrawn_route);
+
+        fprintf(stderr, "withdrawn router length: %u\n", w_route->len);
+
+        fprintf(stderr, "Withdrawn prefix: ");
+        for (int i = 0; i < w_route->len; i++) {
+            fprintf(stderr, "%02x ", pos[i] & 0xff);
+        }
+        fprintf(stderr, "\n");
+        /* TODO convert withdrawn prefix to correct format */
+
+        /* reduce withdrawn length */
+        withdrawn_len -= (sizeof(struct module_bgp_update_withdrawn_route) + ((w_route->len+8-1)/8));
+        /* advance pos to the next withdrawn route or to path attribute length */
+        pos += w_route->len;
+        counter += 1;
+    }
+
+
+
+    /* second block is path attributes */
+    struct module_bgp_update_attribute *attribute;
+    struct module_bgp_update_attribute_path *a_path;
+    uint16_t attribute_len;
+
+    attribute = (struct module_bgp_update_attribute *)pos;
+
+    //bd_result_set_insert_int(result, "path_attribute_length", ntohs(attribute->attribute_len));
+    fprintf(stderr, "path attributes length: %u\n", ntohs(attribute->attribute_len));
+
+    /* advance pos over attribute len */
+    pos += sizeof(struct module_bgp_update_attribute);
+    attribute_len = ntohs(attribute->attribute_len);
+    counter = 0;
+    while (attribute_len > 0) {
+        a_path = (struct module_bgp_update_attribute_path *)pos;
+        uint16_t attr_len;
+
+        fprintf(stderr, "Path attribute flags %u\n", a_path->attr_flags);
+        fprintf(stderr, "Path attribute type %s\n", module_bgp_get_path_attr_type_string(a_path->attr_type));
+
+        /* check for extended length flag. When this flag is set the length field
+         * is 2 octets long instead of 1. */
+        if ((a_path->attr_flags & 16) == 16) {
+            attr_len = ntohs(*(uint16_t *)(pos+2));
+            /* when extended flag is set pos need to advance the extra octet and
+             * remaining needs to be reduced by the extra octet. */
+            pos += 1;
+            attribute_len -= 1;
+        } else {
+            attr_len = a_path->len;
+        }
+
+        fprintf(stderr, "Path attribute length %u\n", attr_len);
+
+        /* move past the current path attribute header */
+        pos += sizeof(struct module_bgp_update_attribute_path);
+
+        fprintf(stderr, "Path attribute data: ");
+        for (int i = 0; i < attr_len; i++) {
+            fprintf(stderr, "%02x ", pos[i] & 0xff);
+        }
+        fprintf(stderr, "\n");
+        /* TODO convert this into the correct format */
+
+        attribute_len -= (sizeof(struct module_bgp_update_attribute_path) + attr_len);
+        pos += attr_len;
+        counter += 1;
+    }
+
+
+
+    /* third section should be network layer reachability information */
+    struct module_bgp_update_nlri *nlri;
+    uint16_t nlri_len;
+
+    /* does this packet have network layer reachability information? */
+    nlri_len = ntohs(bgp_header->length) - 23 -
+        ntohs(withdrawn->withdrawn_len) - ntohs(attribute->attribute_len);
+    counter = 0;
+    while (nlri_len > 0) {
+        nlri = (struct module_bgp_update_nlri *)pos;
+
+        fprintf(stderr, "nlri length %d\n", counter);
+
+        /* move forward to the varible length data */
+        pos += sizeof(struct module_bgp_update_nlri);
+
+        uint16_t bytes = ((nlri->len+8-1)/8);
+        fprintf(stderr, "NLRI data: ");
+        for (int i = 0; i < bytes; i++) {
+            fprintf(stderr, "%02x ", pos[i] & 0xff);
+        }
+        fprintf(stderr, "\n");
+        /* TODO convert this into the correct format */
+
+        nlri_len -= (sizeof(struct module_bgp_update_nlri) + ((nlri->len+8-1)/8));
+        pos += nlri->len;
+        counter += 1;
+    }
+
+    return pos;
 }
 
 char *module_bgp_parse_open(char *pos) {
@@ -398,17 +418,27 @@ char *module_bgp_parse_open(char *pos) {
     /* advance pos over the open header to the optional parameters */
     pos += sizeof(struct module_bgp_open);
 
+    fprintf(stderr, "optional parameters length: %u\n", open->opt_len);
 
     counter = 0;
     /* this field is zero when no optional params are present */
     while (opt_len > 0) {
         opt = (struct module_bgp_open_opt *)pos;
 
-        fprintf(stderr, "option string %s\n", module_bgp_capability_string(opt->param_type));
-        fprintf(stderr, "option %u\n", opt->param_type);
-        fprintf(stderr, "option length %u\n", opt->param_len);
+        fprintf(stderr, "optional parameter: %s (%u)\n",
+            module_bgp_open_parameter_string(opt->param_type),
+            opt->param_type);
+        fprintf(stderr, "optional length: %u\n", opt->param_len);
 
-        /* TODO convert each option and insert into result */
+        /* parse optional parameter data */
+        switch (opt->param_type) {
+            /* capability */
+            case 0x02: {
+                module_bgp_parse_open_optional_capability(
+                    (pos+sizeof(struct module_bgp_open_opt)));
+            }
+        }
+
 
         /* jump over the rest of this param to the next option */
         pos += sizeof(struct module_bgp_open_opt) + opt->param_len;
@@ -429,11 +459,11 @@ char *module_bgp_parse_notification(char *pos, struct module_bgp_header *header)
     notification = (struct module_bgp_notification *)pos;
 
     fprintf(stderr, "Notification packet\n");
-    fprintf(stderr, "Error code string %s\n", module_bgp_notification_error_string(notification->error_code));
-    fprintf(stderr, "Error code %u\n", notification->error_code);
-    fprintf(stderr, "Error subcode string %s\n",
-        module_bgp_notification_subcode_error_string(notification->error_code, notification->error_subcode));
-    fprintf(stderr, "Error subcode %u\n", notification->error_subcode);
+    fprintf(stderr, "Major error code: %s (%u)\n",
+        module_bgp_notification_error_string(notification->error_code), notification->error_code);
+    fprintf(stderr, "Minor error code: %s (%u)\n",
+        module_bgp_notification_subcode_error_string(notification->error_code, notification->error_subcode),
+        notification->error_subcode);
 
     /* data length */
     opt_len =  ntohs(header->length) - sizeof(struct module_bgp_header) - sizeof(struct module_bgp_notification);
@@ -448,6 +478,17 @@ char *module_bgp_parse_notification(char *pos, struct module_bgp_header *header)
     fprintf(stderr, "\n");
 
     return pos += opt_len;
+}
+
+char *module_bgp_parse_open_optional_capability(char *pos) {
+
+    struct module_bgp_open_cap *capability;
+
+    capability = (struct module_bgp_open_cap *)pos;
+
+    fprintf(stderr, "Capability: %s (%u)\n",
+        module_bgp_capability_string(capability->cap_code),
+        capability->cap_code);
 }
 
 static const char *module_bgp_get_path_attr_type_string(uint8_t type) {
@@ -471,7 +512,18 @@ static const char *module_bgp_type_string(uint8_t type) {
         case MODULE_BGP_TYPE_UPDATE: return "update";
         case MODULE_BGP_TYPE_NOTIFICATION: return "notification";
         case MOUDLE_BGP_TYPE_KEEPALIVE: return "keepalive";
-        case MODULE_BGP_TYPE_OPEN_CONFIRM: return "open_confirm";
+        default: return "unknown";
+    }
+}
+
+static const char *module_bgp_open_parameter_string(uint8_t type) {
+
+    switch (type) {
+        case 0x00: return "Reserved";
+        case 0x01: return "Authentication";
+        case 0x02: return "Capabilities";
+        /* 3 - 254 unassigned */
+        case 0xFF: return "Extended Length";
         default: return "unknown";
     }
 }
