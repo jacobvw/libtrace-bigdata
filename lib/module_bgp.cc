@@ -1,6 +1,9 @@
 #include "module_bgp.h"
 #include <stdio.h>
 #include <unordered_map>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 /* https://tools.ietf.org/html/rfc4271#section-4 */
 
@@ -27,7 +30,8 @@
 #define MODULE_BGP_PATH_ATTR_LOCALPREF 0x05
 #define MODULE_BGP_PATH_ATTR_ATOMICAGGREGATE 0x06
 #define MODULE_BGP_PATH_ATTR_AGGREGATOR 0x07
-
+#define MODULE_BGP_PATH_ATTR_MP_REACH_NLRI 14
+#define MODULE_BGP_PATH_ATTR_MP_UNREACH_NLRI 15
 
 #define MODULE_BGP_NOTIFICATION_ERROR_HEADER 0x01
 #define MODULE_BGP_NOTIFICATION_ERROR_OPEN 0x02
@@ -80,6 +84,10 @@ int module_bgp_open_state(bd_bigdata_t *bigdata, mod_bgp_stor *storage,
     uint16_t asn, uint16_t hold_time);
 int module_bgp_update_state(bd_bigdata_t *bigdata, mod_bgp_stor *storage);
 int module_bgp_close_state(bd_bigdata_t *bigdata, mod_bgp_stor *storage);
+
+/* helper functions */
+char *module_bgp_get_ip4_prefix_string(char *pos, int octets);
+int module_bgp_calculate_ip_prefix_length(int bits);
 
 /* note: open and keepalive messages are the header (below) without any data */
 struct module_bgp_header {
@@ -141,6 +149,36 @@ struct module_bgp_notification {
     /* contains varible data field, can be determined by
     data_len = header->length - sizeof(module_bgp_header) - sizeof(module_bgp_notification) */
 } PACKED;
+
+/* MP_REACH_NLRI headers - https://tools.ietf.org/html/rfc2283 */
+struct module_bgp_mp_reach {
+    uint16_t afi; /* address family identifier */
+    uint8_t safi; /* subsequent address family identifier */
+    uint8_t nexthop_len;
+    /* contains a varible length field determined by nexthop_len */
+} PACKED;
+struct module_bgp_mp_reach_snpa {
+    uint8_t snpa_num; /* the number of snpa records to follow */
+} PACKED;
+struct module_bgp_mp_reach_snpa_record {
+    uint8_t snpa_len;
+    /* contains varible length field determined by snpa_len */
+} PACKED;
+struct module_bgp_mp_reach_nlri {
+    uint8_t nlri_len;
+    /* contains a varible length field determined by nlri_len */
+} PACKED;
+
+/* MP_UNREACH_NLRI headers - https://tools.ietf.org/html/rfc2283 */
+struct module_bgp_mp_unreach {
+    uint16_t afi;
+    uint8_t safi;
+} PACKED;
+struct module_bgp_mp_unreach_nlri {
+    uint8_t nlri_len;
+    /* contains a varible length field determined by nlri_len */
+} PACKED;
+
 
 void *module_bgp_starting(void *tls) {
 
@@ -487,6 +525,7 @@ char *module_bgp_parse_update(bd_bigdata_t *bigdata, mod_bgp_stor *storage,
     char *pos, struct module_bgp_header *bgp_header) {
 
     int counter;
+    int bytes;
 
     /* first block is withdrawn routes */
     struct module_bgp_update_withdrawn *withdrawn;
@@ -505,23 +544,20 @@ char *module_bgp_parse_update(bd_bigdata_t *bigdata, mod_bgp_stor *storage,
     while (withdrawn_len > 0) {
         w_route = (struct module_bgp_update_withdrawn_route *)pos;
 
+        /* calculate number of bytes needed to store the IP prefix */
+        bytes = module_bgp_calculate_ip_prefix_length(w_route->len);
+
         /* advance pos past the withdrawn prefix length */
         pos += sizeof(struct module_bgp_update_withdrawn_route);
 
-        fprintf(stderr, "withdrawn router length: %u\n", w_route->len);
-
-        uint16_t bytes = ((w_route->len+8-1)/8);
         fprintf(stderr, "Withdrawn prefix: ");
-        for (int i = 0; i < bytes; i++) {
-            fprintf(stderr, "%02x ", pos[i] & 0xff);
-        }
-        fprintf(stderr, "\n");
-        /* TODO convert withdrawn prefix to correct format */
+        fprintf(stderr, "%s/%u\n", module_bgp_get_ip4_prefix_string(pos, bytes),
+            w_route->len);
 
         /* reduce withdrawn length */
-        withdrawn_len -= (sizeof(struct module_bgp_update_withdrawn_route) + ((w_route->len+8-1)/8));
+        withdrawn_len -= (sizeof(struct module_bgp_update_withdrawn_route) + bytes);
         /* advance pos to the next withdrawn route or to path attribute length */
-        pos += w_route->len;
+        pos += bytes;
         counter += 1;
     }
 
@@ -564,12 +600,24 @@ char *module_bgp_parse_update(bd_bigdata_t *bigdata, mod_bgp_stor *storage,
         /* move past the current path attribute header */
         pos += sizeof(struct module_bgp_update_attribute_path);
 
-        fprintf(stderr, "Path attribute data: ");
-        for (int i = 0; i < attr_len; i++) {
-            fprintf(stderr, "%02x ", pos[i] & 0xff);
+        /* TODO decode each path attribute */
+        switch (a_path->attr_type) {
+            case MODULE_BGP_PATH_ATTR_ORIGIN:
+            case MOUDLE_BGP_PATH_ATTR_ASPATH:
+            case MODULE_BGP_PATH_ATTR_NEXTHOP:
+            case MODULE_BGP_PATH_ATTR_MULTIEXITDISC:
+            case MODULE_BGP_PATH_ATTR_LOCALPREF:
+            case MODULE_BGP_PATH_ATTR_ATOMICAGGREGATE:
+            case MODULE_BGP_PATH_ATTR_AGGREGATOR:
+            case MODULE_BGP_PATH_ATTR_MP_REACH_NLRI:
+            case MODULE_BGP_PATH_ATTR_MP_UNREACH_NLRI:
+            default:
+                fprintf(stderr, "Path attribute data: ");
+                for (int i = 0; i < attr_len; i++) {
+                    fprintf(stderr, "%02x ", pos[i] & 0xff);
+                }
+                fprintf(stderr, "\n");
         }
-        fprintf(stderr, "\n");
-        /* TODO convert this into the correct format */
 
         attribute_len -= (sizeof(struct module_bgp_update_attribute_path) + attr_len);
         pos += attr_len;
@@ -589,21 +637,18 @@ char *module_bgp_parse_update(bd_bigdata_t *bigdata, mod_bgp_stor *storage,
     while (nlri_len > 0) {
         nlri = (struct module_bgp_update_nlri *)pos;
 
-        fprintf(stderr, "nlri length %d\n", nlri->len);
+        /* calculate number of bytes needed to store the IP prefix */
+        bytes = module_bgp_calculate_ip_prefix_length(nlri->len);
 
         /* move forward to the varible length data */
         pos += sizeof(struct module_bgp_update_nlri);
 
-        uint16_t bytes = ((nlri->len+8-1)/8);
         fprintf(stderr, "NLRI data: ");
-        for (int i = 0; i < bytes; i++) {
-            fprintf(stderr, "%02x ", pos[i] & 0xff);
-        }
-        fprintf(stderr, "\n");
-        /* TODO convert this into the correct format */
+        fprintf(stderr, "%s/%u\n", module_bgp_get_ip4_prefix_string(pos, bytes),
+            nlri->len);
 
-        nlri_len -= (sizeof(struct module_bgp_update_nlri) + ((nlri->len+8-1)/8));
-        pos += ((nlri->len+8-1)/8);
+        nlri_len -= (sizeof(struct module_bgp_update_nlri) + bytes);
+        pos += bytes;
         counter += 1;
     }
 
@@ -715,6 +760,19 @@ char *module_bgp_parse_open_optional_capability(char *pos) {
         capability->cap_code);
 }
 
+int module_bgp_calculate_ip_prefix_length(int bits) {
+    return ((bits + 8 - 1) / 8);
+}
+
+char *module_bgp_get_ip4_prefix_string(char *pos, int octets) {
+
+    struct in_addr ip4;
+    ip4.s_addr = 0;
+    memcpy(&ip4.s_addr, pos, octets);
+
+    return inet_ntoa(ip4);
+}
+
 static const char *module_bgp_get_path_attr_type_string(uint8_t type) {
 
     switch (type) {
@@ -725,6 +783,8 @@ static const char *module_bgp_get_path_attr_type_string(uint8_t type) {
         case MODULE_BGP_PATH_ATTR_LOCALPREF: return "LOCAL_PREF";
         case MODULE_BGP_PATH_ATTR_ATOMICAGGREGATE: return "ATOMIC_AGGREGATE";
         case MODULE_BGP_PATH_ATTR_AGGREGATOR: return "AGGREGATOR";
+        case MODULE_BGP_PATH_ATTR_MP_REACH_NLRI: return "MP_REACH_NLRI";
+        case MODULE_BGP_PATH_ATTR_MP_UNREACH_NLRI: return "MP_UNREACH_NLRI";
         default: return "UNKNOWN";
     }
 }
