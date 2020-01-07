@@ -510,8 +510,9 @@ char *module_bgp_parse_update(bd_bigdata_t *bigdata, mod_bgp_stor *storage,
 
         fprintf(stderr, "withdrawn router length: %u\n", w_route->len);
 
+        uint16_t bytes = ((w_route->len+8-1)/8);
         fprintf(stderr, "Withdrawn prefix: ");
-        for (int i = 0; i < w_route->len; i++) {
+        for (int i = 0; i < bytes; i++) {
             fprintf(stderr, "%02x ", pos[i] & 0xff);
         }
         fprintf(stderr, "\n");
@@ -533,7 +534,6 @@ char *module_bgp_parse_update(bd_bigdata_t *bigdata, mod_bgp_stor *storage,
 
     attribute = (struct module_bgp_update_attribute *)pos;
 
-    //bd_result_set_insert_int(result, "path_attribute_length", ntohs(attribute->attribute_len));
     fprintf(stderr, "path attributes length: %u\n", ntohs(attribute->attribute_len));
 
     /* advance pos over attribute len */
@@ -589,7 +589,7 @@ char *module_bgp_parse_update(bd_bigdata_t *bigdata, mod_bgp_stor *storage,
     while (nlri_len > 0) {
         nlri = (struct module_bgp_update_nlri *)pos;
 
-        fprintf(stderr, "nlri length %d\n", counter);
+        fprintf(stderr, "nlri length %d\n", nlri->len);
 
         /* move forward to the varible length data */
         pos += sizeof(struct module_bgp_update_nlri);
@@ -603,7 +603,7 @@ char *module_bgp_parse_update(bd_bigdata_t *bigdata, mod_bgp_stor *storage,
         /* TODO convert this into the correct format */
 
         nlri_len -= (sizeof(struct module_bgp_update_nlri) + ((nlri->len+8-1)/8));
-        pos += nlri->len;
+        pos += ((nlri->len+8-1)/8);
         counter += 1;
     }
 
