@@ -72,12 +72,12 @@ static const char *module_bgp_notification_subcode_error_string(uint8_t error,
     uint8_t subcode);
 
 /* functions to parse each of the BGP message types */
-char *module_bgp_parse_open(bd_bigdata_t *bigdata, mod_bgp_stor *storage,
+int module_bgp_parse_open(bd_bigdata_t *bigdata, mod_bgp_stor *storage,
     char *pos, struct module_bgp_header *bgp_header);
-char *module_bgp_parse_open_optional_capability(char *pos);
-char *module_bgp_parse_update(bd_bigdata_t *bigdata, mod_bgp_stor *storage,
+int module_bgp_parse_open_optional_capability(char *pos);
+int module_bgp_parse_update(bd_bigdata_t *bigdata, mod_bgp_stor *storage,
     char *pos, struct module_bgp_header *bgp_header);
-char *module_bgp_parse_notification(char *pos, struct module_bgp_header *header);
+int module_bgp_parse_notification(char *pos, struct module_bgp_header *header);
 
 /* functions to update to stored state for each BGP session */
 int module_bgp_open_state(bd_bigdata_t *bigdata, mod_bgp_stor *storage,
@@ -241,7 +241,7 @@ int module_bgp_packet(bd_bigdata_t *bigdata, void *mls) {
     pos = payload;
 
     /* a single BGP packet can contain multiple messages */
-    while ((payload + remaining) > pos) {
+    while (remaining > 0) {
 
         bgp_header = (struct module_bgp_header *)pos;
 
@@ -257,27 +257,33 @@ int module_bgp_packet(bd_bigdata_t *bigdata, void *mls) {
         fprintf(stderr, "length %u\n", ntohs(bgp_header->length));
 
         /* advance pos past the BGP header */
-        pos = (payload + sizeof(struct module_bgp_header));
+        pos += sizeof(struct module_bgp_header);
 
         /* parse the correct BGP message type */
         switch (bgp_header->type) {
             case MODULE_BGP_TYPE_OPEN:
-                pos = module_bgp_parse_open(bigdata, (mod_bgp_stor *)mls, pos, bgp_header);
+                module_bgp_parse_open(bigdata, (mod_bgp_stor *)mls, pos, bgp_header);
                 break;
             case MODULE_BGP_TYPE_UPDATE:
-                pos = module_bgp_parse_update(bigdata, (mod_bgp_stor *)mls,
+                module_bgp_parse_update(bigdata, (mod_bgp_stor *)mls,
                     pos, bgp_header);
                 module_bgp_update_state(bigdata, (mod_bgp_stor *)mls);
                 break;
             case MODULE_BGP_TYPE_NOTIFICATION:
-                pos = module_bgp_parse_notification(pos, bgp_header);
+                module_bgp_parse_notification(pos, bgp_header);
                 module_bgp_close_state(bigdata, (mod_bgp_stor *)mls);
                 break;
             case MOUDLE_BGP_TYPE_KEEPALIVE:
                 module_bgp_update_state(bigdata, (mod_bgp_stor *)mls);
+                break;
             default:
                 break;
         }
+
+        /* reduce the remaining payload */
+        remaining -= ntohs(bgp_header->length);
+        /* advance position to the next message */
+        pos += ntohs(bgp_header->length) - sizeof(struct module_bgp_header);
     }
 
     fprintf(stderr, "\n");
@@ -521,7 +527,7 @@ int module_bgp_init(bd_bigdata_t *bigdata) {
     return 0;
 }
 
-char *module_bgp_parse_update(bd_bigdata_t *bigdata, mod_bgp_stor *storage,
+int module_bgp_parse_update(bd_bigdata_t *bigdata, mod_bgp_stor *storage,
     char *pos, struct module_bgp_header *bgp_header) {
 
     int counter;
@@ -652,10 +658,9 @@ char *module_bgp_parse_update(bd_bigdata_t *bigdata, mod_bgp_stor *storage,
         counter += 1;
     }
 
-    return pos;
 }
 
-char *module_bgp_parse_open(bd_bigdata_t *bigdata, mod_bgp_stor *storage, char *pos,
+int module_bgp_parse_open(bd_bigdata_t *bigdata, mod_bgp_stor *storage, char *pos,
     struct module_bgp_header *bgp_header) {
 
     uint8_t opt_len;
@@ -716,11 +721,9 @@ char *module_bgp_parse_open(bd_bigdata_t *bigdata, mod_bgp_stor *storage, char *
         opt_len -= sizeof(struct module_bgp_open_opt) + opt->param_len;
         counter += 1;
     }
-
-    return pos;
 }
 
-char *module_bgp_parse_notification(char *pos, struct module_bgp_header *header) {
+int module_bgp_parse_notification(char *pos, struct module_bgp_header *header) {
 
     struct module_bgp_notification *notification;
     uint16_t opt_len;
@@ -746,10 +749,9 @@ char *module_bgp_parse_notification(char *pos, struct module_bgp_header *header)
     }
     fprintf(stderr, "\n");
 
-    return pos += opt_len;
 }
 
-char *module_bgp_parse_open_optional_capability(char *pos) {
+int module_bgp_parse_open_optional_capability(char *pos) {
 
     struct module_bgp_open_cap *capability;
 
