@@ -94,6 +94,13 @@ foreach:
     # how often to check for timed out requests with no response (seconds)
     timeout_check: 20
 
+  # BGP module
+  bgp:
+    enabled: 0
+    # how often to check for timed out BGP sessions (absence of update/keep alive messages
+    # for the hold time (seconds).
+    timeout_check: 20
+
 # filtering modules
 filter:
   # The maxmind plugin will insert latitude and longitude coordinates for each

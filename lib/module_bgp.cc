@@ -39,6 +39,7 @@
 struct module_bgp_conf {
     bd_cb_set *callbacks;
     bool enabled;
+    int timeout_check;
 };
 static struct module_bgp_conf *config;
 
@@ -75,9 +76,10 @@ char *module_bgp_parse_update(bd_bigdata_t *bigdata, mod_bgp_stor *storage,
 char *module_bgp_parse_notification(char *pos, struct module_bgp_header *header);
 
 /* functions to update to stored state for each BGP session */
-int module_bgp_update_open_state(bd_bigdata_t *bigdata, mod_bgp_stor *storage,
+int module_bgp_open_state(bd_bigdata_t *bigdata, mod_bgp_stor *storage,
     uint16_t asn, uint16_t hold_time);
 int module_bgp_update_state(bd_bigdata_t *bigdata, mod_bgp_stor *storage);
+int module_bgp_close_state(bd_bigdata_t *bigdata, mod_bgp_stor *storage);
 
 /* note: open and keepalive messages are the header (below) without any data */
 struct module_bgp_header {
@@ -227,9 +229,11 @@ int module_bgp_packet(bd_bigdata_t *bigdata, void *mls) {
             case MODULE_BGP_TYPE_UPDATE:
                 pos = module_bgp_parse_update(bigdata, (mod_bgp_stor *)mls,
                     pos, bgp_header);
+                module_bgp_update_state(bigdata, (mod_bgp_stor *)mls);
                 break;
             case MODULE_BGP_TYPE_NOTIFICATION:
                 pos = module_bgp_parse_notification(pos, bgp_header);
+                module_bgp_close_state(bigdata, (mod_bgp_stor *)mls);
                 break;
             case MOUDLE_BGP_TYPE_KEEPALIVE:
                 module_bgp_update_state(bigdata, (mod_bgp_stor *)mls);
@@ -243,26 +247,40 @@ int module_bgp_packet(bd_bigdata_t *bigdata, void *mls) {
 
 int module_bgp_tick(bd_bigdata_t *bigdata, void *mls, uint64_t tick) {
 
+    bd_result_set_t *res;
     mod_bgp_sess sess;
     mod_bgp_stor *storage = (mod_bgp_stor *)mls;
 
     std::unordered_map<uint64_t, mod_bgp_sess>::iterator it;
     for (it = storage->bgp_sessions->begin(); it !=
-        storage->bgp_sessions->end(); it++) {
+        storage->bgp_sessions->end(); ) {
 
         sess = it->second;
 
-        if (tick > (sess.src_last_update + sess.src_hold_time)) {
-            /* BGP timeout */
-        }
+        if ((tick > (sess.src_last_update + sess.src_hold_time)) ||
+           (tick > (sess.dst_last_update + sess.dst_hold_time))) {
 
-        if (tick > (sess.dst_last_update + sess.dst_hold_time)) {
             /* BGP timeout */
+
+            res = bd_result_set_create(bigdata, "bgp");
+            bd_result_set_insert_tag(res, "type", "session_timeout");
+
+            bd_result_set_insert_uint(res, "source_asn", sess.src_asn);
+            bd_result_set_insert_uint(res, "destination_asn", sess.dst_asn);
+            bd_result_set_insert_uint(res, "source_hold_time", sess.src_hold_time);
+            bd_result_set_insert_uint(res, "destination_hold_time", sess.dst_hold_time);
+
+            bd_result_set_insert_timestamp(res, tick);
+            bd_result_set_publish(bigdata, res, 0);
+
+            storage->bgp_sessions->erase(it++);
+        } else {
+            ++it;
         }
     }
 }
 
-int module_bgp_update_open_state(bd_bigdata_t *bigdata, mod_bgp_stor *storage,
+int module_bgp_open_state(bd_bigdata_t *bigdata, mod_bgp_stor *storage,
     uint16_t asn, uint16_t hold_time) {
 
     mod_bgp_sess sess;
@@ -283,6 +301,8 @@ int module_bgp_update_open_state(bd_bigdata_t *bigdata, mod_bgp_stor *storage,
         sess.dst_asn = asn;
         sess.dst_hold_time = hold_time;
 
+        /* update the map */
+        it->second = sess;
 
         /* should have a BGP sessions between 2 ases now. generate result */
         res = bd_result_set_create(bigdata, "bgp");
@@ -334,11 +354,51 @@ int module_bgp_update_state(bd_bigdata_t *bigdata, mod_bgp_stor *storage) {
             sess.dst_last_update = trace_get_seconds(bigdata->packet);
         }
 
+        /* update the map */
         it->second = sess;
 
     } else {
         /* something is wrong here. got a bgp keepalive for a unknown bgp
          * sessions? */
+        fprintf(stderr, "Got BGP keepalive message for unknown BGP session\n");
+    }
+}
+
+int module_bgp_close_state(bd_bigdata_t *bigdata, mod_bgp_stor *storage) {
+
+    mod_bgp_sess sess;
+    bd_result_set_t *res;
+    struct timeval tv;
+    /* get the flow id */
+    uint64_t flow_id = bd_flow_get_id(bigdata->flow);
+
+    /* search the bgp session map for this flow */
+    std::unordered_map<uint64_t, mod_bgp_sess>::iterator it;
+    it = storage->bgp_sessions->find(flow_id);
+
+    /* if we have state stored for this bgp session update it */
+    if (it != storage->bgp_sessions->end()) {
+
+        sess = it->second;
+
+        res = bd_result_set_create(bigdata, "bgp");
+        bd_result_set_insert_tag(res, "type", "session_close");
+
+        bd_result_set_insert_uint(res, "source_asn", sess.src_asn);
+        bd_result_set_insert_uint(res, "destination_asn", sess.dst_asn);
+        bd_result_set_insert_uint(res, "source_hold_time", sess.src_hold_time);
+        bd_result_set_insert_uint(res, "destination_hold_time", sess.dst_hold_time);
+
+        tv = trace_get_timeval(bigdata->packet);
+        bd_result_set_insert_timestamp(res, tv.tv_sec);
+        bd_result_set_publish(bigdata, res, 0);
+
+        /* remove session state for this BGP session */
+        storage->bgp_sessions->erase(it);
+
+    } else {
+        /* should never enter this */
+        fprintf(stderr, "Got BGP notification message for unknown BGP session\n");
     }
 }
 
@@ -371,6 +431,16 @@ int module_bgp_config(yaml_parser_t *parser, yaml_event_t *event, int *level) {
                     }
                     break;
                 }
+                if (strcmp((char *)event->data.scalar.value, "timeout_check") == 0) {
+                    consume_event(parser, event, level);
+                    config->timeout_check = atoi((char *)event->data.scalar.value);
+                    if (config->timeout_check == 0) {
+                        fprintf(stderr, "Invalid timeout_check value. "
+                            "module_bgp. setting to default 20 seconds\n");
+                        config->timeout_check = 20;
+                    }
+                    break;
+                }
                 consume_event(parser, event, level);
                 break;
             default:
@@ -387,9 +457,9 @@ int module_bgp_config(yaml_parser_t *parser, yaml_event_t *event, int *level) {
         bd_register_stop_event(config->callbacks, (cb_stop)module_bgp_stopping);
 
         config->callbacks->tick_cb = (cb_tick)module_bgp_tick;
-        bd_add_tickrate_to_cb_set(config->callbacks, 10);
+        bd_add_tickrate_to_cb_set(config->callbacks, config->timeout_check);
 
-        fprintf(stderr, "BGP plugin enabled\n");
+        fprintf(stderr, "BGP Plugin Enabled\n");
     }
 }
 
@@ -404,6 +474,7 @@ int module_bgp_init(bd_bigdata_t *bigdata) {
 
     config->callbacks = bd_create_cb_set("bgp");
     config->enabled = 0;
+    config->timeout_check = 20;
 
     bd_register_config_event(config->callbacks, (cb_config)module_bgp_config);
 
@@ -551,7 +622,7 @@ char *module_bgp_parse_open(bd_bigdata_t *bigdata, mod_bgp_stor *storage, char *
 
     open = (struct module_bgp_open *)pos;
 
-    module_bgp_update_open_state(bigdata, storage,
+    module_bgp_open_state(bigdata, storage,
         ntohs(open->autonomous_system), ntohs(open->hold_time));
 
     fprintf(stderr, "BGP open message\n");
