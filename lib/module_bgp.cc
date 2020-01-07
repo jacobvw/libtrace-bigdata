@@ -1,5 +1,6 @@
 #include "module_bgp.h"
 #include <stdio.h>
+#include <unordered_map>
 
 /* https://tools.ietf.org/html/rfc4271#section-4 */
 
@@ -35,6 +36,28 @@
 #define MODULE_BGP_NOTIFICATION_ERROR_FINITE 0x05
 #define MODULE_BGP_NOTIFICATION_ERROR_CEASE 0x06
 
+struct module_bgp_conf {
+    bd_cb_set *callbacks;
+    bool enabled;
+};
+static struct module_bgp_conf *config;
+
+typedef struct module_bgp_session {
+    uint16_t src_asn;
+    uint16_t dst_asn;
+    uint16_t src_hold_time;
+    uint16_t dst_hold_time;
+    double src_last_update;
+    double dst_last_update;
+} mod_bgp_sess;
+
+typedef struct module_bgp_storage {
+    /* map holding state of each bgp session. Identified by the flow ID */
+    std::unordered_map<uint64_t, mod_bgp_sess> *bgp_sessions;
+} mod_bgp_stor;
+
+/* functions to covert different BGP type codes to their string
+ * representations. */
 static const char *module_bgp_get_path_attr_type_string(uint8_t type);
 static const char *module_bgp_type_string(uint8_t type);
 static const char *module_bgp_open_parameter_string(uint8_t type);
@@ -43,19 +66,18 @@ static const char *module_bgp_notification_error_string(uint8_t type);
 static const char *module_bgp_notification_subcode_error_string(uint8_t error,
     uint8_t subcode);
 
-
-char *module_bgp_parse_open(char *pos);
+/* functions to parse each of the BGP message types */
+char *module_bgp_parse_open(bd_bigdata_t *bigdata, mod_bgp_stor *storage,
+    char *pos, struct module_bgp_header *bgp_header);
 char *module_bgp_parse_open_optional_capability(char *pos);
-
-char *module_bgp_parse_update(char *pos, struct module_bgp_header *bgp_header);
-
+char *module_bgp_parse_update(bd_bigdata_t *bigdata, mod_bgp_stor *storage,
+    char *pos, struct module_bgp_header *bgp_header);
 char *module_bgp_parse_notification(char *pos, struct module_bgp_header *header);
 
-struct module_bgp_conf {
-    bd_cb_set *callbacks;
-    bool enabled;
-};
-static struct module_bgp_conf *config;
+/* functions to update to stored state for each BGP session */
+int module_bgp_update_open_state(bd_bigdata_t *bigdata, mod_bgp_stor *storage,
+    uint16_t asn, uint16_t hold_time);
+int module_bgp_update_state(bd_bigdata_t *bigdata, mod_bgp_stor *storage);
 
 /* note: open and keepalive messages are the header (below) without any data */
 struct module_bgp_header {
@@ -100,13 +122,9 @@ struct module_bgp_update_attribute {
 struct module_bgp_update_attribute_path {
     uint8_t attr_flags;
     uint8_t attr_type;
+    /* it is posible for this field to be 2 octets long. If this
+     * is the case a flag is set indicating it */
     uint8_t len;
-    /* varible prefix field here. length depends on above len*/
-} PACKED;
-struct module_bgp_update_attribute_path2 {
-    uint8_t attr_flags;
-    uint8_t attr_type;
-    uint16_t len;
     /* varible prefix field here. length depends on above len*/
 } PACKED;
 struct module_bgp_update_nlri {
@@ -122,6 +140,20 @@ struct module_bgp_notification {
     data_len = header->length - sizeof(module_bgp_header) - sizeof(module_bgp_notification) */
 } PACKED;
 
+void *module_bgp_starting(void *tls) {
+
+    mod_bgp_stor *storage = (mod_bgp_stor *)malloc(sizeof(
+        mod_bgp_stor));
+    if (storage == NULL) {
+        fprintf(stderr, "Unable to allocate memory. func. "
+            "module_bgp_starting()\n");
+        exit(BD_OUTOFMEMORY);
+    }
+
+    storage->bgp_sessions = new std::unordered_map<uint64_t, mod_bgp_sess>;
+
+    return storage;
+}
 
 int module_bgp_packet(bd_bigdata_t *bigdata, void *mls) {
 
@@ -190,22 +222,133 @@ int module_bgp_packet(bd_bigdata_t *bigdata, void *mls) {
         /* parse the correct BGP message type */
         switch (bgp_header->type) {
             case MODULE_BGP_TYPE_OPEN:
-                pos = module_bgp_parse_open(pos);
+                pos = module_bgp_parse_open(bigdata, (mod_bgp_stor *)mls, pos, bgp_header);
                 break;
             case MODULE_BGP_TYPE_UPDATE:
-                pos = module_bgp_parse_update(pos, bgp_header);
+                pos = module_bgp_parse_update(bigdata, (mod_bgp_stor *)mls,
+                    pos, bgp_header);
                 break;
             case MODULE_BGP_TYPE_NOTIFICATION:
                 pos = module_bgp_parse_notification(pos, bgp_header);
                 break;
             case MOUDLE_BGP_TYPE_KEEPALIVE:
-
+                module_bgp_update_state(bigdata, (mod_bgp_stor *)mls);
             default:
                 break;
         }
     }
 
     fprintf(stderr, "\n");
+}
+
+int module_bgp_tick(bd_bigdata_t *bigdata, void *mls, uint64_t tick) {
+
+    mod_bgp_sess sess;
+    mod_bgp_stor *storage = (mod_bgp_stor *)mls;
+
+    std::unordered_map<uint64_t, mod_bgp_sess>::iterator it;
+    for (it = storage->bgp_sessions->begin(); it !=
+        storage->bgp_sessions->end(); it++) {
+
+        sess = it->second;
+
+        if (tick > (sess.src_last_update + sess.src_hold_time)) {
+            /* BGP timeout */
+        }
+
+        if (tick > (sess.dst_last_update + sess.dst_hold_time)) {
+            /* BGP timeout */
+        }
+    }
+}
+
+int module_bgp_update_open_state(bd_bigdata_t *bigdata, mod_bgp_stor *storage,
+    uint16_t asn, uint16_t hold_time) {
+
+    mod_bgp_sess sess;
+    bd_result_set_t *res;
+    struct timeval tv;
+
+    /* get the flow id */
+    uint64_t flow_id = bd_flow_get_id(bigdata->flow);
+
+    /* search the bgp session map for this flow */
+    std::unordered_map<uint64_t, mod_bgp_sess>::iterator it;
+    it = storage->bgp_sessions->find(flow_id);
+
+    /* if we have state stored for this bgp session update it */
+    if (it != storage->bgp_sessions->end()) {
+        sess = it->second;
+
+        sess.dst_asn = asn;
+        sess.dst_hold_time = hold_time;
+
+
+        /* should have a BGP sessions between 2 ases now. generate result */
+        res = bd_result_set_create(bigdata, "bgp");
+        bd_result_set_insert_tag(res, "type", "session_start");
+
+        bd_result_set_insert_uint(res, "source_asn", sess.src_asn);
+        bd_result_set_insert_uint(res, "destination_asn", sess.dst_asn);
+        bd_result_set_insert_uint(res, "source_hold_time", sess.src_hold_time);
+        bd_result_set_insert_uint(res, "destination_hold_time", sess.dst_hold_time);
+
+        tv = trace_get_timeval(bigdata->packet);
+        bd_result_set_insert_timestamp(res, tv.tv_sec);
+
+        bd_result_set_publish(bigdata, res, 0);
+
+    /* else create state for the BGP session */
+    } else {
+
+        sess.src_asn = asn;
+        sess.src_hold_time = hold_time;
+        sess.dst_asn = 0;
+        sess.dst_hold_time = 0;
+
+        /* insert into session map */
+        storage->bgp_sessions->insert({flow_id, sess});
+    }
+}
+
+int module_bgp_update_state(bd_bigdata_t *bigdata, mod_bgp_stor *storage) {
+
+    mod_bgp_sess sess;
+    /* get the flow id */
+    uint64_t flow_id = bd_flow_get_id(bigdata->flow);
+    int dir = bd_get_packet_direction(bigdata);
+
+    /* search the bgp session map for this flow */
+    std::unordered_map<uint64_t, mod_bgp_sess>::iterator it;
+    it = storage->bgp_sessions->find(flow_id);
+
+    /* if we have state stored for this bgp session update it */
+    if (it != storage->bgp_sessions->end()) {
+        sess = it->second;
+
+        /* if dir = 0 packet is outbound meaning the src needs to be
+           updated */
+        if (dir == 0) {
+            sess.src_last_update = trace_get_seconds(bigdata->packet);
+        } else if (dir == 1) {
+            sess.dst_last_update = trace_get_seconds(bigdata->packet);
+        }
+
+        it->second = sess;
+
+    } else {
+        /* something is wrong here. got a bgp keepalive for a unknown bgp
+         * sessions? */
+    }
+}
+
+int module_bgp_stopping(void *tls, void *mls) {
+
+    mod_bgp_stor *storage = (mod_bgp_stor *)mls;
+
+    delete(storage->bgp_sessions);
+
+    free(storage);
 }
 
 int module_bgp_config(yaml_parser_t *parser, yaml_event_t *event, int *level) {
@@ -238,8 +381,13 @@ int module_bgp_config(yaml_parser_t *parser, yaml_event_t *event, int *level) {
 
     if (config->enabled) {
 
+        bd_register_start_event(config->callbacks, (cb_start)module_bgp_starting);
         bd_register_packet_event(config->callbacks, (cb_packet)module_bgp_packet);
         bd_add_filter_to_cb_set(config->callbacks, "port 179");
+        bd_register_stop_event(config->callbacks, (cb_stop)module_bgp_stopping);
+
+        config->callbacks->tick_cb = (cb_tick)module_bgp_tick;
+        bd_add_tickrate_to_cb_set(config->callbacks, 10);
 
         fprintf(stderr, "BGP plugin enabled\n");
     }
@@ -264,7 +412,8 @@ int module_bgp_init(bd_bigdata_t *bigdata) {
     return 0;
 }
 
-char *module_bgp_parse_update(char *pos, struct module_bgp_header *bgp_header) {
+char *module_bgp_parse_update(bd_bigdata_t *bigdata, mod_bgp_stor *storage,
+    char *pos, struct module_bgp_header *bgp_header) {
 
     int counter;
 
@@ -390,7 +539,8 @@ char *module_bgp_parse_update(char *pos, struct module_bgp_header *bgp_header) {
     return pos;
 }
 
-char *module_bgp_parse_open(char *pos) {
+char *module_bgp_parse_open(bd_bigdata_t *bigdata, mod_bgp_stor *storage, char *pos,
+    struct module_bgp_header *bgp_header) {
 
     uint8_t opt_len;
     uint32_t ident;
@@ -400,6 +550,9 @@ char *module_bgp_parse_open(char *pos) {
     char buf[100];
 
     open = (struct module_bgp_open *)pos;
+
+    module_bgp_update_open_state(bigdata, storage,
+        ntohs(open->autonomous_system), ntohs(open->hold_time));
 
     fprintf(stderr, "BGP open message\n");
     fprintf(stderr, "version %u\n", open->version);
