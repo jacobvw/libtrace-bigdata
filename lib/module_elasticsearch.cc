@@ -128,6 +128,10 @@ static int module_elasticsearch_export(bd_bigdata_t *bigdata, mod_elastic_opts_t
             fprintf(stderr, "DEBUG 1: Elasticsearch is online.\n");
         }
 
+        if (bigdata->global->config->debug > 2) {
+            fprintf(stderr, "DEBUG 3: Elasticsearch executed %s\n", result);
+        }
+
         opts->elastic_online = 1;
 
         return 0;
