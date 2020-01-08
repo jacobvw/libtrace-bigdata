@@ -1,8 +1,6 @@
 #include "module_bgp.h"
 #include <stdio.h>
 #include <unordered_map>
-#include <sys/socket.h>
-#include <netinet/in.h>
 #include <arpa/inet.h>
 
 /* https://tools.ietf.org/html/rfc4271#section-4 */
@@ -305,7 +303,6 @@ int module_bgp_packet(bd_bigdata_t *bigdata, void *mls) {
          * generated for a message type there is no point in parsing it. */
         switch (bgp_header->type) {
             case MODULE_BGP_TYPE_OPEN:
-                fprintf(stderr, "open pkt\n");
                 /* create structure to hold decoded open message */
                 mod_bgp_msg_open open;
 
@@ -319,7 +316,6 @@ int module_bgp_packet(bd_bigdata_t *bigdata, void *mls) {
 
                 break;
             case MODULE_BGP_TYPE_UPDATE:
-                fprintf(stderr, "update pkt\n");
                 /* create structure to hold decoded update message */
                 mod_bgp_msg_update update;
 
@@ -333,7 +329,6 @@ int module_bgp_packet(bd_bigdata_t *bigdata, void *mls) {
 
                 break;
             case MODULE_BGP_TYPE_NOTIFICATION:
-                fprintf(stderr, "notification pkt\n");
                 /* create structure to hold notification update message */
                 mod_bgp_msg_notif notification;
 
@@ -346,7 +341,6 @@ int module_bgp_packet(bd_bigdata_t *bigdata, void *mls) {
 
                 break;
             case MOUDLE_BGP_TYPE_KEEPALIVE:
-                fprintf(stderr, "keepalive pkt\n");
                 /* keepalive messages only contain the BGP header. so just
                  * update any state held for the BGP session */
                 module_bgp_update_state(bigdata, (mod_bgp_stor *)mls, NULL);
