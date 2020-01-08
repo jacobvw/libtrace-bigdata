@@ -62,7 +62,8 @@ typedef struct module_bgp_session {
     uint16_t dst_hold_time;
     double src_last_update;
     double dst_last_update;
-
+    uint32_t src_identifier;
+    uint32_t dst_identifier;
     bool session_active;
 } mod_bgp_sess;
 
@@ -226,6 +227,8 @@ int module_bgp_close_state(bd_bigdata_t *bigdata, mod_bgp_stor *storage,
     mod_bgp_msg_notif *notification);
 
 /* helper functions */
+int module_bgp_generate_result(bd_bigdata_t *bigdata, mod_bgp_sess sess,
+    const char *type);
 char *module_bgp_get_ip4_prefix_string(char *pos, int octets);
 int module_bgp_calculate_ip_prefix_length(int bits);
 
@@ -251,9 +254,6 @@ int module_bgp_packet(bd_bigdata_t *bigdata, void *mls) {
     uint8_t proto;
     uint16_t ethertype;
     uint32_t remaining;
-    char src_ip[INET6_ADDRSTRLEN];
-    char dst_ip[INET6_ADDRSTRLEN];
-    char *source_ip, *destination_ip;
     struct module_bgp_header *bgp_header;
 
     payload = NULL;
@@ -275,10 +275,6 @@ int module_bgp_packet(bd_bigdata_t *bigdata, void *mls) {
     if (payload == NULL) {
         return 0;
     }
-
-    /* get source/destination IPs */
-    source_ip = trace_get_source_address_string(bigdata->packet, src_ip, INET6_ADDRSTRLEN);
-    destination_ip = trace_get_destination_address_string(bigdata->packet, dst_ip, INET6_ADDRSTRLEN);
 
     payload = (char *)trace_get_payload_from_tcp((libtrace_tcp_t *)payload, &remaining);
 
@@ -309,6 +305,7 @@ int module_bgp_packet(bd_bigdata_t *bigdata, void *mls) {
          * generated for a message type there is no point in parsing it. */
         switch (bgp_header->type) {
             case MODULE_BGP_TYPE_OPEN:
+                fprintf(stderr, "open pkt\n");
                 /* create structure to hold decoded open message */
                 mod_bgp_msg_open open;
 
@@ -322,6 +319,7 @@ int module_bgp_packet(bd_bigdata_t *bigdata, void *mls) {
 
                 break;
             case MODULE_BGP_TYPE_UPDATE:
+                fprintf(stderr, "update pkt\n");
                 /* create structure to hold decoded update message */
                 mod_bgp_msg_update update;
 
@@ -335,6 +333,7 @@ int module_bgp_packet(bd_bigdata_t *bigdata, void *mls) {
 
                 break;
             case MODULE_BGP_TYPE_NOTIFICATION:
+                fprintf(stderr, "notification pkt\n");
                 /* create structure to hold notification update message */
                 mod_bgp_msg_notif notification;
 
@@ -347,9 +346,10 @@ int module_bgp_packet(bd_bigdata_t *bigdata, void *mls) {
 
                 break;
             case MOUDLE_BGP_TYPE_KEEPALIVE:
+                fprintf(stderr, "keepalive pkt\n");
                 /* keepalive messages only contain the BGP header. so just
                  * update any state held for the BGP session */
-                //module_bgp_keepalive_state(bigdata, (mod_bgp_stor *)mls);
+                module_bgp_update_state(bigdata, (mod_bgp_stor *)mls, NULL);
 
                 break;
             default:
@@ -365,7 +365,6 @@ int module_bgp_packet(bd_bigdata_t *bigdata, void *mls) {
 
 int module_bgp_tick(bd_bigdata_t *bigdata, void *mls, uint64_t tick) {
 
-    bd_result_set_t *res;
     mod_bgp_sess sess;
     mod_bgp_stor *storage = (mod_bgp_stor *)mls;
 
@@ -375,29 +374,23 @@ int module_bgp_tick(bd_bigdata_t *bigdata, void *mls, uint64_t tick) {
 
         sess = it->second;
 
+        /* if the hold time for either the source or destination have
+         * passed then BGP should have timed out the session. */
         if ((tick > (sess.src_last_update + sess.src_hold_time)) ||
            (tick > (sess.dst_last_update + sess.dst_hold_time))) {
 
-            /* BGP timeout */
+            /* BGP hold timeout */
 
-            res = bd_result_set_create(bigdata, "bgp");
-            bd_result_set_insert_tag(res, "type", "session_timeout");
+            /* Only create a result if this session was active */
+            if (sess.session_active) {
 
-            bd_result_set_insert_uint(res, "source_asn", sess.src_asn);
-            bd_result_set_insert_uint(res, "destination_asn", sess.dst_asn);
-            bd_result_set_insert_uint(res, "source_hold_time", sess.src_hold_time);
-            bd_result_set_insert_uint(res, "destination_hold_time", sess.dst_hold_time);
+               module_bgp_generate_result(bigdata, sess, "session_timeout");
+            }
 
-            bd_result_set_insert_timestamp(res, tick);
-            bd_result_set_publish(bigdata, res, 0);
-
+            /* remove result from the map */
             storage->bgp_sessions->erase(it++);
 
-            fprintf(stderr, "BGP session timeout\n");
         } else {
-
-            fprintf(stderr, "BGP tick, ID: %lu, src %u, dst %u\n",
-                sess.flow_id, sess.src_asn, sess.dst_asn);
             ++it;
         }
     }
@@ -407,13 +400,11 @@ int module_bgp_open_state(bd_bigdata_t *bigdata, mod_bgp_stor *storage,
     mod_bgp_msg_open *open) {
 
     mod_bgp_sess sess;
-    bd_result_set_t *res;
-    struct timeval tv;
 
     /* get the flow id */
     uint64_t flow_id = bd_flow_get_id(bigdata->flow);
 
-    /* search the bgp session map for this flow */
+    /* search the bgp session map for this flow id */
     std::unordered_map<uint64_t, mod_bgp_sess>::iterator it;
     it = storage->bgp_sessions->find(flow_id);
 
@@ -421,43 +412,36 @@ int module_bgp_open_state(bd_bigdata_t *bigdata, mod_bgp_stor *storage,
     if (it != storage->bgp_sessions->end()) {
         sess = it->second;
 
+        /* If session is already active ignore repeated open messages */
+        if (sess.session_active) {
+            return 0;
+        }
+
         sess.flow_id = flow_id;
         sess.dst_asn = open->asn;
         sess.dst_hold_time = open->hold_time;
+        sess.dst_identifier = open->identifier;
         sess.session_active = 1;
 
         /* update the map */
         it->second = sess;
 
         /* should have a BGP sessions between 2 ases now. generate result */
-        res = bd_result_set_create(bigdata, "bgp");
-        bd_result_set_insert_tag(res, "type", "session_start");
-
-        bd_result_set_insert_uint(res, "source_asn", sess.src_asn);
-        bd_result_set_insert_uint(res, "destination_asn", sess.dst_asn);
-        bd_result_set_insert_uint(res, "source_hold_time", sess.src_hold_time);
-        bd_result_set_insert_uint(res, "destination_hold_time", sess.dst_hold_time);
-
-        tv = trace_get_timeval(bigdata->packet);
-        bd_result_set_insert_timestamp(res, tv.tv_sec);
-
-        bd_result_set_publish(bigdata, res, 0);
-
-        fprintf(stderr, "BGP sessions started %lu src %u, dst %u\n", flow_id, sess.src_asn, sess.dst_asn);
+        module_bgp_generate_result(bigdata, sess, "session_start");
 
     /* else create state for the BGP session */
     } else {
 
         sess.src_asn = open->asn;
         sess.src_hold_time = open->hold_time;
+        sess.src_identifier = open->identifier;
         sess.dst_asn = 0;
         sess.dst_hold_time = 0;
+        sess.dst_identifier = 0;
         sess.session_active = 0;
 
         /* insert into session map */
         storage->bgp_sessions->insert({flow_id, sess});
-
-        fprintf(stderr, "BGP session starting %lu src %u\n", flow_id, sess.src_asn);
     }
 }
 
@@ -467,7 +451,6 @@ int module_bgp_update_state(bd_bigdata_t *bigdata, mod_bgp_stor *storage,
     mod_bgp_sess sess;
     /* get the flow id */
     uint64_t flow_id = bd_flow_get_id(bigdata->flow);
-    int dir = bd_get_packet_direction(bigdata);
 
     /* search the bgp session map for this flow */
     std::unordered_map<uint64_t, mod_bgp_sess>::iterator it;
@@ -477,11 +460,12 @@ int module_bgp_update_state(bd_bigdata_t *bigdata, mod_bgp_stor *storage,
     if (it != storage->bgp_sessions->end()) {
         sess = it->second;
 
-        /* if dir = 0 packet is outbound meaning the src needs to be
-           updated */
-        if (dir == 0) {
+        /* we can tell what to update based on the source port. The
+         * endpoint who initiated the BGP session will have a source
+         * port != 179 (BGP port). */
+        if (trace_get_source_port(bigdata->packet) != 179) {
             sess.src_last_update = trace_get_seconds(bigdata->packet);
-        } else if (dir == 1) {
+        } else {
             sess.dst_last_update = trace_get_seconds(bigdata->packet);
         }
 
@@ -489,8 +473,11 @@ int module_bgp_update_state(bd_bigdata_t *bigdata, mod_bgp_stor *storage,
         it->second = sess;
 
     } else {
-        /* something is wrong here. got a bgp keepalive for a unknown bgp
-         * sessions? */
+        /* Received a keepalive event for a unknown BGP session. This
+         * should only be posible if a BGP session was opened and we
+         * did not create any state for it. Eg. This application was
+         * not running.
+         */
     }
 }
 
@@ -498,8 +485,7 @@ int module_bgp_close_state(bd_bigdata_t *bigdata, mod_bgp_stor *storage,
     mod_bgp_msg_notif *notification) {
 
     mod_bgp_sess sess;
-    bd_result_set_t *res;
-    struct timeval tv;
+
     /* get the flow id */
     uint64_t flow_id = bd_flow_get_id(bigdata->flow);
 
@@ -512,27 +498,53 @@ int module_bgp_close_state(bd_bigdata_t *bigdata, mod_bgp_stor *storage,
 
         sess = it->second;
 
-        res = bd_result_set_create(bigdata, "bgp");
-        bd_result_set_insert_tag(res, "type", "session_close");
-
-        bd_result_set_insert_uint(res, "source_asn", sess.src_asn);
-        bd_result_set_insert_uint(res, "destination_asn", sess.dst_asn);
-        bd_result_set_insert_uint(res, "source_hold_time", sess.src_hold_time);
-        bd_result_set_insert_uint(res, "destination_hold_time", sess.dst_hold_time);
-
-        tv = trace_get_timeval(bigdata->packet);
-        bd_result_set_insert_timestamp(res, tv.tv_sec);
-        bd_result_set_publish(bigdata, res, 0);
+        module_bgp_generate_result(bigdata, sess, "session_close");
 
         /* remove session state for this BGP session */
         storage->bgp_sessions->erase(it);
 
-        fprintf(stderr, "session closing\n");
-
     } else {
-        /* should never enter this */
-        fprintf(stderr, "Got BGP notification message for unknown BGP session\n");
+        /* Got BGP notification for unknown session. Should only be posible
+         * to enter this section if a session was opened and we failed to
+         * create any state for it. Eg. This application was not running.
+         */
     }
+}
+
+int module_bgp_generate_result(bd_bigdata_t *bigdata, mod_bgp_sess sess,
+    const char *type) {
+
+    bd_result_set_t *res;
+    struct timeval tv;
+    struct in_addr ip4;
+    char ip[INET6_ADDRSTRLEN];
+
+    res = bd_result_set_create(bigdata, "bgp");
+    bd_result_set_insert_tag(res, "type", type);
+
+    bd_result_set_insert_uint(res, "session_id", sess.flow_id);
+    bd_result_set_insert_uint(res, "source_asn", sess.src_asn);
+    bd_result_set_insert_uint(res, "destination_asn", sess.dst_asn);
+
+    ip4.s_addr = sess.src_identifier;
+    bd_result_set_insert_string(res, "source_identifier", inet_ntoa(ip4));
+    ip4.s_addr = sess.dst_identifier;
+    bd_result_set_insert_string(res, "destination_identifier", inet_ntoa(ip4));
+
+    bd_result_set_insert_uint(res, "source_hold_time", sess.src_hold_time);
+    bd_result_set_insert_uint(res, "destination_hold_time", sess.dst_hold_time);
+
+    bd_flow_get_source_ip_string(bigdata->flow, ip, INET6_ADDRSTRLEN);
+    bd_result_set_insert_string(res, "source_ip", ip);
+    bd_flow_get_destination_ip_string(bigdata->flow, ip, INET6_ADDRSTRLEN);
+    bd_result_set_insert_string(res, "destination_ip", ip);
+
+    tv = trace_get_timeval(bigdata->packet);
+    bd_result_set_insert_timestamp(res, tv.tv_sec);
+
+    bd_result_set_publish(bigdata, res, 0);
+
+    return 0;
 }
 
 int module_bgp_stopping(void *tls, void *mls) {
@@ -655,7 +667,7 @@ int module_bgp_parse_open(bd_bigdata_t *bigdata, mod_bgp_stor *storage, char *po
     open_res->version = open->version;
     open_res->asn = ntohs(open->autonomous_system);
     open_res->hold_time = ntohs(open->hold_time);
-    open_res->identifier = ntohl(open->bgp_identifier);
+    open_res->identifier = open->bgp_identifier;
     open_res->optional_len = open->opt_len;
 
     /* set counter for len of optional parameters */
