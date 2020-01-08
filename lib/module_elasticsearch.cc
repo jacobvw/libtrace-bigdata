@@ -206,7 +206,7 @@ int module_elasticsearch_result(bd_bigdata_t *bigdata, void *mls, bd_result_set 
 
         // build the index string
         snprintf(buf2, sizeof(buf2), "%s%s%s", "{\"index\":{\"_index\":\"",
-            cur_res->module, "\",\"_type\":\"_doc\"}}");
+            result->module, "\",\"_type\":\"_doc\"}}");
         /* get the json representation for the result */
         json = bd_result_set_to_json_string(result);
 
