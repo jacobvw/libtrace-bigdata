@@ -455,7 +455,7 @@ int bd_callback_trigger_reporter_stopping(bd_bigdata_t *bigdata) {
     int ret = 0;
     int cb_counter = 0;
     bd_global_t *global = (bd_global_t *)bigdata->global;
-    bd_thread_local_t *local = (bd_thread_local_t *)bigdata->tls;
+    bd_rthread_local_t *local = (bd_rthread_local_t *)bigdata->tls;
     bd_cb_set *cbs = global->callbacks;
 
     for (; cbs != NULL; cbs = cbs->next) {
