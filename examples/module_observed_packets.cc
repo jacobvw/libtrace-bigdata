@@ -57,7 +57,7 @@ int module_observed_packets_tick(bd_bigdata_t *bigdata, void *mls, uint64_t tick
     struct module_observed_packets_storage *storage;
     storage = (struct module_observed_packets_storage *)mls;
 
-    /* create a new result structure to send to the reporter events */
+    /* create a new result structure to send to the reporters combining event */
     struct module_observed_packets_storage *result;
     result = (struct module_observed_packets_storage *)malloc(sizeof
         (struct module_observed_packets_storage));
@@ -69,7 +69,7 @@ int module_observed_packets_tick(bd_bigdata_t *bigdata, void *mls, uint64_t tick
     storage->packets = 0;
 
     /* send the copied result to be combined. This will be processed by the
-     * application core and will be transfered to the reporting thread combine function.
+     * application core and will be transferred to the reporting threads combine function.
      */
     bd_result_combine(bigdata, (void *)result, tick, config->callbacks->id);
 
@@ -122,14 +122,14 @@ void *module_observed_packets_combiner(bd_bigdata_t *bigdata, void *mls, uint64_
     partial = (struct module_observed_packets_storage *)result;
 
     /* if last tick = 0 this must be the first time entering here. so set to current tick
-     * which is the current timestamp.
+     * which is the timestamp the result was generated for.
      */
     if (combined->last_tick == 0) {
         combined->last_tick = tick;
     }
 
     /* if the tick is greater than the last_tick all results for the time period have been
-     * received. so post the result */
+     * received. so generate the final result */
     if (combined->last_tick < tick) {
 
         /* create a result */
@@ -153,7 +153,7 @@ void *module_observed_packets_combiner(bd_bigdata_t *bigdata, void *mls, uint64_
     free(partial);
 }
 
-/* this is called when the reporter thread is stopping/ when the application is stopping. */
+/* this is called when the reporter thread is stopping. */
 int module_observed_packets_reporter_stopping(void *tls, void *mls) {
 
     /* gain access to the combined result */
