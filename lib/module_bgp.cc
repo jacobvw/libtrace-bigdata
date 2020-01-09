@@ -195,6 +195,10 @@ typedef struct module_bgp_message_notification {
 
     uint8_t error_code;
     uint8_t error_subcode;
+
+    uint16_t data_len;
+    char *data; /* todo populate data field for notification messages */
+
 } mod_bgp_msg_notif;
 
 
@@ -229,6 +233,7 @@ int module_bgp_generate_result(bd_bigdata_t *bigdata, mod_bgp_sess sess,
     const char *type);
 char *module_bgp_get_ip4_prefix_string(char *pos, int octets);
 int module_bgp_calculate_ip_prefix_length(int bits);
+
 
 void *module_bgp_starting(void *tls) {
 
@@ -846,23 +851,21 @@ int module_bgp_parse_notification(char *pos, struct module_bgp_header *header,
     mod_bgp_msg_notif *notif) {
 
     struct module_bgp_notification *notification;
-    uint16_t opt_len;
-    bd_result_set_t *res;
 
     notification = (struct module_bgp_notification *)pos;
 
     /* populate notification message structure */
     notif->error_code = notification->error_code;
     notif->error_subcode = notification->error_subcode;
+    notif->data_len = ntohs(header->length) - sizeof(struct module_bgp_header) -
+        sizeof(struct module_bgp_notification);
 
-    /* calculate the data length */
-    opt_len =  ntohs(header->length) - sizeof(struct module_bgp_header) - sizeof(struct module_bgp_notification);
     /* advance pos to the data field */
     pos += sizeof(module_bgp_notification);
 
 #if DEBUG
     /* print data in bytes */
-    for (int i = 0; i < opt_len; i++) {
+    for (int i = 0; i < notif->data_len; i++) {
         fprintf(stderr, "%02x ", pos[i] & 0xff);
     }
     fprintf(stderr, "\n");
