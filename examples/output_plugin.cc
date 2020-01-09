@@ -1,4 +1,4 @@
-#include "bigdata.h"
+#include "output_plugin.h"
 
 struct module_MODULENAME_config {
     bd_cb_set *callbacks;
@@ -101,7 +101,7 @@ int module_MODULENAME_config(yaml_parser_t *parser, yaml_event_t *event, int *le
 /* init function called by the application core when starting up */
 int module_MODULENAME_init(bd_bigdata_t *bigdata) {
 
-    config = (struct module_MODULENAME_confif *)malloc(sizeof(
+    config = (struct module_MODULENAME_config *)malloc(sizeof(
         struct module_MODULENAME_config));
 
     /* init config structure */
