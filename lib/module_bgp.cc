@@ -444,7 +444,7 @@ int module_bgp_open_state(bd_bigdata_t *bigdata, mod_bgp_stor *storage,
         sess.session_active = 0;
 
         /* insert into session map */
-        stora.ge->bgp_sessions->insert({flow_id, sess});
+        storage->bgp_sessions->insert({flow_id, sess});
     }
 
     return 0;
