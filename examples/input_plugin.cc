@@ -1,4 +1,4 @@
-#include "bigdata.h"
+#include "input_plugin.h"
 
 /* configuration structure for the plugin */
 struct module_MODULENAME_config {
@@ -36,19 +36,18 @@ void *module_MODULENAME_starting(void *tls) {
 }
 
 /* define a function to receive all packets */
-int module_MODULENAME_packet(bd_bigdata_t *bigdata, void *tls, void *mls) {
+int module_MODULENAME_packet(bd_bigdata_t *bigdata, void *mls) {
 
     /* get access to the packet */
-    libtrace_packet_t *packet = bd_get_packet(bigdata);
+    libtrace_packet_t *packet = bigdata->packet;
 
     /* regain access to the module storage defined in the starting function */
     struct module_MODULENAME_storage *stor = (struct module_MODULENAME_storage *)mls;
 
-
     /* perform any packet analysis or measurements here,
      * all Libtrace API functions are supported here.
      */
-    stor->bytes += trace_get_payload_length(packet)
+    stor->bytes += trace_get_payload_length(packet);
 
     return 0;
 }
@@ -80,11 +79,22 @@ int module_MODULENAME_tick(bd_bigdata_t *bigdata, void *mls, uint64_t tick) {
     res->bytes = stor->bytes;
     res->http_packets = stor->http_packets;
     /* now post the result to be combined */
-    bd_result_combine(trace, thread, res, tick, config->callbacks->id);
+    bd_result_combine(bigdata, res, tick, config->callbacks->id);
 
     /* clear the module storage for the next round */
     stor->bytes = 0;
     stor->http_packets = 0;
+
+    return 0;
+}
+
+int module_MODULENAME_stopping(void *tls, void *mls) {
+
+    /* create the modules storage */
+    struct module_MODULENAME_storage *stor = (struct module_MODULENAME_storage *)
+        malloc(sizeof(struct module_MODULENAME_storage));
+
+    free(stor);
 
     return 0;
 }
@@ -95,7 +105,7 @@ int module_MODULENAME_tick(bd_bigdata_t *bigdata, void *mls, uint64_t tick) {
  * to hold the combined total for each partial results.
 
 /* define reporting thread starting function */
-void module_MODULENAME_reporter_starting(void *tls) {
+void *module_MODULENAME_reporter_starting(void *tls) {
 
     /* create storage to hold the combined results */
     struct module_MODULENAME_storage *totals = (struct module_MODULENAME_storage *)
@@ -103,19 +113,19 @@ void module_MODULENAME_reporter_starting(void *tls) {
 
     /* init the storage */
     totals->bytes = 0;
-    totals->http_count = 0;
+    totals->http_packets = 0;
     totals->last_tick = 0;
 
     /* return the totals storage, this will be passed to all callbacks running within
      * the reporting thread as mls.
      */
-    return totals;
+    return (void *)totals;
 }
 
 /* define a combining function which will receive the results posted by the tick
  * function
  */
-int module_MODULENAME_reporter_combiner(bigdata_t *bigdata, void *mls, uint64_t tick,
+int module_MODULENAME_reporter_combiner(bd_bigdata_t *bigdata, void *mls, uint64_t tick,
     void *result) {
 
     /* gain access to the totals structure create in the reporter starting function */
@@ -138,10 +148,10 @@ int module_MODULENAME_reporter_combiner(bigdata_t *bigdata, void *mls, uint64_t 
     if (totals->last_tick < tick) {
 
         /* create a result set */
-        bd_result_set_t *resultset = bd_result_set_create("MODULENAME");
+        bd_result_set_t *resultset = bd_result_set_create(bigdata, "MODULENAME");
         /* insert the counters into the result */
         bd_result_set_insert_uint(resultset, "bytes", totals->bytes);
-        bd_result_set_insert_uint(resultset, "http_count", totals->http_count);
+        bd_result_set_insert_uint(resultset, "http_count", totals->http_packets);
         /* insert the timestamp into the result set */
         bd_result_set_insert_timestamp(resultset, tick);
 
@@ -150,13 +160,12 @@ int module_MODULENAME_reporter_combiner(bigdata_t *bigdata, void *mls, uint64_t 
 
         /* clear totals for next round of results */
         totals->bytes = 0;
-        totals->http_count = 0;
-
-    /* otherwise increment the totals with the current partial result */
-    } else {
-        totals->bytes += res->bytes;
-        totals->http_count += totals->http_count;
+        totals->http_packets = 0;
     }
+
+    totals->bytes += res->bytes;
+    totals->http_packets += totals->http_packets;
+    totals->last_tick = tick;
 
     /* free the result created from the tick function and passed into the combiner */
     free(res);
@@ -208,8 +217,8 @@ int module_MODULENAME_config(yaml_parser_t *parser, yaml_event_t *event, int *le
         config->callbacks->start_cb = (cb_start)module_MODULENAME_starting;
         config->callbacks->packet_cb = (cb_packet)module_MODULENAME_packet;
         /* define callback for HTTP packets */
-        bd_register_protocol_event(config->callbacks, module_MODULENAME_http_packet,
-            LPI_PROTO_HTTP);
+        bd_register_protocol_event(config->callbacks, (cb_protocol)
+            module_MODULENAME_http_packet, LPI_PROTO_HTTP);
         config->callbacks->stop_cb = (cb_stop)module_MODULENAME_stopping;
         config->callbacks->tick_cb = (cb_tick)module_MODULENAME_tick;
         /* set the tick interval to 60 seconds */
@@ -217,7 +226,7 @@ int module_MODULENAME_config(yaml_parser_t *parser, yaml_event_t *event, int *le
 
         /* define the reporting thread callback functions */
         config->callbacks->reporter_start_cb = (cb_reporter_start)
-            module_MODULENAME_reporter_start;
+            module_MODULENAME_reporter_starting;
         config->callbacks->reporter_combiner_cb = (cb_reporter_combiner)
             module_MODULENAME_reporter_combiner;
         config->callbacks->reporter_stop_cb = (cb_reporter_stop)
