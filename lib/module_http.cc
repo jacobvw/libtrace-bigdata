@@ -208,6 +208,8 @@ int module_http_packet(bd_bigdata_t *bigdata, void *mls) {
             }
         }
     }
+
+    return 0;
 }
 
 /* cleans out stored http requests that have not seen a response for the

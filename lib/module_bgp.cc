@@ -360,6 +360,8 @@ int module_bgp_packet(bd_bigdata_t *bigdata, void *mls) {
         /* advance position to the next message */
         pos += ntohs(bgp_header->length) - sizeof(struct module_bgp_header);
     }
+
+    return 0;
 }
 
 int module_bgp_tick(bd_bigdata_t *bigdata, void *mls, uint64_t tick) {
@@ -442,8 +444,10 @@ int module_bgp_open_state(bd_bigdata_t *bigdata, mod_bgp_stor *storage,
         sess.session_active = 0;
 
         /* insert into session map */
-        storage->bgp_sessions->insert({flow_id, sess});
+        stora.ge->bgp_sessions->insert({flow_id, sess});
     }
+
+    return 0;
 }
 
 int module_bgp_update_state(bd_bigdata_t *bigdata, mod_bgp_stor *storage,
