@@ -393,6 +393,8 @@ int module_bgp_tick(bd_bigdata_t *bigdata, void *mls, uint64_t tick) {
             ++it;
         }
     }
+
+    return 0;
 }
 
 int module_bgp_open_state(bd_bigdata_t *bigdata, mod_bgp_stor *storage,
@@ -478,6 +480,8 @@ int module_bgp_update_state(bd_bigdata_t *bigdata, mod_bgp_stor *storage,
          * not running.
          */
     }
+
+    return 0;
 }
 
 int module_bgp_close_state(bd_bigdata_t *bigdata, mod_bgp_stor *storage,
@@ -508,6 +512,8 @@ int module_bgp_close_state(bd_bigdata_t *bigdata, mod_bgp_stor *storage,
          * create any state for it. Eg. This application was not running.
          */
     }
+
+    return 0;
 }
 
 int module_bgp_generate_result(bd_bigdata_t *bigdata, mod_bgp_sess sess,
@@ -553,6 +559,8 @@ int module_bgp_stopping(void *tls, void *mls) {
     delete(storage->bgp_sessions);
 
     free(storage);
+
+    return 0;
 }
 
 int module_bgp_config(yaml_parser_t *parser, yaml_event_t *event, int *level) {
@@ -625,6 +633,8 @@ int module_bgp_config(yaml_parser_t *parser, yaml_event_t *event, int *level) {
 
         fprintf(stderr, "BGP Plugin Enabled\n");
     }
+
+    return 0;
 }
 
 int module_bgp_init(bd_bigdata_t *bigdata) {
@@ -695,6 +705,8 @@ int module_bgp_parse_open(bd_bigdata_t *bigdata, mod_bgp_stor *storage, char *po
         counter += 1;
     }
     open_res->optional_num = counter;
+
+    return 0;
 }
 
 int module_bgp_parse_update(bd_bigdata_t *bigdata, mod_bgp_stor *storage,
@@ -845,6 +857,7 @@ int module_bgp_parse_update(bd_bigdata_t *bigdata, mod_bgp_stor *storage,
     }
     update_rec->nlri_num = counter;
 
+    return 0;
 }
 
 int module_bgp_parse_notification(char *pos, struct module_bgp_header *header,

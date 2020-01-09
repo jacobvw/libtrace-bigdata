@@ -331,6 +331,8 @@ int module_elasticsearch_config(yaml_parser_t *parser, yaml_event_t *event, int 
 
         fprintf(stdout, "Elasticsearch Plugin Enabled\n");
     }
+
+    return 0;
 }
 
 int module_elasticsearch_init(bd_bigdata_t *bigdata) {
@@ -361,4 +363,6 @@ int module_elasticsearch_init(bd_bigdata_t *bigdata) {
 
     // register the callback set
     bd_register_cb_set(bigdata, config->callbacks);
+
+    return 0;
 }

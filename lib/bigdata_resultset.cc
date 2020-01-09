@@ -146,13 +146,19 @@ int bd_result_set_insert_ip_string(bd_result_set_t *result_set, char const *key,
         exit(BD_OUTOFMEMORY);
     }
     bd_result_set_insert(result_set, key, BD_TYPE_IP_STRING, val);
+
+    return 0;
 }
 int bd_result_set_lock(bd_result_set_t *result_set) {
     result_set->free_lock += 1;
+
+    return 0;
 }
 int bd_result_set_unlock(bd_result_set_t *result_set) {
     result_set->free_lock -= 1;
     bd_result_set_free(result_set);
+
+    return 0;
 }
 
 int bd_result_set_publish(bd_bigdata_t *bigdata, bd_result_set_t *result, uint64_t key) {
@@ -430,8 +436,4 @@ std::string bd_result_set_to_json_string(bd_result_set_t *result) {
     json_string += "}";
 
     return json_string;
-}
-
-bd_result_set_t *bd_result_set_parse_json_string(std::string json) {
-
 }

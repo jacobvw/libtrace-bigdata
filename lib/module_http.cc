@@ -235,6 +235,8 @@ int module_http_tick(bd_bigdata_t *bigdata, void *mls, uint64_t tick) {
             ++itr;
         }
     }
+
+    return 0;
 }
 
 int module_http_stopping(void *tls, void *mls) {
@@ -327,6 +329,8 @@ int module_http_config(yaml_parser_t *parser, yaml_event_t *event, int *level) {
 
         fprintf(stderr, "HTTP plugin enabled\n");
     }
+
+    return 0;
 }
 
 int module_http_init(bd_bigdata_t *bigdata) {

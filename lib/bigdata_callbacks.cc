@@ -448,6 +448,8 @@ int bd_callback_trigger_reporter_filter(bd_bigdata_t *bigdata, bd_result_set_t *
         }
         cb_counter += 1;
     }
+
+    return 0;
 }
 
 int bd_callback_trigger_reporter_stopping(bd_bigdata_t *bigdata) {
