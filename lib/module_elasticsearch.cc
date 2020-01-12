@@ -84,6 +84,8 @@ void *module_elasticsearch_starting(void *tls) {
 static size_t module_elasticsearch_callback(void *buffer, size_t size, size_t nmemb,
     void *userp) {
 
+    /* todo: parse response to verify result was correctly indexed */
+
     return size * nmemb;
 }
 
@@ -215,7 +217,9 @@ int module_elasticsearch_result(bd_bigdata_t *bigdata, void *mls, bd_result_set 
         json = bd_result_set_to_json_string(result);
 
         out = buf2;
+        out += "\n";
         out += json;
+        out += "\n";
 
         ret = module_elasticsearch_export(bigdata, opts, out.c_str(), buf);
     }
