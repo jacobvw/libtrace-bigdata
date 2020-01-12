@@ -7,6 +7,11 @@
 
 #define DEBUG 0
 
+/* Number of pointers to allocate for each messages
+ * parameter storage.
+ */
+#define OPEN_PARAM_INIT_SIZE 10
+
 #define MODULE_BGP_TYPE_OPEN 0x01
 #define MODULE_BGP_TYPE_UPDATE 0x02
 #define MODULE_BGP_TYPE_NOTIFICATION 0x03
@@ -163,6 +168,27 @@ struct module_bgp_mp_unreach_nlri {
 
 /* structures to hold decoded BGP packets */
 
+/* structure to hold capabilty contained within a
+ * open message -> optional param -> capability
+ */
+typedef struct module_bgp_message_open_param_cap {
+    uint8_t code;
+    uint8_t len;
+    char *data; /* pointer to data data within the packet */
+} mod_bgp_msg_open_param_cap;
+
+typedef struct module_bgp_message_open_param {
+
+    uint8_t type;
+    uint8_t len;
+
+    /* pointer to data */
+    union {
+        mod_bgp_msg_open_param_cap cap;
+    } data;
+
+} mod_bgp_msg_open_param;
+
 typedef struct module_bgp_message_open {
 
     uint8_t version;
@@ -170,9 +196,12 @@ typedef struct module_bgp_message_open {
     uint16_t hold_time;
     uint32_t identifier;
 
-    uint8_t optional_len;
-    uint8_t optional_num;
-    /* todo array of structures to hold optional params */
+    uint8_t param_len;
+    uint8_t param_num;
+    uint8_t param_alloc;
+
+    /* array of pointers to hold parameters */
+    mod_bgp_msg_open_param **params;
 } mod_bgp_msg_open;
 
 typedef struct module_bgp_message_update {
@@ -227,6 +256,9 @@ int module_bgp_update_state(bd_bigdata_t *bigdata, mod_bgp_stor *storage,
     mod_bgp_msg_update *update);
 int module_bgp_close_state(bd_bigdata_t *bigdata, mod_bgp_stor *storage,
     mod_bgp_msg_notif *notification);
+
+mod_bgp_msg_open *module_bgp_open_create();
+int module_bgp_open_delete(mod_bgp_msg_open *open);
 
 /* helper functions */
 int module_bgp_generate_result(bd_bigdata_t *bigdata, mod_bgp_sess sess,
@@ -309,15 +341,20 @@ int module_bgp_packet(bd_bigdata_t *bigdata, void *mls) {
         switch (bgp_header->type) {
             case MODULE_BGP_TYPE_OPEN:
                 /* create structure to hold decoded open message */
-                mod_bgp_msg_open open;
+                mod_bgp_msg_open *open;
+
+                open = module_bgp_open_create();
 
                 /* populate open message structure */
                 module_bgp_parse_open(bigdata, (mod_bgp_stor *)mls,
-                    pos, bgp_header, &open);
+                    pos, bgp_header, open);
 
                 /* update any state for this message */
                 module_bgp_open_state(bigdata, (mod_bgp_stor *)mls,
-                    &open);
+                    open);
+
+                /* cleanup the message */
+                module_bgp_open_delete(open);
 
                 break;
             case MODULE_BGP_TYPE_UPDATE:
@@ -665,6 +702,80 @@ int module_bgp_init(bd_bigdata_t *bigdata) {
     return 0;
 }
 
+mod_bgp_msg_open *module_bgp_open_create() {
+
+    mod_bgp_msg_open *open = (mod_bgp_msg_open *)malloc(sizeof(
+        mod_bgp_msg_open));
+
+    open->param_len = 0;
+    open->param_alloc = 0;
+    open->param_num = 0;
+    open->params = NULL;
+
+    return open;
+}
+int module_bgp_open_add_param(mod_bgp_msg_open *open, mod_bgp_msg_open_param
+    *param) {
+
+    /* if allocated memory is less than number of params we have
+     * allocate more memory for the array.
+     */
+    if (open->param_alloc <= open->param_num) {
+        if (open->param_alloc == 0) {
+            /* create enough space to hold an array of
+             * OPEN_PARAM_INIT_SIZE pointers.
+             */
+            open->params = (mod_bgp_msg_open_param **)malloc(sizeof(
+                mod_bgp_msg_open_param *)*OPEN_PARAM_INIT_SIZE);
+            if (open->params == NULL) {
+                fprintf(stderr, "Unable to allocate memory. func. "
+                    "module_bgp_open_add_param()\n");
+                exit(BD_OUTOFMEMORY);
+            }
+        } else {
+
+            /* reallocate the space with extra space for new params */
+            open->params = (mod_bgp_msg_open_param **)realloc(open->params,
+                sizeof(mod_bgp_msg_open_param *)*open->param_alloc);
+            if (open->params == NULL) {
+                fprintf(stderr, "Unable to allocate memory. func. "
+                    "module_bgp_open_add_param()\n");
+                exit(BD_OUTOFMEMORY);
+            }
+        }
+
+        /* increase the count for the number of allocated param pointers */
+        open->param_alloc += OPEN_PARAM_INIT_SIZE;
+    }
+
+    /* add the param to the array */
+    open->params[open->param_num] = param;
+    open->param_num += 1;
+
+    return 0;
+
+}
+int module_bgp_open_delete(mod_bgp_msg_open *open) {
+
+    int i;
+
+    for (i = 0; i < open->param_num; i++) {
+
+        /* free each parameter structure */
+        if (open->params[i] != NULL) {
+            free(open->params[i]);
+            open->params[i] = NULL;
+        }
+    }
+
+    /* free pointer storage */
+    free(open->params);
+
+    /* free the open structure itself */
+    free(open);
+
+    return 0;
+}
 int module_bgp_parse_open(bd_bigdata_t *bigdata, mod_bgp_stor *storage, char *pos,
     struct module_bgp_header *bgp_header, mod_bgp_msg_open *open_res) {
 
@@ -681,7 +792,7 @@ int module_bgp_parse_open(bd_bigdata_t *bigdata, mod_bgp_stor *storage, char *po
     open_res->asn = ntohs(open->autonomous_system);
     open_res->hold_time = ntohs(open->hold_time);
     open_res->identifier = open->bgp_identifier;
-    open_res->optional_len = open->opt_len;
+    open_res->param_len = open->opt_len;
 
     /* set counter for len of optional parameters */
     opt_len = open->opt_len;
@@ -693,13 +804,26 @@ int module_bgp_parse_open(bd_bigdata_t *bigdata, mod_bgp_stor *storage, char *po
     while (opt_len > 0) {
         opt = (struct module_bgp_open_opt *)pos;
 
+        /* allocate some memory for this optional parameter */
+        mod_bgp_msg_open_param *param = (mod_bgp_msg_open_param *)malloc(
+            sizeof(mod_bgp_msg_open_param));
+
+        param->type = opt->param_type;
+        param->len = opt->param_len;
+
         /* todo parse optional parameter data */
         switch (opt->param_type) {
             /* capability */
             case 0x02: {
+                param->data.cap.code = *(uint8_t *)(pos+2);
+                param->data.cap.len = *(uint8_t *)(pos+3);
+
+                param->data.cap.data = (pos+4);
             }
         }
 
+        /* add the parameter to the open result structure */
+        module_bgp_open_add_param(open_res, param);
 
         /* jump over the rest of this param to the next option */
         pos += sizeof(struct module_bgp_open_opt) + opt->param_len;
@@ -708,7 +832,6 @@ int module_bgp_parse_open(bd_bigdata_t *bigdata, mod_bgp_stor *storage, char *po
         opt_len -= sizeof(struct module_bgp_open_opt) + opt->param_len;
         counter += 1;
     }
-    open_res->optional_num = counter;
 
     return 0;
 }
