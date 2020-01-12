@@ -110,8 +110,47 @@ curl -X PUT "localhost:9200/http/_mapping" -H 'Content-Type: application/json' -
       "capture_host": { "type": "text", "fields": { "keyword": { "type": "keyword" } } },
       "destination_ip": { "type": "ip" },
       "destination_ip_geohash": { "type": "geo_point" },
+      "destination_ip_city": { "type": "text", "fields": { "keyword": {"type": "keyword" } } },
+      "destination_ip_country": { "type": "text", "fields": { "keyword": { "type": "keyword" } } },
+      "destination_ip_latitude": { "type": "float" },
+      "destination_ip_longitude": { "type": "float" },
       "source_ip": { "type": "ip" },
       "source_ip_geohash": { "type": "geo_point" },
+      "source_ip_city": { "type": "text", "fields": { "keyword": {"type": "keyword" } } },
+      "source_ip_country": { "type": "text", "fields": { "keyword": { "type": "keyword" } } },
+      "source_ip_latitude": { "type": "float" },
+      "source_ip_longitude": { "type": "float" },
+      "timestamp": { "type": "date", "format": "epoch_millis" }
+    }
+}
+'
+
+curl -X PUT "localhost:9200/bgp"
+curl -X PUT "localhost:9200/bgp/_mapping" -H 'Content-Type: application/json' -d'
+{
+    "properties": {
+      "capture_application": { "type": "text", "fields": { "keyword": { "type": "keyword" } } },
+      "capture_host": { "type": "text", "fields": { "keyword": { "type": "keyword" } } },
+      "type": { "type": "text", "fields": { "keyword": { "type": "keyword" } } },
+      "session_id": { "type": "long" },
+      "destination_asn": { "type": "long" },
+      "destination_hold_time": { "type": "long" },
+      "destination_identifier": { "type": "text", "fields": { "keyword": { "type": "keyword" } } },
+      "destination_ip": { "type": "ip" },
+      "destination_ip_geohash": { "type": "geo_point" },
+      "destination_ip_city": { "type": "text", "fields": { "keyword": {"type": "keyword" } } },
+      "destination_ip_country": { "type": "text", "fields": { "keyword": { "type": "keyword" } } },
+      "destination_ip_latitude": { "type": "float" },
+      "destination_ip_longitude": { "type": "float" },
+      "source_asn": { "type": "long" },
+      "source_hold_time": { "type": "long" },
+      "source_identifier": { "type": "text", "fields": { "keyword": { "type": "keyword" } } },
+      "source_ip": { "type": "ip" },
+      "source_ip_geohash": { "type": "geo_point" },
+      "source_ip_city": { "type": "text", "fields": { "keyword": {"type": "keyword" } } },
+      "source_ip_country": { "type": "text", "fields": { "keyword": { "type": "keyword" } } },
+      "source_ip_latitude": { "type": "float" },
+      "source_ip_longitude": { "type": "float" },
       "timestamp": { "type": "date", "format": "epoch_millis" }
     }
 }
