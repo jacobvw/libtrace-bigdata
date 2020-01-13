@@ -49,11 +49,7 @@ struct module_bgp_conf {
     bd_cb_set *callbacks;
     bool enabled;
     int timeout_check;
-    /* generate events for these BGP message types? */
-    bool open;
-    bool update;
-    bool keepalive;
-    bool notification;
+    bool statistics;
 };
 static struct module_bgp_conf *config;
 
@@ -68,12 +64,29 @@ typedef struct module_bgp_session {
     uint32_t src_identifier;
     uint32_t dst_identifier;
     bool session_active;
+    char src_ip[INET6_ADDRSTRLEN];
+    char dst_ip[INET6_ADDRSTRLEN];
 } mod_bgp_sess;
 
 typedef struct module_bgp_storage {
     /* map holding state of each bgp session. Identified by the flow ID */
     std::unordered_map<uint64_t, mod_bgp_sess> *bgp_sessions;
+
+    uint64_t session_starts;
+    uint64_t session_timeouts;
+    uint64_t session_closes;
 } mod_bgp_stor;
+
+typedef struct module_bgp_storage_reporter {
+    /* BGP statistics */
+    uint64_t session_starts;
+    uint64_t session_timeouts;
+    uint64_t session_closes;
+
+    uint64_t active_sessions;
+
+    uint64_t last_tick;
+} mod_bgp_stor_rep;
 
 /* note: open and keepalive messages are the header (below) without any data */
 struct module_bgp_header {
@@ -262,10 +275,15 @@ int module_bgp_open_delete(mod_bgp_msg_open *open);
 
 /* helper functions */
 int module_bgp_generate_result(bd_bigdata_t *bigdata, mod_bgp_sess sess,
-    const char *type);
+    const char *type, uint64_t timestamp);
 char *module_bgp_get_ip4_prefix_string(char *pos, int octets);
 int module_bgp_calculate_ip_prefix_length(int bits);
 
+/* reporter functions */
+void *module_bgp_reporter_starting(void *tls);
+int module_bgp_reporter_combiner(bd_bigdata_t *bigdata, void *mls,
+    uint64_t tick, void *result);
+int module_bgp_reporter_stopping(void *tls, void *mls);
 
 void *module_bgp_starting(void *tls) {
 
@@ -278,6 +296,10 @@ void *module_bgp_starting(void *tls) {
     }
 
     storage->bgp_sessions = new std::unordered_map<uint64_t, mod_bgp_sess>;
+
+    storage->session_starts = 0;
+    storage->session_timeouts = 0;
+    storage->session_closes = 0;
 
     return storage;
 }
@@ -422,7 +444,9 @@ int module_bgp_tick(bd_bigdata_t *bigdata, void *mls, uint64_t tick) {
             /* Only create a result if this session was active */
             if (sess.session_active) {
 
-               module_bgp_generate_result(bigdata, sess, "session_timeout");
+               module_bgp_generate_result(bigdata, sess, "session_timeout", tick);
+
+               storage->session_timeouts += 1;
             }
 
             /* remove result from the map */
@@ -433,6 +457,31 @@ int module_bgp_tick(bd_bigdata_t *bigdata, void *mls, uint64_t tick) {
         }
     }
 
+    if (config->statistics) {
+        /* create a result for the current thread */
+        mod_bgp_stor_rep *partial = (mod_bgp_stor_rep *)malloc(sizeof(
+            mod_bgp_stor_rep));
+        if (partial == NULL) {
+            fprintf(stderr, "Unable to allocate memory. func. "
+                "module_bgp_tick()\n");
+            exit(BD_OUTOFMEMORY);
+        }
+
+        /* populate the partial/thread result */
+        partial->session_starts = storage->session_starts;
+        partial->session_timeouts = storage->session_timeouts;
+        partial->session_closes = storage->session_closes;
+        partial->active_sessions = storage->bgp_sessions->size();
+
+        bd_result_combine(bigdata, (void *)partial, tick,
+            config->callbacks->id);
+
+        /* clear threads counters */
+        storage->session_starts = 0;
+        storage->session_timeouts = 0;
+        storage->session_closes = 0;
+    }
+
     return 0;
 }
 
@@ -440,6 +489,7 @@ int module_bgp_open_state(bd_bigdata_t *bigdata, mod_bgp_stor *storage,
     mod_bgp_msg_open *open) {
 
     mod_bgp_sess sess;
+    struct timeval tv;
 
     /* get the flow id */
     uint64_t flow_id = bd_flow_get_id(bigdata->flow);
@@ -466,8 +516,12 @@ int module_bgp_open_state(bd_bigdata_t *bigdata, mod_bgp_stor *storage,
         /* update the map */
         it->second = sess;
 
+        tv = trace_get_timeval(bigdata->packet);
+
         /* should have a BGP sessions between 2 ases now. generate result */
-        module_bgp_generate_result(bigdata, sess, "session_start");
+        module_bgp_generate_result(bigdata, sess, "session_start", tv.tv_sec);
+
+        storage->session_starts += 1;
 
     /* else create state for the BGP session */
     } else {
@@ -475,9 +529,13 @@ int module_bgp_open_state(bd_bigdata_t *bigdata, mod_bgp_stor *storage,
         sess.src_asn = open->asn;
         sess.src_hold_time = open->hold_time;
         sess.src_identifier = open->identifier;
+        bd_flow_get_source_ip_string(bigdata->flow, sess.src_ip,
+            INET6_ADDRSTRLEN);
         sess.dst_asn = 0;
         sess.dst_hold_time = 0;
         sess.dst_identifier = 0;
+        bd_flow_get_destination_ip_string(bigdata->flow, sess.dst_ip,
+            INET6_ADDRSTRLEN);
         sess.session_active = 0;
 
         /* insert into session map */
@@ -529,6 +587,7 @@ int module_bgp_close_state(bd_bigdata_t *bigdata, mod_bgp_stor *storage,
     mod_bgp_msg_notif *notification) {
 
     mod_bgp_sess sess;
+    struct timeval tv;
 
     /* get the flow id */
     uint64_t flow_id = bd_flow_get_id(bigdata->flow);
@@ -542,10 +601,13 @@ int module_bgp_close_state(bd_bigdata_t *bigdata, mod_bgp_stor *storage,
 
         sess = it->second;
 
-        module_bgp_generate_result(bigdata, sess, "session_close");
+        tv = trace_get_timeval(bigdata->packet);
+        module_bgp_generate_result(bigdata, sess, "session_close", tv.tv_sec);
 
         /* remove session state for this BGP session */
         storage->bgp_sessions->erase(it);
+
+        storage->session_closes += 1;
 
     } else {
         /* Got BGP notification for unknown session. Should only be posible
@@ -558,10 +620,9 @@ int module_bgp_close_state(bd_bigdata_t *bigdata, mod_bgp_stor *storage,
 }
 
 int module_bgp_generate_result(bd_bigdata_t *bigdata, mod_bgp_sess sess,
-    const char *type) {
+    const char *type, uint64_t timestamp) {
 
     bd_result_set_t *res;
-    struct timeval tv;
     struct in_addr ip4;
     char ip[INET6_ADDRSTRLEN];
 
@@ -580,13 +641,10 @@ int module_bgp_generate_result(bd_bigdata_t *bigdata, mod_bgp_sess sess,
     bd_result_set_insert_uint(res, "source_hold_time", sess.src_hold_time);
     bd_result_set_insert_uint(res, "destination_hold_time", sess.dst_hold_time);
 
-    bd_flow_get_source_ip_string(bigdata->flow, ip, INET6_ADDRSTRLEN);
-    bd_result_set_insert_string(res, "source_ip", ip);
-    bd_flow_get_destination_ip_string(bigdata->flow, ip, INET6_ADDRSTRLEN);
-    bd_result_set_insert_string(res, "destination_ip", ip);
+    bd_result_set_insert_string(res, "source_ip", sess.src_ip);
+    bd_result_set_insert_string(res, "destination_ip", sess.dst_ip);
 
-    tv = trace_get_timeval(bigdata->packet);
-    bd_result_set_insert_timestamp(res, tv.tv_sec);
+    bd_result_set_insert_timestamp(res, timestamp);
 
     bd_result_set_publish(bigdata, res, 0);
 
@@ -634,24 +692,15 @@ int module_bgp_config(yaml_parser_t *parser, yaml_event_t *event, int *level) {
                     }
                     break;
                 }
-                if (strcmp((char *)event->data.scalar.value, "open") == 0) {
+                if (strcmp((char *)event->data.scalar.value, "statistics") == 0) {
                     consume_event(parser, event, level);
-                    config->open = 1;
-                    break;
-                }
-                if (strcmp((char *)event->data.scalar.value, "update") == 0) {
-                    consume_event(parser, event, level);
-                    config->update = 1;
-                    break;
-                }
-                if (strcmp((char *)event->data.scalar.value, "keepalive") == 0) {
-                    consume_event(parser, event, level);
-                    config->keepalive = 1;
-                    break;
-                }
-                if (strcmp((char *)event->data.scalar.value, "notification") == 0) {
-                    consume_event(parser, event, level);
-                    config->notification = 1;
+                    if (strcmp((char *)event->data.scalar.value, "1") == 0 ||
+                        strcmp((char *)event->data.scalar.value, "yes") == 0 ||
+                        strcmp((char *)event->data.scalar.value, "true") == 0 ||
+                        strcmp((char *)event->data.scalar.value, "t") == 0) {
+
+                        config->statistics = 1;
+                    }
                     break;
                 }
                 consume_event(parser, event, level);
@@ -672,6 +721,13 @@ int module_bgp_config(yaml_parser_t *parser, yaml_event_t *event, int *level) {
         config->callbacks->tick_cb = (cb_tick)module_bgp_tick;
         bd_add_tickrate_to_cb_set(config->callbacks, config->timeout_check);
 
+        bd_register_reporter_start_event(config->callbacks,
+            (cb_reporter_start)module_bgp_reporter_starting);
+        bd_register_reporter_combiner_event(config->callbacks,
+            (cb_reporter_combiner)module_bgp_reporter_combiner);
+        bd_register_reporter_stop_event(config->callbacks,
+            (cb_reporter_stop)module_bgp_reporter_stopping);
+
         fprintf(stderr, "BGP Plugin Enabled\n");
     }
 
@@ -690,10 +746,7 @@ int module_bgp_init(bd_bigdata_t *bigdata) {
     config->callbacks = bd_create_cb_set("bgp");
     config->enabled = 0;
     config->timeout_check = 20;
-    config->open = 0;
-    config->update = 0;
-    config->keepalive = 0;
-    config->notification = 0;
+    config->statistics = 0;
 
     bd_register_config_event(config->callbacks, (cb_config)module_bgp_config);
 
@@ -1147,4 +1200,89 @@ static const char *module_bgp_notification_subcode_error_string(uint8_t error,
             }
         default: return "unknown";
     }
+}
+
+void *module_bgp_reporter_starting(void *tls) {
+
+    mod_bgp_stor_rep *storage_reporter;
+
+    storage_reporter = (mod_bgp_stor_rep *)malloc(sizeof(
+        mod_bgp_stor_rep));
+    if (storage_reporter == NULL) {
+        fprintf(stderr, "Unable to allocate memory. func. "
+            "module_bgp_starting_reporter()\n");
+        exit(BD_OUTOFMEMORY);
+    }
+
+    storage_reporter->session_starts = 0;
+    storage_reporter->session_timeouts = 0;
+    storage_reporter->session_closes = 0;
+
+    storage_reporter->active_sessions = 0;
+
+    return storage_reporter;
+}
+
+int module_bgp_reporter_combiner(bd_bigdata_t *bigdata, void *mls,
+    uint64_t tick, void *result) {
+
+    /* get the combined result */
+    mod_bgp_stor_rep *combined = (mod_bgp_stor_rep *)mls;
+    /* get the partial result */
+    mod_bgp_stor_rep *partial = (mod_bgp_stor_rep *)result;
+
+    /* check if last tick has been set, if not set it */
+    if (combined->last_tick == 0) {
+        combined->last_tick = tick;
+    }
+
+    /* check if a result is due to be generated */
+    if (combined->last_tick < tick) {
+
+        /* create a result */
+        bd_result_set_t *res = bd_result_set_create(bigdata, "bgp");
+        bd_result_set_insert_tag(res, "type", "statistics");
+        bd_result_set_insert_uint(res, "session_starts",
+            combined->session_starts);
+        bd_result_set_insert_uint(res, "session_timeouts",
+            combined->session_timeouts);
+        bd_result_set_insert_uint(res, "session_closes",
+            combined->session_closes);
+        bd_result_set_insert_uint(res, "active_sessions",
+            combined->active_sessions);
+        /* insert timestamp into the result */
+        bd_result_set_insert_timestamp(res, combined->last_tick);
+        /* publish the result */
+        bd_result_set_publish(bigdata, res, combined->last_tick);
+
+        /* clear the combined statistics for the next round */
+        combined->session_starts = 0;
+        combined->session_timeouts = 0;
+        combined->session_closes = 0;
+        combined->active_sessions = 0;
+    }
+
+    /* add the partial result to the combined result */
+    combined->session_starts += partial->session_starts;
+    combined->session_timeouts += partial->session_timeouts;
+    combined->session_closes += partial->session_closes;
+    combined->active_sessions += partial->active_sessions;
+
+    /* update last tick */
+    combined->last_tick = tick;
+
+    /* free the partial result */
+    free(partial);
+
+    return 0;
+}
+
+int module_bgp_reporter_stopping(void *tls, void *mls) {
+
+    /* gain access to the combined result */
+    mod_bgp_stor_rep *combined = (mod_bgp_stor_rep *)mls;
+    /* free memory */
+    free(combined);
+
+    return 0;
 }
