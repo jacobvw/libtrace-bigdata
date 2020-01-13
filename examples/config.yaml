@@ -3,7 +3,7 @@ hostname: hostname
 
 # Network interface to capture data on. Any URI supported by libtrace works
 # here. 
-interface: eth0
+interface: lo
 
 # Number of packet processing threads. Check enable_bidirectional_hasher
 # before increasing the number of threads.
@@ -27,7 +27,7 @@ local_networks:
 enable_bidirectional_hasher: 0
 
 # Debug level 0-3
-debug: 0
+debug: 3
 
 # capture modules
 foreach:
@@ -96,10 +96,10 @@ foreach:
 
   # BGP module
   bgp:
-    enabled: 0
+    enabled: 1
     # how often to check for timed out BGP sessions (absence of update/keep alive messages
     # for the hold time (seconds).
-    timeout_check: 20
+    timeout_check: 30
     # generate and export statistics every X seconds (timeout_check determines interval)
     statistics: 1
 
@@ -122,16 +122,16 @@ filter:
 where:
 
   influxdb:
-    enabled: 0
+    enabled: 1
     # Enable certificate verification
     ssl_verify_peer: 1
-    host: http://127.0.0.1
+    host: http://192.168.20.40
     port: 8086
-    database: dbname
-    username: dbusername
-    password: dbpassword
+    database: libtrace
+    username: admin
+    password: admin
     # Enable to send results to influxdb in batches
-    batch_results: 1
+    batch_results: 0
     # If batching results, how many to send at a time
     batch_count: 200
 
@@ -141,8 +141,8 @@ where:
     topic: topicname
 
   elasticsearch:
-    enabled: 0
-    host: http://127.0.0.1
+    enabled: 1
+    host: http://192.168.20.40
     port: 9200
     ssl_verify_peer: 1
     # Does elasticsearch require user/pass authentication (Normally when using X-Pack)
@@ -150,7 +150,7 @@ where:
     username: elasticuser
     password: elasticpassword
     # Enable to send results to elasticsearch in batches
-    batch_results: 1
+    batch_results: 0
     # If batching results, how many to send at a time
     batch_count: 200
     
