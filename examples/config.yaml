@@ -130,7 +130,7 @@ where:
     database: dbname
     username: dbusername
     password: dbpassword
-    # Enable to send reults to influxdb in batches
+    # Enable to send results to influxdb in batches
     batch_results: 1
     # If batching results, how many to send at a time
     batch_count: 200
