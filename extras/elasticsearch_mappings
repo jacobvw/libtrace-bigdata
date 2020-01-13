@@ -151,6 +151,10 @@ curl -X PUT "localhost:9200/bgp/_mapping" -H 'Content-Type: application/json' -d
       "source_ip_country": { "type": "text", "fields": { "keyword": { "type": "keyword" } } },
       "source_ip_latitude": { "type": "float" },
       "source_ip_longitude": { "type": "float" },
+      "session_starts": { "type": "long" },
+      "session_timeouts": { "type": "long" },
+      "session_closes": { "type": "long" },
+      "active_sessions": { "type": "long" },
       "timestamp": { "type": "date", "format": "epoch_millis" }
     }
 }
