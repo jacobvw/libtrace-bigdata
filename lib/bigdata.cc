@@ -67,14 +67,14 @@ static void *start_processing(libtrace_t *trace, libtrace_thread_t *thread,
     // create thread local storage
     bd_thread_local_t *local = (bd_thread_local_t *)malloc(sizeof(bd_thread_local_t));
     if (local == NULL) {
-        fprintf(stderr, "Unable to allocate memory. func start_processing()\n");
+        logger(LOG_CRIT, "Unable to allocate memory. func start_processing()");
         exit(BD_OUTOFMEMORY);
     }
 
     // create module local storage pointer space
     local->mls = (void **)malloc(sizeof(void *) * g_data->callback_count);
     if (local->mls == NULL) {
-        fprintf(stderr, "Unable to allocate memory. func. start_processing()\n");
+        logger(LOG_CRIT, "Unable to allocate memory. func. start_processing()");
         exit(BD_OUTOFMEMORY);
     }
 
@@ -83,18 +83,18 @@ static void *start_processing(libtrace_t *trace, libtrace_thread_t *thread,
     bool opt_false = 0;
     lfm_plugin_id_t plugid = LFM_PLUGIN_STANDARD;
     if (local->flow_manager->setConfigOption(LFM_CONFIG_TCP_TIMEWAIT, &opt_false) == 0) {
-        fprintf(stderr, "Unable to apply flow config\n");
+        logger(LOG_ERR, "Unable to apply flow config");
         return NULL;
     }
     if (local->flow_manager->setConfigOption(LFM_CONFIG_EXPIRY_PLUGIN, &plugid) == 0) {
-        fprintf(stderr, "Unable to apply flow config\n");
+        logger(LOG_ERR, "Unable to apply flow config");
         return NULL;
     }
 
     // create storage space for each modules countdown tickrate
     local->c_tickrate = (uint64_t *)malloc(sizeof(uint64_t) * g_data->callback_count);
     if (local->c_tickrate == NULL) {
-        fprintf(stderr, "Unable to allocate memory. func. start_processing()\n");
+        logger(LOG_CRIT, "Unable to allocate memory. func. start_processing()");
         exit(BD_OUTOFMEMORY);
     }
     // initialise the current tickrates
@@ -183,13 +183,13 @@ static void *reporter_starting(libtrace_t *trace, libtrace_thread_t *thread,
     // create report thread local storage
     bd_rthread_local_t *local = (bd_rthread_local_t *)malloc(sizeof(bd_rthread_local_t));
     if (local == NULL) {
-        fprintf(stderr, "Unable to allocate memory. func reporter_starting()\n");
+        logger(LOG_CRIT, "Unable to allocate memory. func reporter_starting()");
         exit(BD_OUTOFMEMORY);
     }
     // create module local storage pointer space
     local->mls = (void **)malloc(sizeof(void *) * g_data->callback_count);
     if (local->mls == NULL) {
-        fprintf(stderr, "Unable to allocate memory. func. reporter_starting()\n");
+        logger(LOG_CRIT, "Unable to allocate memory. func. reporter_starting()");
         exit(BD_OUTOFMEMORY);
     }
 
@@ -257,19 +257,19 @@ int main(int argc, char *argv[]) {
 
     /* ensure only 2 args, app name and config file */
     if (argc != 2) {
-        fprintf(stderr, "Usage: %s configFile\n", argv[0]);
+        logger(LOG_ERR, "Usage: %s configFile", argv[0]);
         exit(BD_INVALID_PARAMS);
     }
 
     /* Initialise libprotoident */
     if (lpi_init_library() == -1) {
-        fprintf(stderr, "Unable to initialise libprotoident\n");
+        logger(LOG_CRIT, "Unable to initialise libprotoident");
         exit(BD_STARTUP_ERROR);
     }
 
     /* init global data */
     if (pthread_mutex_init(&(global.lock), NULL) != 0) {
-        printf("\n mutex init failed\n");
+        logger(LOG_CRIT, "Unable to create mutex");
         exit(BD_STARTUP_ERROR);
     }
     global.callbacks = NULL;
@@ -287,13 +287,20 @@ int main(int argc, char *argv[]) {
         exit(BD_INVALID_CONFIG);
     }
 
+    if (global.config->daemonise) {
+        daemonise(argv[0], "/tmp/bigdata.pid");
+    }
+
+    logger(LOG_INFO, "test logger");
+
     libtrace_t *trace = NULL;
     libtrace_callback_set_t *processing = NULL;
     libtrace_callback_set_t *reporter = NULL;
 
     trace = trace_create(global.config->interface);
     if (trace_is_err(trace)) {
-        trace_perror(trace, "Unable to open capture point");
+        logger(LOG_ERR, "Unable to open capture point %s",
+            global.config->interface);
         libtrace_cleanup(trace, processing, reporter);
         exit(BD_INVALID_INTERFACE);
     }
@@ -310,7 +317,7 @@ int main(int argc, char *argv[]) {
     if (global.config->enable_bidirectional_hasher) {
         // Using this hasher will keep all packets related to a flow on the same thread
         trace_set_hasher(trace, HASHER_BIDIRECTIONAL, NULL, NULL);
-        fprintf(stdout, "Bidirectional Hasher Enabled\n");
+        logger(LOG_INFO, "Bidirectional Hasher Enabled");
     }
 
     // setup processing callbacks
@@ -331,14 +338,16 @@ int main(int argc, char *argv[]) {
 
     // start the trace
     if (trace_pstart(trace, &global, processing, reporter) == -1) {
-        trace_perror(trace, "Unable to start packet capture");
+        //trace_perror(trace, "Unable to start packet capture");
+        logger(LOG_CRIT, "Unable to start packet capture");
         libtrace_cleanup(trace, processing, reporter);
         return 1;
     }
 
     trace_join(trace);
     if (trace_is_err(trace)) {
-        trace_perror(trace, "Unable to read packets");
+        //trace_perror(trace, "Unable to read packets");
+        logger(LOG_CRIT, "Unable to read packets");
         libtrace_cleanup(trace, processing, reporter);
         return -1;
     }

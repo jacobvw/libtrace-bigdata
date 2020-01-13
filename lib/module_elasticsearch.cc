@@ -32,8 +32,8 @@ void *module_elasticsearch_starting(void *tls) {
     mod_elastic_opts_t *opts = (mod_elastic_opts_t *)malloc(sizeof(
         mod_elastic_opts_t));
     if (opts == NULL) {
-        fprintf(stderr, "Unable to allocate memory. func. "
-            "module_elasticsearch_starting()\n");
+        logger(LOG_CRIT, "Unable to allocate memory. func. "
+            "module_elasticsearch_starting()");
         exit(BD_OUTOFMEMORY);
     }
 
@@ -42,8 +42,8 @@ void *module_elasticsearch_starting(void *tls) {
         opts->results = (bd_result_set_t **)malloc(sizeof(
             bd_result_set_t *) * config->batch_count);
         if (opts->results == NULL) {
-            fprintf(stderr, "Unable to allocate memory. func. "
-                "module_elasticsearch_starting()\n");
+            logger(LOG_CRIT, "Unable to allocate memory. func. "
+                "module_elasticsearch_starting()");
             exit(BD_OUTOFMEMORY);
         }
         opts->num_results = 0;
@@ -108,11 +108,11 @@ static int module_elasticsearch_export(bd_bigdata_t *bigdata, mod_elastic_opts_t
     if (ret != CURLE_OK) {
 
         if (bigdata->global->config->debug > 0) {
-            fprintf(stderr, "DEBUG 1: Elasticsearch is offline, result written to "
-                "temp storage.\n");
+            logger(LOG_DEBUG, "DEBUG 1: Elasticsearch is offline, result written to "
+                "temp storage.");
 
             if (bigdata->global->config->debug > 1) {
-                fprintf(stderr, "DEBUG 2: Failed to post to elasticsearch: %s.\n",
+                logger(LOG_DEBUG, "DEBUG 2: Failed to post to elasticsearch: %s",
                     curl_easy_strerror(ret));
             }
         }
@@ -127,11 +127,11 @@ static int module_elasticsearch_export(bd_bigdata_t *bigdata, mod_elastic_opts_t
     } else {
 
         if (!opts->elastic_online && bigdata->global->config->debug > 0) {
-            fprintf(stderr, "DEBUG 1: Elasticsearch is online.\n");
+            logger(LOG_DEBUG, "DEBUG 1: Elasticsearch is online.");
         }
 
         if (bigdata->global->config->debug > 2) {
-            fprintf(stderr, "DEBUG 3: Elasticsearch executed %s\n", result);
+            logger(LOG_DEBUG, "DEBUG 3: Elasticsearch executed %s", result);
         }
 
         opts->elastic_online = 1;
@@ -333,7 +333,7 @@ int module_elasticsearch_config(yaml_parser_t *parser, yaml_event_t *event, int 
         bd_register_reporter_output_event(config->callbacks, module_elasticsearch_result);
         bd_register_reporter_stop_event(config->callbacks, module_elasticsearch_stopping);
 
-        fprintf(stdout, "Elasticsearch Plugin Enabled\n");
+        logger(LOG_INFO, "Elasticsearch Plugin Enabled");
     }
 
     return 0;
@@ -344,8 +344,8 @@ int module_elasticsearch_init(bd_bigdata_t *bigdata) {
     config = (struct module_elasticsearch_conf *)malloc(sizeof(
         struct module_elasticsearch_conf));
     if (config == NULL) {
-        fprintf(stderr, "Unable to allocate memory. func. "
-            "module_elasticsearch_init()\n");
+        logger(LOG_CRIT, "Unable to allocate memory. func. "
+            "module_elasticsearch_init()");
         exit(BD_OUTOFMEMORY);
     }
 

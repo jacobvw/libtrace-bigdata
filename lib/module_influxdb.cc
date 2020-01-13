@@ -38,7 +38,7 @@ void *module_influxdb_starting(void *tls) {
     // create local storage for the module
     opts = (mod_influxdb_opts_t *)malloc(sizeof(mod_influxdb_opts_t));
     if (opts == NULL) {
-        fprintf(stderr, "Unable to allocate memory. func. "
+        logger(LOG_CRIT, "Unable to allocate memory. func. "
             "module_influxdb_starting()\n");
         exit(BD_OUTOFMEMORY);
     }
@@ -48,7 +48,7 @@ void *module_influxdb_starting(void *tls) {
         opts->results = (bd_result_set_t **)malloc(sizeof(
             bd_result_set_t *) * config->batch_count);
         if (opts->results == NULL) {
-            fprintf(stderr, "Unable to allocate memory. func. "
+            logger(LOG_CRIT, "Unable to allocate memory. func. "
                 "module_influxdb_starting()\n");
             exit(BD_OUTOFMEMORY);
         }
@@ -92,13 +92,11 @@ int module_influxdb_export_result(bd_bigdata_t *bigdata, mod_influxdb_opts_t *op
     /* Check for errors */
     if(ret != CURLE_OK) {
 
-        if (bigdata->global->config->debug > 0) {
-            fprintf(stderr, "DEBUG 1: InfluxDB is offline, result written to temp storage\n");
+        logger(LOG_INFO, "DEBUG 1: InfluxDB is offline, result written to temp storage.");
 
-            if (bigdata->global->config->debug > 1) {
-                fprintf(stderr, "DEBUG 2: Failed to post to influxDB: %s.\n",
-                    curl_easy_strerror(ret));
-            }
+        if (bigdata->global->config->debug > 1) {
+            logger(LOG_DEBUG, "DEBUG 2: Failed to post to influxDB: %s.",
+                curl_easy_strerror(ret));
         }
 
         /* Set influxDB to offline */
@@ -110,12 +108,13 @@ int module_influxdb_export_result(bd_bigdata_t *bigdata, mod_influxdb_opts_t *op
         return 2;
     } else {
 
-        if (!opts->influx_online && bigdata->global->config->debug > 0) {
-            fprintf(stderr, "DEBUG 1: InfluxDB is online.\n");
+        /* If InfluxDB was previously offline */
+        if (!opts->influx_online) {
+            logger(LOG_INFO, "InfluxDB is online.");
         }
 
         if (bigdata->global->config->debug >= 3) {
-            fprintf(stderr, "DEBUG 3: InfluxDB executed %s\n", result);
+            logger(LOG_INFO, "DEBUG 3: InfluxDB executed: %s", result);
         }
 
         opts->influx_online = 1;
@@ -292,7 +291,7 @@ int module_influxdb_config(yaml_parser_t *parser, yaml_event_t *event, int *leve
         config->callbacks->reporter_output_cb = (cb_reporter_output)module_influxdb_post;
         config->callbacks->reporter_stop_cb = (cb_reporter_stop)module_influxdb_stopping;
 
-        fprintf(stdout, "InfluxDB Plugin Enabled\n");
+        logger(LOG_INFO, "InfluxDB Plugin Enabled\n");
     }
 
     return 0;
@@ -303,7 +302,7 @@ int module_influxdb_init(bd_bigdata_t *bigdata) {
     config = (struct module_influxdb_conf *)malloc(sizeof(
         struct module_influxdb_conf));
     if (config == NULL) {
-        fprintf(stderr, "Unable to allocate memory. func. "
+        logger(LOG_CRIT, "Unable to allocate memory. func. "
             "module_influxdb_init()\n");
         exit(BD_OUTOFMEMORY);
     }

@@ -18,6 +18,7 @@ bigdata_SOURCES = bigdata.cc bigdata.h \
 		bigdata_flow.cc bigdata_flow.h \
 		bigdata_parser.cc bigdata_parser.h \
 		bigdata_resultset.cc bigdata_resultset.h \
+		bigdata_logger.cc bigdata_logger.h \
 		module_dns.cc module_dns.h module_dns_spcdns.h module_dns_spcdns_codec.c \
 		module_dns_spcdns_mappings.c module_dns_spcdns_mappings.h \
 		module_protocol_statistics.cc module_protocol_statistics.h \

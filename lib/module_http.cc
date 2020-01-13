@@ -36,8 +36,8 @@ void *module_http_starting(void *tls) {
     mod_http_stor *storage = (mod_http_stor *)malloc(sizeof(
         mod_http_stor));
     if (storage == NULL) {
-        fprintf(stderr, "Unable to allocate memory. func. "
-            "module_http_starting()\n");
+        logger(LOG_CRIT, "Unable to allocate memory. func. "
+            "module_http_starting()");
         exit(BD_OUTOFMEMORY);
     }
 
@@ -124,7 +124,7 @@ int module_http_packet(bd_bigdata_t *bigdata, void *mls) {
             /* create the request structure */
             request = (mod_http_req *)malloc(sizeof(mod_http_req));
             if (request == NULL) {
-                fprintf(stderr, "Unable to allocate memory. func. module_http_packet()\n");
+                logger(LOG_CRIT, "Unable to allocate memory. func. module_http_packet()");
                 exit(BD_OUTOFMEMORY);
             }
             request->start_ts = trace_get_seconds(bigdata->packet);
@@ -295,8 +295,8 @@ int module_http_config(yaml_parser_t *parser, yaml_event_t *event, int *level) {
                     consume_event(parser, event, level);
                     config->timeout_request = atoi((char *)event->data.scalar.value);
                     if (config->timeout_request == 0) {
-                        fprintf(stderr, "Invalid timeout_request value. "
-                            "module_http. setting to default 20 seconds\n");
+                        logger(LOG_WARNING, "Invalid timeout_request value. "
+                            "module_http. setting to default 20 seconds");
                         config->timeout_request = 20;
                     }
                     break;
@@ -305,8 +305,8 @@ int module_http_config(yaml_parser_t *parser, yaml_event_t *event, int *level) {
                     consume_event(parser, event, level);
                     config->timeout_check = atoi((char *)event->data.scalar.value);
                     if (config->timeout_check == 0) {
-                        fprintf(stderr, "Invalid timeout_check value. "
-                            "module_http. setting to default 20 seconds\n");
+                        logger(LOG_WARNING, "Invalid timeout_check value. "
+                            "module_http. setting to default 20 seconds");
                         config->timeout_check = 20;
                     }
                     break;
@@ -329,7 +329,7 @@ int module_http_config(yaml_parser_t *parser, yaml_event_t *event, int *level) {
         bd_register_tick_event(config->callbacks, (cb_tick)module_http_tick);
         bd_add_tickrate_to_cb_set(config->callbacks, config->timeout_check);
 
-        fprintf(stderr, "HTTP plugin enabled\n");
+        logger(LOG_INFO, "HTTP plugin enabled");
     }
 
     return 0;
@@ -340,8 +340,8 @@ int module_http_init(bd_bigdata_t *bigdata) {
     config = (struct module_http_conf *)malloc(sizeof(
         struct module_http_conf));
     if (config == NULL) {
-        fprintf(stderr, "Unable to allocate memory. func. "
-            "module_http_init()\n");
+        logger(LOG_INFO, "Unable to allocate memory. func. "
+            "module_http_init()");
         exit(BD_OUTOFMEMORY);
     }
 

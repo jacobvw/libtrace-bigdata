@@ -31,6 +31,7 @@ typedef struct bigdata_flow_record bd_flow_record_t;
 #include "bigdata_callbacks.h"
 #include "bigdata_parser.h"
 #include "bigdata_flow.h"
+#include "bigdata_logger.h"
 
 // Input Plugins
 #include "module_dns.h"
@@ -112,6 +113,7 @@ typedef struct bigdata_config {
     int processing_threads;
     bool enable_bidirectional_hasher;
     int debug;
+    bool daemonise;
     bd_network_t **local_subnets;
     int local_subnets_count;
     bd_dir_method_t dir_method;

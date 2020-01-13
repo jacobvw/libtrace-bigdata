@@ -69,7 +69,7 @@ static int flow_init_metrics(bd_bigdata_t *bigdata, uint8_t dir, double ts) {
     // create flow record for the flow
     bd_flow_record_t *flow_record = (bd_flow_record_t *)malloc(sizeof(bd_flow_record_t));
     if (flow_record == NULL) {
-        fprintf(stderr, "Unable to allocate memory. func. flow_init_metrics()\n");
+        logger(LOG_CRIT, "Unable to allocate memory. func. flow_init_metrics()");
         exit(BD_OUTOFMEMORY);
     }
 
@@ -295,7 +295,7 @@ char *bd_flow_get_source_ip_string(Flow *flow, char *space, int spacelen) {
 lpi_protocol_t bd_flow_get_protocol(Flow *flow) {
 
     if (flow == NULL) {
-        fprintf(stderr, "NULL flow. func. bd_flow_get_protocol()\n");
+        logger(LOG_DEBUG, "NULL flow. func. bd_flow_get_protocol()");
         return LPI_PROTO_UNKNOWN;
     }
 
@@ -307,7 +307,7 @@ lpi_protocol_t bd_flow_get_protocol(Flow *flow) {
 lpi_category_t bd_flow_get_category(Flow *flow) {
 
     if (flow == NULL) {
-        fprintf(stderr, "NULL flow. func. bd_flow_get_category()\n");
+        logger(LOG_DEBUG, "NULL flow. func. bd_flow_get_category()");
         return LPI_CATEGORY_UNKNOWN;
     }
 
@@ -319,7 +319,7 @@ lpi_category_t bd_flow_get_category(Flow *flow) {
 lpi_module_t *bd_flow_get_lpi_module(Flow *flow) {
 
     if (flow == NULL) {
-        fprintf(stderr, "NULL flow. func. bd_flow_get_lpi_module()\n");
+        logger(LOG_DEBUG, "NULL flow. func. bd_flow_get_lpi_module()");
         return NULL;
     }
 
@@ -331,8 +331,8 @@ lpi_module_t *bd_flow_get_lpi_module(Flow *flow) {
 FlowManager *bd_flow_get_flowmanager(bd_bigdata_t *bigdata) {
 
     if (bigdata == NULL) {
-        fprintf(stderr, "NULL bigdata structure passed into. func "
-            "bd_get_flowmanager()\n");
+        logger(LOG_DEBUG, "NULL bigdata structure passed into. func "
+            "bd_get_flowmanager()");
         return NULL;
     }
 
@@ -340,8 +340,8 @@ FlowManager *bd_flow_get_flowmanager(bd_bigdata_t *bigdata) {
      *  available from the reporting thread.
      */
     if (trace_get_perpkt_thread_id(bigdata->thread) == -1) {
-        fprintf(stderr, "Flowmanager is only available from the "
-            "processing threads\n");
+        logger(LOG_DEBUG, "Flowmanager is only available from the "
+            "processing threads");
         return NULL;
     }
 
@@ -359,7 +359,7 @@ Flow *bd_flow_get(bd_bigdata_t *bigdata) {
 bd_flow_record_t *bd_flow_get_record(Flow *flow) {
 
     if (flow == NULL) {
-        fprintf(stderr, "NULL flow. func. bd_flow_get_record()\n");
+        logger(LOG_DEBUG, "NULL flow. func. bd_flow_get_record()");
         return NULL;
     }
 
@@ -395,7 +395,7 @@ struct timeval bd_flow_get_start_timeval(Flow *flow) {
     tv.tv_usec = -1;
 
     if (flow == NULL) {
-        fprintf(stderr, "NULL flow. func. bd_flow_get_start_timeval()\n");
+        logger(LOG_DEBUG, "NULL flow. func. bd_flow_get_start_timeval()");
         return tv;
     }
 
@@ -410,7 +410,7 @@ struct timeval bd_flow_get_start_timeval(Flow *flow) {
 uint64_t bd_flow_get_start_time_milliseconds(Flow *flow) {
 
     if (flow == NULL) {
-        fprintf(stderr, "NULL flow. func. bd_flow_get_end_time_milliseconds()\n");
+        logger(LOG_DEBUG, "NULL flow. func. bd_flow_get_end_time_milliseconds()");
         return 0;
     }
 
@@ -428,7 +428,7 @@ struct timeval bd_flow_get_end_timeval(Flow *flow) {
     tv.tv_usec = -1;
 
     if (flow == NULL) {
-        fprintf(stderr, "NULL flow. func. bd_flow_get_end_timeval()\n");
+        logger(LOG_DEBUG, "NULL flow. func. bd_flow_get_end_timeval()");
         return tv;
     }
 
@@ -443,7 +443,7 @@ struct timeval bd_flow_get_end_timeval(Flow *flow) {
 uint64_t bd_flow_get_end_time_milliseconds(Flow *flow) {
 
     if (flow == NULL) {
-        fprintf(stderr, "NULL flow. func. bd_flow_get_end_time_milliseconds()\n");
+        logger(LOG_DEBUG, "NULL flow. func. bd_flow_get_end_time_milliseconds()");
         return 0;
     }
 

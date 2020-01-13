@@ -24,7 +24,7 @@ PKG_PROG_PKG_CONFIG
 # Checks for libraries.
 
 # Checks for header files.
-AC_CHECK_HEADERS([arpa/inet.h limits.h netdb.h netinet/in.h stddef.h stdint.h stdlib.h string.h sys/socket.h])
+AC_CHECK_HEADERS([arpa/inet.h limits.h netdb.h netinet/in.h stddef.h stdint.h stdlib.h string.h sys/socket.h syslog.h])
 
 AC_CHECK_LIB([trace], [trace_pstart],,[AC_MSG_ERROR(Libtrace 4.0.1 or greater is required to compile Libtrace-bigdata)])
 AC_CHECK_LIB([protoident], [lpi_get_category_by_protocol],,[AC_MSG_ERROR(Libprotoident 2.0.15 or greater is required to compile Libtrace-bigdata)])

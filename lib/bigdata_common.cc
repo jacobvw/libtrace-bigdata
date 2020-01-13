@@ -11,7 +11,7 @@ int bd_get_packet_direction(bd_bigdata_t *bigdata) {
     bd_cache_t *cache = &(bigdata->cache);
 
     if (packet == NULL) {
-        fprintf(stderr, "NULL packet. func. bd_get_packet_direction()\n");
+        logger(LOG_DEBUG, "NULL packet. func. bd_get_packet_direction()\n");
         return -1;
     }
 

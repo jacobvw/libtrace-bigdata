@@ -8,13 +8,13 @@ bd_result_set_t *bd_result_set_create(bd_bigdata_t *bigdata, const char *mod) {
     // create result set structure
     bd_result_set_t *res = (bd_result_set_t *)malloc(sizeof(bd_result_set_t));
     if (res == NULL) {
-        fprintf(stderr, "Unable to allocate memory. func. bd_create_output_result_set()\n");
+        logger(LOG_CRIT, "Unable to allocate memory. func. bd_create_output_result_set()\n");
         exit(BD_OUTOFMEMORY);
     }
     // allocate space for results
     res->results = (bd_result_t *)malloc(sizeof(bd_result_t)*RESULT_SET_INIT_SIZE);
     if (res->results == NULL) {
-        fprintf(stderr, "Unable to allocate memory. func. bd_create_output_result_set()\n");
+        logger(LOG_CRIT, "Unable to allocate memory. func. bd_create_output_result_set()\n");
         exit(BD_OUTOFMEMORY);
     }
     res->module = mod;
@@ -32,7 +32,7 @@ int bd_result_set_insert(bd_result_set_t *result_set, char const *key, bd_record
     bd_record_value value) {
 
     if (result_set == NULL) {
-        fprintf(stderr, "NULL result set. func. bd_result_set_insert()\n");
+        logger(LOG_CRIT, "NULL result set. func. bd_result_set_insert()\n");
         exit(BD_OUTOFMEMORY);
     }
 
@@ -42,14 +42,14 @@ int bd_result_set_insert(bd_result_set_t *result_set, char const *key, bd_record
         result_set->results = (bd_result_t *)realloc(result_set->results,
             sizeof(bd_result_t)*result_set->allocated_results);
         if (result_set->results == NULL) {
-            fprintf(stderr, "Unable to allocate memory. func. bd_result_set_insert()\n");
+            logger(LOG_CRIT, "Unable to allocate memory. func. bd_result_set_insert()\n");
             exit(BD_OUTOFMEMORY);
         }
     }
 
     result_set->results[result_set->num_results].key = strdup(key);
     if (result_set->results[result_set->num_results].key == NULL) {
-        fprintf(stderr, "Unable to allocate memory. func. bd_result_set_insert()\n");
+        logger(LOG_CRIT, "Unable to allocate memory. func. bd_result_set_insert()\n");
         exit(BD_OUTOFMEMORY);
     }
     result_set->results[result_set->num_results].type = dtype;
@@ -66,7 +66,7 @@ int bd_result_set_insert_string(bd_result_set_t *result_set, char const *key,
     union bd_record_value val;
     val.data_string = strdup(value);
     if (val.data_string == NULL) {
-        fprintf(stderr, "Unable to allocate memory. func. bd_result_set_insert_string()\n");
+        logger(LOG_CRIT, "Unable to allocate memory. func. bd_result_set_insert_string()\n");
         exit(BD_OUTOFMEMORY);
     }
 
@@ -129,7 +129,7 @@ int bd_result_set_insert_tag(bd_result_set_t *result_set, char const *tag,
     union bd_record_value val;
     val.data_string = strdup(value);
     if (val.data_string == NULL) {
-        fprintf(stderr, "Unable to allocate memory. func. bd_result_set_insert_string()\n");
+        logger(LOG_CRIT, "Unable to allocate memory. func. bd_result_set_insert_string()\n");
         exit(BD_OUTOFMEMORY);
     }
     bd_result_set_insert(result_set, tag, BD_TYPE_TAG, val);
@@ -142,7 +142,7 @@ int bd_result_set_insert_ip_string(bd_result_set_t *result_set, char const *key,
     union bd_record_value val;
     val.data_string = strdup(value);
     if (val.data_string == NULL) {
-        fprintf(stderr, "Unable to allocate memory. func. bd_result_set_insert_ip_string()\n");
+        logger(LOG_CRIT, "Unable to allocate memory. func. bd_result_set_insert_ip_string()\n");
         exit(BD_OUTOFMEMORY);
     }
     bd_result_set_insert(result_set, key, BD_TYPE_IP_STRING, val);
@@ -164,7 +164,7 @@ int bd_result_set_unlock(bd_result_set_t *result_set) {
 int bd_result_set_publish(bd_bigdata_t *bigdata, bd_result_set_t *result, uint64_t key) {
 
     if (result == NULL) {
-        fprintf(stderr, "NULL result set. func. bd_result_set_output()\n");
+        logger(LOG_DEBUG, "NULL result set. func. bd_result_set_output()\n");
         return -1;
     }
 
@@ -187,7 +187,7 @@ int bd_result_set_publish(bd_bigdata_t *bigdata, bd_result_set_t *result, uint64
         bd_result_set_wrap_t *res = (bd_result_set_wrap_t *)
             malloc(sizeof(bd_result_set_wrap_t));
         if (res == NULL) {
-            fprintf(stderr, "Unable to allocate memory. func. bd_result_set_publish()\n");
+            logger(LOG_CRIT, "Unable to allocate memory. func. bd_result_set_publish()\n");
             exit(BD_OUTOFMEMORY);
         }
         res->type = BD_RESULT_PUBLISH;
@@ -207,14 +207,14 @@ int bd_result_set_publish(bd_bigdata_t *bigdata, bd_result_set_t *result, uint64
 int bd_result_combine(bd_bigdata_t *bigdata, void *result, uint64_t key, int module_id) {
 
     if (result == NULL) {
-        fprintf(stderr, "NULL result set. func. bd_result_set_combine()\n");
+        logger(LOG_DEBUG, "NULL result set. func. bd_result_set_combine()\n");
         return -1;
     }
 
     bd_result_set_wrap_t *res = (bd_result_set_wrap_t *)
         malloc(sizeof(bd_result_set_wrap_t));
     if (res == NULL) {
-        fprintf(stderr, "Unable to allocate memory. func. bd_result_set_publish()\n");
+        logger(LOG_CRIT, "Unable to allocate memory. func. bd_result_set_publish()\n");
         exit(BD_OUTOFMEMORY);
     }
     res->type = BD_RESULT_COMBINE;
@@ -297,7 +297,7 @@ int bd_result_set_wrap_free(bd_result_set_wrap_t *r) {
     int ret = 0;
 
     if (r == NULL) {
-        fprintf(stderr, "NULL result wrapper. func. bd_result_set_wrap_free()\n");
+        logger(LOG_DEBUG, "NULL result wrapper. func. bd_result_set_wrap_free()\n");
         return -1;
     }
 
@@ -342,7 +342,7 @@ char *bd_result_string_read(bd_cb_set *cbs) {
     /* allocate space to read the file into. include space to null terminate the string */
     buf = (char *)malloc(filesize + 1);
     if (buf == NULL) {
-        fprintf(stderr, "Unable to allocate memory. func. bd_result_string_read()\n");
+        logger(LOG_CRIT, "Unable to allocate memory. func. bd_result_string_read()\n");
         exit(BD_OUTOFMEMORY);
     }
 

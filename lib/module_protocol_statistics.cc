@@ -117,7 +117,7 @@ void *module_protocol_statistics_starting(void *tls) {
     /* Allocate memory for module storage */
     mod_proto_stats_t *stats = (mod_proto_stats_t *)malloc(sizeof(mod_proto_stats_t));
     if (stats == NULL) {
-        fprintf(stderr, "Unable to allocate memory. func. "
+        logger(LOG_CRIT, "Unable to allocate memory. func. "
             "module_protocol_statistics_starting()\n");
         exit(BD_OUTOFMEMORY);
     }
@@ -222,7 +222,7 @@ int module_protocol_statistics_tick(bd_bigdata_t *bigdata, void *mls, uint64_t t
     mod_proto_stats_t *combine = (mod_proto_stats_t *)
         malloc(sizeof(mod_proto_stats_t));
     if (combine == NULL) {
-        fprintf(stderr, "Unable to allocate memory. func. "
+        logger(LOG_CRIT, "Unable to allocate memory. func. "
             "module_protocol_statistics_tick()\n");
         exit(BD_OUTOFMEMORY);
     }
@@ -280,7 +280,7 @@ void *module_protocol_statistics_reporter_start(void *tls) {
     mod_proto_stats_t *tally = (mod_proto_stats_t *)
         malloc(sizeof(mod_proto_stats_t));
     if (tally == NULL) {
-        fprintf(stderr, "Unable to allocate memory. func. "
+        logger(LOG_CRIT, "Unable to allocate memory. func. "
             "module_protocol_statistics_reporter_start()\n");
         exit(BD_OUTOFMEMORY);
     }
@@ -448,7 +448,7 @@ int module_protocol_statistics_config(yaml_parser_t *parser, yaml_event_t *event
                     if (config->output_interval != 0) {
                         bd_add_tickrate_to_cb_set(config->callbacks, config->output_interval);
                     } else {
-                        fprintf(stderr, "Invalid output_interval value. "
+                        logger(LOG_WARNING, "Invalid output_interval value. "
                             "module_protocol_statistics. Disabling module\n");
                         config->enabled = 0;
                     }
@@ -514,7 +514,7 @@ int module_protocol_statistics_config(yaml_parser_t *parser, yaml_event_t *event
             module_protocol_statistics_reporter_stop;
         config->callbacks->clear_cb = (cb_clear)module_protocol_statistics_clear;
 
-        fprintf(stdout, "Protocol Statistics Plugin Enabled\n");
+        logger(LOG_INFO, "Protocol Statistics Plugin Enabled\n");
     }
 
     return 0;
@@ -525,7 +525,7 @@ int module_protocol_statistics_init(bd_bigdata_t *bigdata) {
     config = (struct module_protocol_statistics_conf *)malloc(
         sizeof(struct module_protocol_statistics_conf));
     if (config == NULL) {
-        fprintf(stderr, "Unable to allocate memory. func. "
+        logger(LOG_CRIT, "Unable to allocate memory. func. "
             "module_protocol_statistics_init()\n");
         exit(BD_OUTOFMEMORY);
     }

@@ -29,7 +29,7 @@ static void module_kafka_delivery_cb(rd_kafka_t *rk, void *payload, size_t len,
     rd_kafka_resp_err_t error_code, void *opaque, void *msg_opaque) {
 
     if (error_code) {
-        fprintf(stderr, "%% Message delivery failed: %s\n",
+        logger(LOG_DEBUG, "Kafka message delivery failed: %s",
             rd_kafka_err2str(error_code));
     }
 }
@@ -39,7 +39,7 @@ void *module_kafka_starting(void *tls) {
     mod_kafka_opts_t *opts = (mod_kafka_opts_t *)malloc(
         sizeof(mod_kafka_opts_t));
     if (opts == NULL) {
-        fprintf(stderr, "Unable to allocate memory. func."
+        logger(LOG_CRIT, "Unable to allocate memory. func."
             " module_kafka_starting()\n");
         exit(BD_OUTOFMEMORY);
     }
@@ -56,13 +56,13 @@ void *module_kafka_starting(void *tls) {
     opts->rk = rd_kafka_new(RD_KAFKA_PRODUCER, opts->conf, opts->errstr,
         sizeof(opts->errstr));
     if (!opts->rk) {
-        fprintf(stderr, "Kafka error: Failed to create new producer: %s\n",
+        logger(LOG_CRIT, "Kafka error: Failed to create new producer: %s\n",
             opts->errstr);
         exit(BD_OUTPUT_INIT);
     }
 
     if (rd_kafka_brokers_add(opts->rk, config->brokers) == 0) {
-        fprintf(stderr, "Kafka error: No valid brokers specified\n");
+        logger(LOG_CRIT, "Kafka error: No valid brokers specified\n");
         exit(BD_OUTPUT_INIT);
     }
 
@@ -91,7 +91,7 @@ int module_kafka_post(bd_bigdata_t *bigdata, void *mls, bd_result_set *result) {
                         0,
                         NULL) == -1) {
 
-        fprintf(stderr, "Kafka error: Failed to produce to topic %s\n",
+        logger(LOG_INFO, "Kafka error: Failed to produce to topic %s\n",
             config->topic);
 
     }
@@ -108,7 +108,7 @@ void module_kafka_stopping(void *tls, void *mls) {
 
     // check output queue is empty
     if (rd_kafka_outq_len(opts->rk) > 0) {
-        fprintf(stderr, "%d Kafka message(s) were not delivered\n",
+        logger(LOG_DEBUG, "%d Kafka message(s) were not delivered\n",
             rd_kafka_outq_len(opts->rk));
         rd_kafka_poll(opts->rk, 100);
     }
@@ -174,7 +174,7 @@ int module_kafka_config(yaml_parser_t *parser, yaml_event_t *event, int *level) 
         config->callbacks->reporter_stop_cb =
             (cb_reporter_stop)module_kafka_stopping;
 
-        fprintf(stdout, "Kafka Plugin Enabled\n");
+        logger(LOG_INFO, "Kafka Plugin Enabled\n");
     }
 
     return 0;
@@ -185,7 +185,7 @@ int module_kafka_init(bd_bigdata_t *bigdata) {
     config = (struct module_kafka_conf *)malloc(sizeof(
         struct module_kafka_conf));
     if (config == NULL) {
-        fprintf(stderr, "Unable to allocate memory. func. "
+        logger(LOG_CRIT, "Unable to allocate memory. func. "
             "module_kafka_init()\n");
         exit(BD_OUTOFMEMORY);
     }

@@ -17,7 +17,7 @@ static bd_network_t *get_local_network(char *network_string) {
         // create result structure
         bd_network_t *network = (bd_network_t *)malloc(sizeof(bd_network_t));
         if (network == NULL) {
-            fprintf(stderr, "Unable to allocate memory. func get_local_network()\n");
+            logger(LOG_CRIT, "Unable to allocate memory. func get_local_network()");
             exit(BD_OUTOFMEMORY);
         }
 
@@ -26,7 +26,7 @@ static bd_network_t *get_local_network(char *network_string) {
             // IPv4
             /* Check the subnet mask is valid */
             if(atoi(mask) == 0 || atoi(mask) > 32 || atoi(mask) < 0) {
-                fprintf(stderr, "Invalid mask %s for network address %s\n",
+                logger(LOG_DEBUG, "Invalid mask %s for network address %s",
                     mask, address);
                 free(network);
                 return NULL;
@@ -53,7 +53,7 @@ static bd_network_t *get_local_network(char *network_string) {
             // IPv6
             /* Check the subnet mask is valid */
             if(atoi(mask) == 0 || atoi(mask) > 128 || atoi(mask) < 0) {
-                fprintf(stderr, "Invalid mask %s for network address %s\n",
+                logger(LOG_DEBUG, "Invalid mask %s for network address %s",
                     mask, address);
                 free(network);
                 return NULL;
@@ -89,7 +89,7 @@ static bd_network_t *get_local_network(char *network_string) {
             msk->sin6_family = AF_INET6;
 
         } else {
-            fprintf(stderr, "Address %s is not a valid IPv4 or IPv6 address\n", address);
+            logger(LOG_DEBUG, "Address %s is not a valid IPv4 or IPv6 address", address);
             free(network);
             network = NULL;
         }
@@ -99,17 +99,17 @@ static bd_network_t *get_local_network(char *network_string) {
 
 void print_event(yaml_event_t *event, int *level) {
     switch(event->type) {
-        case YAML_STREAM_START_EVENT: fprintf(stderr, "YAML_STREAM_START_EVENT %d\n", *level); break;
-        case YAML_STREAM_END_EVENT: fprintf(stderr, "YAML_STREAM_END_EVENT %d\n", *level); break;
-        case YAML_DOCUMENT_START_EVENT: fprintf(stderr, "YAML_DOCUMENT_START_EVENT %d\n", *level); break;
-        case YAML_DOCUMENT_END_EVENT: fprintf(stderr, "YAML_DOCUMENT_END_EVENT %d\n", *level); break;
-        case YAML_SEQUENCE_START_EVENT: fprintf(stderr, "YAML_SEQUENCE_START_EVENT %d\n", *level); break;
-        case YAML_SEQUENCE_END_EVENT: fprintf(stderr, "YAML_SEQUENCE_END_EVENT %d\n", *level); break;
-        case YAML_MAPPING_START_EVENT: fprintf(stderr, "YAML_MAPPING_START_EVENT %d\n", *level); break;
-        case YAML_MAPPING_END_EVENT: fprintf(stderr, "YAML_MAPPING_END_EVENT %d\n", *level); break;
-        case YAML_SCALAR_EVENT: fprintf(stderr, "YAML_SCALAR_EVENT %d\n", *level); break;
-        case YAML_ALIAS_EVENT: fprintf(stderr, "YAML_ALIAS_EVENT %d\n", *level); break;
-        case YAML_NO_EVENT: fprintf(stderr, "YAML_NO_EVENT %d\n", *level); break;
+        case YAML_STREAM_START_EVENT: logger(LOG_DEBUG, "YAML_STREAM_START_EVENT %d\n", *level); break;
+        case YAML_STREAM_END_EVENT: logger(LOG_DEBUG, "YAML_STREAM_END_EVENT %d\n", *level); break;
+        case YAML_DOCUMENT_START_EVENT: logger(LOG_DEBUG, "YAML_DOCUMENT_START_EVENT %d\n", *level); break;
+        case YAML_DOCUMENT_END_EVENT: logger(LOG_DEBUG, "YAML_DOCUMENT_END_EVENT %d\n", *level); break;
+        case YAML_SEQUENCE_START_EVENT: logger(LOG_DEBUG, "YAML_SEQUENCE_START_EVENT %d\n", *level); break;
+        case YAML_SEQUENCE_END_EVENT: logger(LOG_DEBUG, "YAML_SEQUENCE_END_EVENT %d\n", *level); break;
+        case YAML_MAPPING_START_EVENT: logger(LOG_DEBUG, "YAML_MAPPING_START_EVENT %d\n", *level); break;
+        case YAML_MAPPING_END_EVENT: logger(LOG_DEBUG, "YAML_MAPPING_END_EVENT %d\n", *level); break;
+        case YAML_SCALAR_EVENT: logger(LOG_DEBUG, "YAML_SCALAR_EVENT %d\n", *level); break;
+        case YAML_ALIAS_EVENT: logger(LOG_DEBUG, "YAML_ALIAS_EVENT %d\n", *level); break;
+        case YAML_NO_EVENT: logger(LOG_DEBUG, "YAML_NO_EVENT %d\n", *level); break;
     }
 }
 
@@ -132,7 +132,7 @@ static void update_level(yaml_event_t *event, int *level) {
 int consume_event(yaml_parser_t *parser, yaml_event_t *event, int *level) {
     yaml_event_delete(event);
     if (!yaml_parser_parse(parser, event)) {
-        printf("Parser error %d\n", parser->error);
+        logger(LOG_ERR, "Parser error %d\n", parser->error);
         exit(EXIT_FAILURE);
     }
     update_level(event, level);
@@ -158,17 +158,17 @@ bd_conf_t *parse_config(char *filename, bd_global_t *g_data) {
 
     // try open the config file1
     if ((fd = fopen(filename, "r")) == NULL) {
-        fprintf(stderr, "Failed to open config file %s\n", filename);
+        logger(LOG_ERR, "Failed to open config file %s\n", filename);
 	return NULL;
     }
 
     /* Initialize parser */
     if(!yaml_parser_initialize(&parser)) {
-        fprintf(stderr, "Failed to initialize parser!\n");
+        logger(LOG_ERR, "Failed to initialize parser!\n");
         return NULL;
     }
     if(fd == NULL){
-        fprintf(stderr, "Failed to open file!\n");
+        logger(LOG_ERR, "Failed to open file!\n");
         return NULL;
     }
 
@@ -177,8 +177,8 @@ bd_conf_t *parse_config(char *filename, bd_global_t *g_data) {
 
     // get the first event
     if (!yaml_parser_parse(&parser, &event)) {
-        printf("Parser error %d\n", parser.error);
-        exit(EXIT_FAILURE);
+        logger(LOG_ERR, "Parser error %d\n", parser.error);
+        return NULL;
     }
     // update conf depth level
     update_level(&event, &level);
@@ -210,7 +210,7 @@ bd_conf_t *parse_config(char *filename, bd_global_t *g_data) {
                     // should now be a YAML_SCALAR_EVENT containing a hostname,
                     //  if not config is incorrect.
                     if (event.type != YAML_SCALAR_EVENT) {
-                        fprintf(stderr, "Config error: Expected hostname\n");
+                        logger(LOG_ERR, "Config error: Expected hostname\n");
                         return NULL;
                     }
                     conf->hostname = strdup((char *)event.data.scalar.value);
@@ -224,7 +224,7 @@ bd_conf_t *parse_config(char *filename, bd_global_t *g_data) {
                     // should now be a YAML_SCALAR_EVENT containing a interface name,
                     //  if not config is incorrect.
                     if (event.type != YAML_SCALAR_EVENT) {
-                        fprintf(stderr, "Config error: Expected interface\n");
+                        logger(LOG_ERR, "Config error: Expected interface\n");
                         return NULL;
                     }
                     conf->interface = strdup((char *)event.data.scalar.value);
@@ -239,7 +239,7 @@ bd_conf_t *parse_config(char *filename, bd_global_t *g_data) {
                     // should now be a YAML_SCALAR_EVENT containing a interface name,
                     //  if not config is incorrect.
                     if (event.type != YAML_SCALAR_EVENT) {
-                        fprintf(stderr, "Config error: Expected number of threads\n");
+                        logger(LOG_ERR, "Config error: Expected number of threads\n");
                         return NULL;
                     }
                     conf->processing_threads = atoi((char *)event.data.scalar.value);
@@ -252,7 +252,7 @@ bd_conf_t *parse_config(char *filename, bd_global_t *g_data) {
                     // consume the first event which contains the key
                     consume_event(&parser, &event, &level);
                     if (event.type != YAML_SCALAR_EVENT) {
-                        fprintf(stderr, "Config error: Expect direction method after "
+                        logger(LOG_ERR, "Config error: Expect direction method after "
                             "direction_method\n");
                         return NULL;
                     }
@@ -263,8 +263,8 @@ bd_conf_t *parse_config(char *filename, bd_global_t *g_data) {
                     } else  if (strcmp((char *)event.data.scalar.value, "DIR_METHOD_NETWORK") == 0) {
                         conf->dir_method = DIR_METHOD_NETWORK;
                     } else {
-                        conf->dir_method = DIR_METHOD_TRACE;
-                        fprintf(stderr, "Unknown direction method, setting to DIR_METHOD_TRACE\n");
+                        conf->dir_method = DIR_METHOD_PORT;
+                        logger(LOG_WARNING, "Unknown direction method, setting to DIR_METHOD_PORT\n");
                     }
                     break;
                 }
@@ -272,7 +272,7 @@ bd_conf_t *parse_config(char *filename, bd_global_t *g_data) {
                 if (strcmp((char *)event.data.scalar.value, "local_networks") == 0) {
                     consume_event(&parser, &event, &level);
                     if (event.type != YAML_SEQUENCE_START_EVENT) {
-                        fprintf(stderr, "Config error: Expected network address/es after "
+                        logger(LOG_ERR, "Config error: Expected network address/es after "
                             "local_networks.\n");
                         return NULL;
                     }
@@ -308,7 +308,7 @@ bd_conf_t *parse_config(char *filename, bd_global_t *g_data) {
                     // should now be a YAML_SCALAR_EVENT,
                     //  if not config is incorrect.
                     if (event.type != YAML_SCALAR_EVENT) {
-                        fprintf(stderr, "Config error: Expected boolean after "
+                        logger(LOG_ERR, "Config error: Expected boolean after "
                             "enable_bidirectional_hasher\n");
                         return NULL;
                     }
@@ -331,11 +331,34 @@ bd_conf_t *parse_config(char *filename, bd_global_t *g_data) {
                     // should now be a YAML_SCALAR_EVENT,
                     //  if not config is incorrect.
                     if (event.type != YAML_SCALAR_EVENT) {
-                        fprintf(stderr, "Config error: Expected integer for "
+                        logger(LOG_ERR, "Config error: Expected integer for "
                             "debug\n");
                         return NULL;
                     }
                     conf->debug = atoi((char *)event.data.scalar.value);
+                    // consume the event
+                    consume_event(&parser, &event, &level);
+                    break;
+                }
+
+                if (strcmp((char *)event.data.scalar.value, "daemon") == 0) {
+                    // consume the first event which contains the value debug
+                    consume_event(&parser, &event, &level);
+                    // should now be a YAML_SCALAR_EVENT,
+                    //  if not config is incorrect.
+                    if (event.type != YAML_SCALAR_EVENT) {
+                        logger(LOG_ERR, "Config error: Expected 0 or 1 for "
+                            "daemon\n");
+                        return NULL;
+                    }
+                    if (strcmp((char *)event.data.scalar.value, "1") == 0 ||
+                        strcmp((char *)event.data.scalar.value, "true") == 0 ||
+                        strcmp((char *)event.data.scalar.value, "yes") == 0) {
+
+                        conf->daemonise = 1;
+                    } else {
+                        conf->daemonise = 0;
+                    }
                     // consume the event
                     consume_event(&parser, &event, &level);
                     break;
@@ -369,7 +392,7 @@ bd_conf_t *parse_config(char *filename, bd_global_t *g_data) {
                                         int mod_enter_level = level;
                                         cbs->config_cb(&parser, &event, &level);
                                         if (mod_enter_level != level) {
-                                            fprintf(stderr, "Module %s did not consume all its "
+                                            logger(LOG_ERR, "Module %s did not consume all its "
                                                 "events\n", cbs->name);
                                             exit(BD_INVALID_CONFIG);
                                         }

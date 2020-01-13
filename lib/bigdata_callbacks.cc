@@ -3,8 +3,8 @@
 bd_cb_set *bd_create_cb_set(const char *module_name) {
     bd_cb_set *cbset = (bd_cb_set *)calloc(1, sizeof(bd_cb_set));
     if (cbset == NULL) {
-        fprintf(stderr, "Unable to create callback set. func. "
-            "bd_create_cb_set()\n");
+        logger(LOG_CRIT, "Unable to allocate memory. func. "
+            "bd_create_cb_set()");
         exit(BD_OUTOFMEMORY);
     }
 
@@ -157,15 +157,15 @@ int bd_callback_trigger_output(bd_bigdata_t *bigdata, bd_result_set_t *result) {
 
                 if (ret == 0) {
                     if (bigdata->global->config->debug > 1) {
-                        fprintf(stderr, "DEBUG 2: Result posted to %s\n", cbs->name);
+                        logger(LOG_DEBUG, "DEBUG 2: Result posted to %s\n", cbs->name);
                     }
                 } else if (ret == 1) {
                     if (bigdata->global->config->debug > 1) {
-                        fprintf(stderr, "DEBUG 2: Result batched for %s\n", cbs->name);
+                        logger(LOG_DEBUG, "DEBUG 2: Result batched for %s\n", cbs->name);
                     }
                 } else if (ret == 2) {
                     if (bigdata->global->config->debug > 1) {
-                        fprintf(stderr, "DEBUG 2: Result export failed for %s. %s should "
+                        logger(LOG_DEBUG, "DEBUG 2: Result export failed for %s. %s should "
                             "have exported the result to a temp file.\n", cbs->name,
                             cbs->name);
                     }
@@ -401,7 +401,7 @@ int bd_callback_trigger_tick(bd_bigdata_t *bigdata, uint64_t tick) {
     if (config->debug) {
         libtrace_stat_t *stats = trace_create_statistics();
         trace_get_statistics(bigdata->trace, stats);
-        fprintf(stderr, "Accepted %lu packets, Dropped %lu packets\n",
+        logger(LOG_DEBUG, "Accepted %lu packets, Dropped %lu packets\n",
             stats->accepted, stats->dropped);
         free(stats);
     }

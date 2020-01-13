@@ -36,8 +36,8 @@ void *module_dns_starting(void *tls) {
     struct module_dns_local *storage = (struct module_dns_local *)
         malloc(sizeof(struct module_dns_local));
     if (storage == NULL) {
-        fprintf(stderr, "Unable to allocate memory for module_dns storage\n");
-        return NULL;
+        logger(LOG_CRIT, "Unable to allocate memory. func.  module_dns storage()");
+        exit(BD_OUTOFMEMORY);;
     }
     // create request map
     storage->reqs = new std::unordered_map<uint16_t, struct module_dns_req *>;
@@ -115,24 +115,13 @@ int module_dns_packet(bd_bigdata_t *bigdata, void *mls) {
             struct module_dns_req *req_stor = (struct module_dns_req *)malloc(
                 sizeof(struct module_dns_req));
             if (req_stor == NULL) {
-                fprintf(stderr, "Unable to allocate memory\n");
-                return 1;
+                logger(LOG_CRIT, "Unable to allocate memory. func. module_dns_packet()");
+                exit(BD_OUTOFMEMORY);
             }
             req_stor->start_ts = trace_get_seconds(packet);
 
-            /*if (DEBUG) {
-                fprintf(stderr, "got query %s thread id %lu\n",
-                    dns_type_text(req->questions[0].type), pthread_self());
-            }*/
-
             // insert request into the map
             map->insert({identifier, req_stor});
-        } else {
-            /*if (DEBUG) {
-                // is a result without query
-                fprintf(stderr, "Got response with no corresponding query type %s thread %lu\n",
-                dns_type_text(req->questions[0].type), pthread_self());
-            }*/
         }
 
     } else {
@@ -149,8 +138,8 @@ int module_dns_packet(bd_bigdata_t *bigdata, void *mls) {
         req->src_ip = (char *)malloc(INET6_ADDRSTRLEN);
         req->dst_ip = (char *)malloc(INET6_ADDRSTRLEN);
         if (req->src_ip == NULL || req->dst_ip == NULL) {
-            fprintf(stderr, "Unable to allocate memory. func. module_dns_packet()\n");
-            return 1;
+            logger(LOG_CRIT, "Unable to allocate memory. func. module_dns_packet()");
+            exit(BD_OUTOFMEMORY);
         }
         req->src_ip = trace_get_source_address_string(packet, req->src_ip,
             INET6_ADDRSTRLEN);
@@ -403,7 +392,7 @@ int module_dns_config(yaml_parser_t *parser, yaml_event_t *event, int *level) {
                     consume_event(parser, event, level);
                     config->timeout_request = atoi((char *)event->data.scalar.value);
                     if (config->timeout_request == 0) {
-                        fprintf(stderr, "Invalid timeout_request value. "
+                        logger(LOG_WARNING, "Invalid timeout_request value. "
                             "module_dns. setting to default 20 seconds\n");
                         config->timeout_request = 20;
                     }
@@ -413,7 +402,7 @@ int module_dns_config(yaml_parser_t *parser, yaml_event_t *event, int *level) {
                     consume_event(parser, event, level);
                     config->timeout_check = atoi((char *)event->data.scalar.value);
                     if (config->timeout_check == 0) {
-                        fprintf(stderr, "Invalid timeout_check value. "
+                        logger(LOG_WARNING, "Invalid timeout_check value. "
                             "module_dns. setting to default 20 seconds\n");
                         config->timeout_check = 20;
                     }
@@ -440,7 +429,7 @@ int module_dns_config(yaml_parser_t *parser, yaml_event_t *event, int *level) {
         config->callbacks->stop_cb = (cb_stop)module_dns_ending;
         bd_add_filter_to_cb_set(config->callbacks, "port 53");
 
-        fprintf(stdout, "DNS Plugin Enabled\n");
+        logger(LOG_INFO, "DNS Plugin Enabled\n");
     }
 
     return 0;
@@ -451,8 +440,8 @@ int module_dns_init(bd_bigdata_t *bigdata) {
     config = (struct module_dns_conf *)malloc(
         sizeof(struct module_dns_conf));
     if (config == NULL) {
-        fprintf(stderr, "Unable to allocate memory. func. "
-            "module_dns_init()\n");
+        logger(LOG_CRIT, "Unable to allocate memory. func. "
+            "module_dns_init()");
         exit(BD_OUTOFMEMORY);
     }
 

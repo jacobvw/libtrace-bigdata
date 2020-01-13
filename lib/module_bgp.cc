@@ -290,7 +290,7 @@ void *module_bgp_starting(void *tls) {
     mod_bgp_stor *storage = (mod_bgp_stor *)malloc(sizeof(
         mod_bgp_stor));
     if (storage == NULL) {
-        fprintf(stderr, "Unable to allocate memory. func. "
+        logger(LOG_CRIT, "Unable to allocate memory. func. "
             "module_bgp_starting()\n");
         exit(BD_OUTOFMEMORY);
     }
@@ -462,7 +462,7 @@ int module_bgp_tick(bd_bigdata_t *bigdata, void *mls, uint64_t tick) {
         mod_bgp_stor_rep *partial = (mod_bgp_stor_rep *)malloc(sizeof(
             mod_bgp_stor_rep));
         if (partial == NULL) {
-            fprintf(stderr, "Unable to allocate memory. func. "
+            logger(LOG_CRIT, "Unable to allocate memory. func. "
                 "module_bgp_tick()\n");
             exit(BD_OUTOFMEMORY);
         }
@@ -686,7 +686,7 @@ int module_bgp_config(yaml_parser_t *parser, yaml_event_t *event, int *level) {
                     consume_event(parser, event, level);
                     config->timeout_check = atoi((char *)event->data.scalar.value);
                     if (config->timeout_check == 0) {
-                        fprintf(stderr, "Invalid timeout_check value. "
+                        logger(LOG_WARNING, "Invalid timeout_check value. "
                             "module_bgp. setting to default 20 seconds\n");
                         config->timeout_check = 20;
                     }
@@ -728,7 +728,7 @@ int module_bgp_config(yaml_parser_t *parser, yaml_event_t *event, int *level) {
         bd_register_reporter_stop_event(config->callbacks,
             (cb_reporter_stop)module_bgp_reporter_stopping);
 
-        fprintf(stderr, "BGP Plugin Enabled\n");
+        logger(LOG_INFO, "BGP Plugin Enabled\n");
     }
 
     return 0;
@@ -738,7 +738,7 @@ int module_bgp_init(bd_bigdata_t *bigdata) {
 
     config = (module_bgp_conf *)malloc(sizeof(struct module_bgp_conf));
     if (config == NULL) {
-        fprintf(stderr, "Unable to allocate memory. func. "
+        logger(LOG_CRIT, "Unable to allocate memory. func. "
             "module_bgp_init()\n");
         exit(BD_OUTOFMEMORY);
     }
@@ -781,7 +781,7 @@ int module_bgp_open_add_param(mod_bgp_msg_open *open, mod_bgp_msg_open_param
             open->params = (mod_bgp_msg_open_param **)malloc(sizeof(
                 mod_bgp_msg_open_param *)*OPEN_PARAM_INIT_SIZE);
             if (open->params == NULL) {
-                fprintf(stderr, "Unable to allocate memory. func. "
+                logger(LOG_CRIT, "Unable to allocate memory. func. "
                     "module_bgp_open_add_param()\n");
                 exit(BD_OUTOFMEMORY);
             }
@@ -791,7 +791,7 @@ int module_bgp_open_add_param(mod_bgp_msg_open *open, mod_bgp_msg_open_param
             open->params = (mod_bgp_msg_open_param **)realloc(open->params,
                 sizeof(mod_bgp_msg_open_param *)*open->param_alloc);
             if (open->params == NULL) {
-                fprintf(stderr, "Unable to allocate memory. func. "
+                logger(LOG_CRIT, "Unable to allocate memory. func. "
                     "module_bgp_open_add_param()\n");
                 exit(BD_OUTOFMEMORY);
             }
@@ -1209,7 +1209,7 @@ void *module_bgp_reporter_starting(void *tls) {
     storage_reporter = (mod_bgp_stor_rep *)malloc(sizeof(
         mod_bgp_stor_rep));
     if (storage_reporter == NULL) {
-        fprintf(stderr, "Unable to allocate memory. func. "
+        logger(LOG_CRIT, "Unable to allocate memory. func. "
             "module_bgp_starting_reporter()\n");
         exit(BD_OUTOFMEMORY);
     }

@@ -77,8 +77,8 @@ int module_flow_statistics_tick(bd_bigdata_t *bigdata, void *mls, uint64_t tick)
     FlowManager *fm = bd_flow_get_flowmanager(bigdata);
 
     if (fm->foreachFlow(module_flow_statistics_foreach_flow, &f) == -1) {
-        fprintf(stderr, "Error applying foreach flow funcion. func. "
-            "module_flow_statistics_tick()\n");
+        logger(LOG_DEBUG, "Error applying foreach flow funcion. func. "
+            "module_flow_statistics_tick()");
     }
 
     return 0;
@@ -196,8 +196,6 @@ int module_flow_statistics_config(yaml_parser_t *parser, yaml_event_t *event, in
                         strcmp((char *)event->data.scalar.value, "t") == 0) {
 
                         config->enabled = 1;
-
-                        fprintf(stdout, "Flow Statistics Plugin Enabled\n");
                     }
                     break;
                 }
@@ -207,7 +205,7 @@ int module_flow_statistics_config(yaml_parser_t *parser, yaml_event_t *event, in
                     if (config->output_interval != 0) {
                         bd_add_tickrate_to_cb_set(config->callbacks, config->output_interval);
                     } else {
-                        fprintf(stderr, "Invalid output_interval value. "
+                        logger(LOG_WARNING, "Invalid output_interval value. "
                             "module_flow_statistics. Disabling module\n");
                         config->enabled = 0;
                     }
@@ -219,7 +217,7 @@ int module_flow_statistics_config(yaml_parser_t *parser, yaml_event_t *event, in
 
                     /* must be a yaml_sequence_start_event or conf is malformed */
                     if (event->type != YAML_SEQUENCE_START_EVENT) {
-                        fprintf(stderr, "Malformed configuration: Section flow_statistics/protocols\n");
+                        logger(LOG_ERR, "Malformed configuration: Section flow_statistics/protocols\n");
                         exit(BD_MALFORMED_CONF);
                     }
 
@@ -232,7 +230,7 @@ int module_flow_statistics_config(yaml_parser_t *parser, yaml_event_t *event, in
                         // check if this option is ALL, if so enabled all protocols
                         if (strcmp("ALL", (char *)event->data.scalar.value) == 0) {
                             config->monitor_all = 1;
-                            fprintf(stdout, "\tEnabling ALL protocols\n");
+                            logger(LOG_INFO, "\tEnabling ALL protocols\n");
                         }
 
                         /* only need to enable indidual protocols if all is not set */
@@ -243,13 +241,13 @@ int module_flow_statistics_config(yaml_parser_t *parser, yaml_event_t *event, in
                             protocol = lpi_get_protocol_by_name((char *)event->data.scalar.value);
                             if (protocol != LPI_PROTO_UNKNOWN) {
                                 if (config->enabled) {
-                                    fprintf(stdout, "\tEnabling protocol: %s\n",
+                                    logger(LOG_INFO, "\tEnabling protocol: %s\n",
                                         (char *)event->data.scalar.value);
                                 }
                                 config->protocol[protocol] = 1;
                             } else {
                                 if (config->enabled) {
-                                    fprintf(stdout, "\tCould not find protocol: %s\n",
+                                    logger(LOG_WARNING, "\tCould not find protocol: %s\n",
                                         (char *)event->data.scalar.value);
                                 }
                             }
@@ -273,7 +271,7 @@ int module_flow_statistics_config(yaml_parser_t *parser, yaml_event_t *event, in
 
                     /* must be a yaml_sequence_start_event or conf is malformed */
                     if (event->type != YAML_SEQUENCE_START_EVENT) {
-                        fprintf(stderr, "Malformed configuration: Section "
+                        logger(LOG_ERR, "Malformed configuration: Section "
                             "flow_statistics/categories\n");
                         exit(BD_MALFORMED_CONF);
                     }
@@ -287,7 +285,7 @@ int module_flow_statistics_config(yaml_parser_t *parser, yaml_event_t *event, in
                         // check if this option is ALL, if so enabled all protocols
                         if (strcmp("ALL", (char *)event->data.scalar.value) == 0) {
                             config->monitor_all = 1;
-                            fprintf(stdout, "\tEnabling ALL categories\n");
+                            logger(LOG_INFO, "\tEnabling ALL categories\n");
                         }
 
                         /* Only need to enable seperate categories if all is not set */
@@ -298,13 +296,13 @@ int module_flow_statistics_config(yaml_parser_t *parser, yaml_event_t *event, in
                             category = lpi_get_category_by_name((char *)event->data.scalar.value);
                             if (category != LPI_CATEGORY_UNKNOWN) {
                                 if (config->enabled) {
-                                    fprintf(stderr, "\tEnabling category: %s\n",
+                                    logger(LOG_INFO, "\tEnabling category: %s\n",
                                         (char *)event->data.scalar.value);
                                 }
                                 config->category[category] = 1;
                             } else {
                                 if (config->enabled) {
-                                    fprintf(stderr, "\tCould not find category: %s\n",
+                                    logger(LOG_WARNING, "\tCould not find category: %s\n",
                                         (char *)event->data.scalar.value);
                                 }
                             }
@@ -338,6 +336,7 @@ int module_flow_statistics_config(yaml_parser_t *parser, yaml_event_t *event, in
         config->callbacks->tick_cb = (cb_tick)module_flow_statistics_tick;
         config->callbacks->flowend_cb = (cb_flowend)module_flow_statistics_flowend;
 
+        logger(LOG_INFO, "Flow Statistics Plugin Enabled");
     }
 
     return 0;
@@ -354,7 +353,7 @@ int module_flow_statistics_init(bd_bigdata_t *bigdata) {
     config = (struct module_flow_statistics_config *)malloc(sizeof(struct
         module_flow_statistics_config));
     if (config == NULL) {
-        fprintf(stderr, "Unable to allocate memory. func. "
+        logger(LOG_CRIT, "Unable to allocate memory. func. "
             "module_flow_statistics_init()\n");
         exit(BD_OUTOFMEMORY);
     }
