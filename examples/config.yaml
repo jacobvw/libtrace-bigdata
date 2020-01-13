@@ -100,6 +100,8 @@ foreach:
     # how often to check for timed out BGP sessions (absence of update/keep alive messages
     # for the hold time (seconds).
     timeout_check: 20
+    # generate and export statistics every X seconds (timeout_check determines interval)
+    statistics: 1
 
 # filtering modules
 filter:
