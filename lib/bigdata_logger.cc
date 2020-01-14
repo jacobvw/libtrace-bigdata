@@ -77,7 +77,7 @@ void open_daemonlog(char *name) {
 #if HAVE_SYSLOG_H
     name = strrchr(name,'/') ? strrchr(name,'/') + 1 : name;
     openlog(name, LOG_PID, LOG_DAEMON);
-    setlogmask(LOG_UPTO(LOG_INFO));
+//    setlogmask(LOG_UPTO(log_level));
 #else
     (void)(name);
 #endif

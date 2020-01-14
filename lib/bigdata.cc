@@ -1,5 +1,7 @@
 #include "bigdata.h"
 
+#include <getopt.h>
+#include <unistd.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -250,15 +252,66 @@ static void reporter_stopping(libtrace_t *trace, libtrace_thread_t *thread,
     if (l_data != NULL) { free(l_data); }
 }
 
+static void usage(char *prog) {
+    fprintf(stderr, "Usage: %s -c configfile\n", prog);
+}
+
 int main(int argc, char *argv[]) {
 
     bd_bigdata_t bigdata;
     bd_global_t global;
+    libtrace_t *trace = NULL;
+    libtrace_callback_set_t *processing = NULL;
+    libtrace_callback_set_t *reporter = NULL;
+    int todaemon;
+    char *configfile = NULL;
+    char *pidfile = NULL;
 
-    /* ensure only 2 args, app name and config file */
-    if (argc != 2) {
-        logger(LOG_ERR, "Usage: %s configFile", argv[0]);
+    todaemon = 0;
+    while (1) {
+        int optind;
+        struct option long_options[] = {
+            { "help", 0, 0, 'h' },
+            { "config", 1, 0, 'c' },
+            { "daemonise", 0, 0, 'd' },
+            { "pidfule",  1, 0, 'p' },
+            { NULL, 0, 0, 0}
+        };
+
+        int c = getopt_long(argc, argv, "c:dp:h", long_options,
+            &optind);
+        if (c == -1) {
+            break;
+        }
+
+        switch (c) {
+            case 'c':
+                configfile = optarg;
+                break;
+            case 'd':
+                todaemon = 1;
+                break;
+            case 'h':
+                usage(argv[0]);
+                return 1;
+            case 'p':
+                pidfile = optarg;
+                break;
+            default:
+                logger(LOG_INFO, "libtrace-bigdata: unsupported option: %c", c);
+                usage(argv[0]);
+                exit(BD_INVALID_PARAMS);
+        }
+    }
+
+    if (configfile == NULL) {
+        logger(LOG_INFO, "libtrace-bigdata: no config file specified. Use -c to specify one.");
+        /* print usage */
         exit(BD_INVALID_PARAMS);
+    }
+
+    if (todaemon) {
+        daemonise(argv[0], pidfile);
     }
 
     /* Initialise libprotoident */
@@ -282,21 +335,14 @@ int main(int argc, char *argv[]) {
     init_modules(&bigdata);
 
     // parse configuration
-    global.config = parse_config(argv[1], &global);
+    global.config = parse_config(configfile, &global);
     if (global.config == NULL) {
         exit(BD_INVALID_CONFIG);
     }
+    global.config->daemonise = todaemon;
 
-    if (global.config->daemonise) {
-        daemonise(argv[0], "/tmp/bigdata.pid");
-    }
 
-    logger(LOG_INFO, "test logger");
-
-    libtrace_t *trace = NULL;
-    libtrace_callback_set_t *processing = NULL;
-    libtrace_callback_set_t *reporter = NULL;
-
+    /* create libtrace trace from supplied interface */
     trace = trace_create(global.config->interface);
     if (trace_is_err(trace)) {
         logger(LOG_ERR, "Unable to open capture point %s",
@@ -305,7 +351,6 @@ int main(int argc, char *argv[]) {
         exit(BD_INVALID_INTERFACE);
     }
 
-    trace_set_reporter_thold(trace, 1);
     // Send tick message once per second
     trace_set_tick_interval(trace, 1000);
 
@@ -352,7 +397,15 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
+    logger(LOG_INFO, "exiting libtrace-bigdata");
+
+    /* tidy up libtrace stuff */
     libtrace_cleanup(trace, processing, reporter);
+
+    /* remove pidfile if in daemon mode */
+    if (todaemon && pidfile) {
+        remove_pidfile(pidfile);
+    }
 
     return 0;
 }
