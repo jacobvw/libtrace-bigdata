@@ -393,7 +393,7 @@ int module_dns_config(yaml_parser_t *parser, yaml_event_t *event, int *level) {
                     config->timeout_request = atoi((char *)event->data.scalar.value);
                     if (config->timeout_request == 0) {
                         logger(LOG_WARNING, "Invalid timeout_request value. "
-                            "module_dns. setting to default 20 seconds\n");
+                            "module_dns. setting to default 20 seconds");
                         config->timeout_request = 20;
                     }
                     break;
@@ -403,7 +403,7 @@ int module_dns_config(yaml_parser_t *parser, yaml_event_t *event, int *level) {
                     config->timeout_check = atoi((char *)event->data.scalar.value);
                     if (config->timeout_check == 0) {
                         logger(LOG_WARNING, "Invalid timeout_check value. "
-                            "module_dns. setting to default 20 seconds\n");
+                            "module_dns. setting to default 20 seconds");
                         config->timeout_check = 20;
                     }
                     break;
@@ -429,7 +429,7 @@ int module_dns_config(yaml_parser_t *parser, yaml_event_t *event, int *level) {
         config->callbacks->stop_cb = (cb_stop)module_dns_ending;
         bd_add_filter_to_cb_set(config->callbacks, "port 53");
 
-        logger(LOG_INFO, "DNS Plugin Enabled\n");
+        logger(LOG_INFO, "DNS Plugin Enabled");
     }
 
     return 0;

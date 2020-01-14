@@ -37,17 +37,17 @@ void *module_maxmind_starting_cb(void *tls) {
     storage = (mod_max_stor *)malloc(sizeof(mod_max_stor));
     if (storage == NULL) {
         logger(LOG_CRIT, "Unable to allocate memory. func. "
-            "module_maxmind_starting()\n");
+            "module_maxmind_starting()");
         exit(BD_OUTOFMEMORY);
     }
 
     mmdb_status = MMDB_open(config->database, MMDB_MODE_MMAP, &(storage->mmdb));
     if (mmdb_status != MMDB_SUCCESS) {
-        logger(LOG_CRIT, "Unable to open maxmind database %s - %s\n",
+        logger(LOG_CRIT, "Unable to open maxmind database %s - %s",
             config->database, MMDB_strerror(mmdb_status));
 
         if (MMDB_IO_ERROR == mmdb_status) {
-            logger(LOG_CRIT, "Maxmind IO error: %s\n", strerror(errno));
+            logger(LOG_CRIT, "Maxmind IO error: %s", strerror(errno));
         }
 
         exit(BD_FILTER_INIT);
@@ -239,7 +239,7 @@ int module_maxmind_config_cb(yaml_parser_t *parser, yaml_event_t *event, int *le
         bd_register_reporter_filter_event(config->callbacks, module_maxmind_result_cb);
         bd_register_reporter_stop_event(config->callbacks, module_maxmind_stopping_cb);
 
-        logger(LOG_INFO, "Maxmind Plugin Enabled\n");
+        logger(LOG_INFO, "Maxmind Plugin Enabled");
 
     }
 
@@ -251,7 +251,7 @@ int module_maxmind_init(bd_bigdata_t *bigdata) {
     config = (mod_max_conf *)malloc(sizeof(mod_max_conf));
     if (config == NULL) {
         logger(LOG_CRIT, "Unable to allocate memory. func. "
-            "module_maxmind_init()\n");
+            "module_maxmind_init()");
         exit(BD_OUTOFMEMORY);
     }
 
@@ -312,7 +312,7 @@ static char* module_maxmind_geohash_encode(double lat, double lng, int precision
         hash = (char*)malloc(sizeof(char) * (precision + 1));
         if (hash == NULL) {
             logger(LOG_CRIT, "Unable to allocate memory. func. "
-                "module_maxmind_geohash_encode()\n");
+                "module_maxmind_geohash_encode()");
             exit(BD_OUTOFMEMORY);
         }
         hash[precision] = '\0';

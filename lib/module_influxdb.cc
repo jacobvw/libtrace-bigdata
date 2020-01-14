@@ -39,7 +39,7 @@ void *module_influxdb_starting(void *tls) {
     opts = (mod_influxdb_opts_t *)malloc(sizeof(mod_influxdb_opts_t));
     if (opts == NULL) {
         logger(LOG_CRIT, "Unable to allocate memory. func. "
-            "module_influxdb_starting()\n");
+            "module_influxdb_starting()");
         exit(BD_OUTOFMEMORY);
     }
 
@@ -49,7 +49,7 @@ void *module_influxdb_starting(void *tls) {
             bd_result_set_t *) * config->batch_count);
         if (opts->results == NULL) {
             logger(LOG_CRIT, "Unable to allocate memory. func. "
-                "module_influxdb_starting()\n");
+                "module_influxdb_starting()");
             exit(BD_OUTOFMEMORY);
         }
         opts->num_results = 0;
@@ -291,7 +291,7 @@ int module_influxdb_config(yaml_parser_t *parser, yaml_event_t *event, int *leve
         config->callbacks->reporter_output_cb = (cb_reporter_output)module_influxdb_post;
         config->callbacks->reporter_stop_cb = (cb_reporter_stop)module_influxdb_stopping;
 
-        logger(LOG_INFO, "InfluxDB Plugin Enabled\n");
+        logger(LOG_INFO, "InfluxDB Plugin Enabled");
     }
 
     return 0;
@@ -303,7 +303,7 @@ int module_influxdb_init(bd_bigdata_t *bigdata) {
         struct module_influxdb_conf));
     if (config == NULL) {
         logger(LOG_CRIT, "Unable to allocate memory. func. "
-            "module_influxdb_init()\n");
+            "module_influxdb_init()");
         exit(BD_OUTOFMEMORY);
     }
 

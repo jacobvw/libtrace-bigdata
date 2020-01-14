@@ -206,7 +206,7 @@ int module_flow_statistics_config(yaml_parser_t *parser, yaml_event_t *event, in
                         bd_add_tickrate_to_cb_set(config->callbacks, config->output_interval);
                     } else {
                         logger(LOG_WARNING, "Invalid output_interval value. "
-                            "module_flow_statistics. Disabling module\n");
+                            "module_flow_statistics. Disabling module");
                         config->enabled = 0;
                     }
                     break;
@@ -217,7 +217,7 @@ int module_flow_statistics_config(yaml_parser_t *parser, yaml_event_t *event, in
 
                     /* must be a yaml_sequence_start_event or conf is malformed */
                     if (event->type != YAML_SEQUENCE_START_EVENT) {
-                        logger(LOG_ERR, "Malformed configuration: Section flow_statistics/protocols\n");
+                        logger(LOG_ERR, "Malformed configuration: Section flow_statistics/protocols");
                         exit(BD_MALFORMED_CONF);
                     }
 
@@ -230,7 +230,7 @@ int module_flow_statistics_config(yaml_parser_t *parser, yaml_event_t *event, in
                         // check if this option is ALL, if so enabled all protocols
                         if (strcmp("ALL", (char *)event->data.scalar.value) == 0) {
                             config->monitor_all = 1;
-                            logger(LOG_INFO, "\tEnabling ALL protocols\n");
+                            logger(LOG_INFO, "\tEnabling ALL protocols");
                         }
 
                         /* only need to enable indidual protocols if all is not set */
@@ -241,13 +241,13 @@ int module_flow_statistics_config(yaml_parser_t *parser, yaml_event_t *event, in
                             protocol = lpi_get_protocol_by_name((char *)event->data.scalar.value);
                             if (protocol != LPI_PROTO_UNKNOWN) {
                                 if (config->enabled) {
-                                    logger(LOG_INFO, "\tEnabling protocol: %s\n",
+                                    logger(LOG_INFO, "\tEnabling protocol: %s",
                                         (char *)event->data.scalar.value);
                                 }
                                 config->protocol[protocol] = 1;
                             } else {
                                 if (config->enabled) {
-                                    logger(LOG_WARNING, "\tCould not find protocol: %s\n",
+                                    logger(LOG_WARNING, "\tCould not find protocol: %s",
                                         (char *)event->data.scalar.value);
                                 }
                             }
@@ -272,7 +272,7 @@ int module_flow_statistics_config(yaml_parser_t *parser, yaml_event_t *event, in
                     /* must be a yaml_sequence_start_event or conf is malformed */
                     if (event->type != YAML_SEQUENCE_START_EVENT) {
                         logger(LOG_ERR, "Malformed configuration: Section "
-                            "flow_statistics/categories\n");
+                            "flow_statistics/categories");
                         exit(BD_MALFORMED_CONF);
                     }
 
@@ -285,7 +285,7 @@ int module_flow_statistics_config(yaml_parser_t *parser, yaml_event_t *event, in
                         // check if this option is ALL, if so enabled all protocols
                         if (strcmp("ALL", (char *)event->data.scalar.value) == 0) {
                             config->monitor_all = 1;
-                            logger(LOG_INFO, "\tEnabling ALL categories\n");
+                            logger(LOG_INFO, "\tEnabling ALL categories");
                         }
 
                         /* Only need to enable seperate categories if all is not set */
@@ -296,13 +296,13 @@ int module_flow_statistics_config(yaml_parser_t *parser, yaml_event_t *event, in
                             category = lpi_get_category_by_name((char *)event->data.scalar.value);
                             if (category != LPI_CATEGORY_UNKNOWN) {
                                 if (config->enabled) {
-                                    logger(LOG_INFO, "\tEnabling category: %s\n",
+                                    logger(LOG_INFO, "\tEnabling category: %s",
                                         (char *)event->data.scalar.value);
                                 }
                                 config->category[category] = 1;
                             } else {
                                 if (config->enabled) {
-                                    logger(LOG_WARNING, "\tCould not find category: %s\n",
+                                    logger(LOG_WARNING, "\tCould not find category: %s",
                                         (char *)event->data.scalar.value);
                                 }
                             }
@@ -354,7 +354,7 @@ int module_flow_statistics_init(bd_bigdata_t *bigdata) {
         module_flow_statistics_config));
     if (config == NULL) {
         logger(LOG_CRIT, "Unable to allocate memory. func. "
-            "module_flow_statistics_init()\n");
+            "module_flow_statistics_init()");
         exit(BD_OUTOFMEMORY);
     }
 

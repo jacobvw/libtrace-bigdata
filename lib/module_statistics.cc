@@ -66,7 +66,7 @@ void *module_statistics_starting(void *tls) {
     mod_stats_t *stats = (mod_stats_t *)malloc(sizeof(mod_stats_t));
     if (stats == NULL) {
         logger(LOG_CRIT, "Unable to allocate memory. func. "
-            "module_statistics_starting()\n");
+            "module_statistics_starting()");
         exit(BD_OUTOFMEMORY);
     }
 
@@ -143,7 +143,7 @@ int module_statistics_tick(bd_bigdata_t *bigdata, void *mls, uint64_t tick) {
     mod_stats_t *combine = (mod_stats_t *)malloc(sizeof(mod_stats_t));
     if (combine == NULL) {
         logger(LOG_CRIT, "Unable to allocate memory. func. "
-            "module_statistics_tick()\n");
+            "module_statistics_tick()");
         exit(BD_OUTOFMEMORY);
     }
 
@@ -171,7 +171,7 @@ void *module_statistics_reporter_start(void *tls) {
     mod_stats_t *tally = (mod_stats_t *)malloc(sizeof(mod_stats_t));
     if (tally == NULL) {
         logger(LOG_CRIT, "Unable to allocate memory. func. "
-            "module_statistics_reporter_start()\n");
+            "module_statistics_reporter_start()");
         exit(BD_OUTOFMEMORY);
     }
 
@@ -292,7 +292,7 @@ int module_statistics_config(yaml_parser_t *parser, yaml_event_t *event, int *le
                         bd_add_tickrate_to_cb_set(config->callbacks, config->output_interval);
                     } else {
                         logger(LOG_WARNING, "Invalid output_interval value. "
-                            "module_statistics. Disabling module\n");
+                            "module_statistics. Disabling module");
                         config->enabled = 0;
                     }
                     break;
@@ -351,7 +351,7 @@ int module_statistics_config(yaml_parser_t *parser, yaml_event_t *event, int *le
 
         config->callbacks->clear_cb = (cb_clear)module_statistics_clear;
 
-        logger(LOG_INFO, "Statistics Plugin Enabled\n");
+        logger(LOG_INFO, "Statistics Plugin Enabled");
     }
 
     return 0;
@@ -363,7 +363,7 @@ int module_statistics_init(bd_bigdata_t *bigdata) {
         sizeof(struct module_statistics_conf));
     if (config == NULL) {
         logger(LOG_CRIT, "Unable to allocate memory. func. "
-            "module_statistics_init()\n");
+            "module_statistics_init()");
         exit(BD_OUTOFMEMORY);
     }
 

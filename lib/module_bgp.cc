@@ -291,7 +291,7 @@ void *module_bgp_starting(void *tls) {
         mod_bgp_stor));
     if (storage == NULL) {
         logger(LOG_CRIT, "Unable to allocate memory. func. "
-            "module_bgp_starting()\n");
+            "module_bgp_starting()");
         exit(BD_OUTOFMEMORY);
     }
 
@@ -463,7 +463,7 @@ int module_bgp_tick(bd_bigdata_t *bigdata, void *mls, uint64_t tick) {
             mod_bgp_stor_rep));
         if (partial == NULL) {
             logger(LOG_CRIT, "Unable to allocate memory. func. "
-                "module_bgp_tick()\n");
+                "module_bgp_tick()");
             exit(BD_OUTOFMEMORY);
         }
 
@@ -687,7 +687,7 @@ int module_bgp_config(yaml_parser_t *parser, yaml_event_t *event, int *level) {
                     config->timeout_check = atoi((char *)event->data.scalar.value);
                     if (config->timeout_check == 0) {
                         logger(LOG_WARNING, "Invalid timeout_check value. "
-                            "module_bgp. setting to default 20 seconds\n");
+                            "module_bgp. setting to default 20 seconds");
                         config->timeout_check = 20;
                     }
                     break;
@@ -728,7 +728,7 @@ int module_bgp_config(yaml_parser_t *parser, yaml_event_t *event, int *level) {
         bd_register_reporter_stop_event(config->callbacks,
             (cb_reporter_stop)module_bgp_reporter_stopping);
 
-        logger(LOG_INFO, "BGP Plugin Enabled\n");
+        logger(LOG_INFO, "BGP Plugin Enabled");
     }
 
     return 0;
@@ -739,7 +739,7 @@ int module_bgp_init(bd_bigdata_t *bigdata) {
     config = (module_bgp_conf *)malloc(sizeof(struct module_bgp_conf));
     if (config == NULL) {
         logger(LOG_CRIT, "Unable to allocate memory. func. "
-            "module_bgp_init()\n");
+            "module_bgp_init()");
         exit(BD_OUTOFMEMORY);
     }
 
@@ -782,7 +782,7 @@ int module_bgp_open_add_param(mod_bgp_msg_open *open, mod_bgp_msg_open_param
                 mod_bgp_msg_open_param *)*OPEN_PARAM_INIT_SIZE);
             if (open->params == NULL) {
                 logger(LOG_CRIT, "Unable to allocate memory. func. "
-                    "module_bgp_open_add_param()\n");
+                    "module_bgp_open_add_param()");
                 exit(BD_OUTOFMEMORY);
             }
         } else {
@@ -792,7 +792,7 @@ int module_bgp_open_add_param(mod_bgp_msg_open *open, mod_bgp_msg_open_param
                 sizeof(mod_bgp_msg_open_param *)*open->param_alloc);
             if (open->params == NULL) {
                 logger(LOG_CRIT, "Unable to allocate memory. func. "
-                    "module_bgp_open_add_param()\n");
+                    "module_bgp_open_add_param()");
                 exit(BD_OUTOFMEMORY);
             }
         }
@@ -919,7 +919,7 @@ int module_bgp_parse_update(bd_bigdata_t *bigdata, mod_bgp_stor *storage,
 
 #if DEBUG
         fprintf(stderr, "Withdrawn prefix: ");
-        fprintf(stderr, "%s/%u\n", module_bgp_get_ip4_prefix_string(pos, bytes),
+        fprintf(stderr, "%s/%u", module_bgp_get_ip4_prefix_string(pos, bytes),
             w_route->len);
 #endif
 
@@ -940,7 +940,7 @@ int module_bgp_parse_update(bd_bigdata_t *bigdata, mod_bgp_stor *storage,
     attribute = (struct module_bgp_update_attribute *)pos;
 
 #if DEBUG
-    fprintf(stderr, "path attributes length: %u\n", ntohs(attribute->attribute_len));
+    fprintf(stderr, "path attributes length: %u", ntohs(attribute->attribute_len));
 #endif
     update_rec->path_attribute_len = ntohs(attribute->attribute_len);
 
@@ -1210,7 +1210,7 @@ void *module_bgp_reporter_starting(void *tls) {
         mod_bgp_stor_rep));
     if (storage_reporter == NULL) {
         logger(LOG_CRIT, "Unable to allocate memory. func. "
-            "module_bgp_starting_reporter()\n");
+            "module_bgp_starting_reporter()");
         exit(BD_OUTOFMEMORY);
     }
 

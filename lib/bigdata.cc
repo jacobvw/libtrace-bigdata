@@ -384,12 +384,15 @@ int main(int argc, char *argv[]) {
     // start the trace
     if (trace_pstart(trace, &global, processing, reporter) == -1) {
         //trace_perror(trace, "Unable to start packet capture");
-        logger(LOG_CRIT, "Unable to start packet capture");
+        logger(LOG_CRIT, "Unable to start packet capture on %s",
+            global.config->interface);
         libtrace_cleanup(trace, processing, reporter);
         return 1;
     }
 
+    /* wait till all threads are done */
     trace_join(trace);
+
     if (trace_is_err(trace)) {
         //trace_perror(trace, "Unable to read packets");
         logger(LOG_CRIT, "Unable to read packets");
