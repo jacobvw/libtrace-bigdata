@@ -29,9 +29,6 @@ enable_bidirectional_hasher: 0
 # Debug level 0-3
 debug: 0
 
-# Run application as a daemon.
-daemon: 1
-
 # capture modules
 foreach:
 
