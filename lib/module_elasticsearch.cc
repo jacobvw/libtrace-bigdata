@@ -108,8 +108,10 @@ static int module_elasticsearch_export(bd_bigdata_t *bigdata, mod_elastic_opts_t
     if (ret != CURLE_OK) {
 
 
-        logger(LOG_INFO, "Elasticsearch is offline, result written to "
-            "temp storage.");
+        if (opts->elastic_online) {
+            logger(LOG_INFO, "Elasticsearch is offline, result written to "
+                "temp storage.");
+        }
 
         logger(LOG_DEBUG, "Failed to post to elasticsearch: %s",
             curl_easy_strerror(ret));
@@ -123,7 +125,7 @@ static int module_elasticsearch_export(bd_bigdata_t *bigdata, mod_elastic_opts_t
         return 2;
     } else {
 
-        if (!opts->elastic_online) {
+        if (!(opts->elastic_online)) {
             logger(LOG_INFO, "Elasticsearch is online.");
         }
 

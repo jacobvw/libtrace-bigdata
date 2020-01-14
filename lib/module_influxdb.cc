@@ -92,7 +92,10 @@ int module_influxdb_export_result(bd_bigdata_t *bigdata, mod_influxdb_opts_t *op
     /* Check for errors */
     if(ret != CURLE_OK) {
 
-        logger(LOG_INFO, "InfluxDB is offline, result written to temp storage.");
+        if (opts->influx_online) {
+            logger(LOG_INFO, "InfluxDB is offline, result written to temp storage.");
+        }
+
         logger(LOG_DEBUG, "Failed to post to influxDB: %s.", curl_easy_strerror(ret));
 
         /* Set influxDB to offline */
@@ -105,12 +108,13 @@ int module_influxdb_export_result(bd_bigdata_t *bigdata, mod_influxdb_opts_t *op
     } else {
 
         /* If InfluxDB was previously offline */
-        if (!opts->influx_online) {
+        if (!(opts->influx_online)) {
             logger(LOG_INFO, "InfluxDB is online.");
         }
 
         logger(LOG_DEBUG, "InfluxDB executed: %s", result);
 
+        /* set influxDB as online */
         opts->influx_online = 1;
 
         return 0;
