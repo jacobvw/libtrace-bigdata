@@ -2,11 +2,12 @@
 hostname: hostname
 
 # Network interface to capture data on. Any URI supported by libtrace works
-# here. 
+# here. Supported libtrace URIs can be found at
+# https://github.com/LibtraceTeam/libtrace/wiki/Supported-Trace-Formats
 interface: eth0
 
 # Number of packet processing threads. Check enable_bidirectional_hasher
-# before increasing the number of threads.
+# option before increasing the number of threads.
 threads: 1
 
 # Method used to determin a packets direction. i.e. inbound vs outbound.
@@ -40,7 +41,7 @@ enable_bidirectional_hasher: 0
 # LOG_NOTICE
 # LOG_INFO
 # LOG_DEBUG
-debug: LOG_DEBUG
+debug: LOG_INFO
 
 # capture modules
 foreach:
