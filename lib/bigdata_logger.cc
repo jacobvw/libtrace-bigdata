@@ -17,12 +17,17 @@
 #include "bigdata_logger.h"
 
 int daemonised = 0;
+int loglevel = LOG_INFO;
 
 void remove_pidfile(char *fname) {
     if (unlink(fname) < 0) {
         logger(LOG_INFO, "Error removing pidfile '%s': %s", fname,
                 strerror(errno));
     }
+}
+
+void set_loglevel(int level) {
+    loglevel = level;
 }
 
 static int create_pidfile(char *fname) {
@@ -77,7 +82,7 @@ void open_daemonlog(char *name) {
 #if HAVE_SYSLOG_H
     name = strrchr(name,'/') ? strrchr(name,'/') + 1 : name;
     openlog(name, LOG_PID, LOG_DAEMON);
-//    setlogmask(LOG_UPTO(log_level));
+    setlogmask(LOG_UPTO(loglevel));
 #else
     (void)(name);
 #endif
@@ -141,8 +146,10 @@ void logger(int priority, const char *fmt, ...) {
         syslog(priority, "%s", buffer);
 #endif
     } else {
-        vfprintf(stderr, fmt, ap);
-        fprintf(stderr, "\n");
+        if (priority <= loglevel) {
+            vfprintf(stderr, fmt, ap);
+            fprintf(stderr, "\n");
+        }
     }
     va_end(ap);
 

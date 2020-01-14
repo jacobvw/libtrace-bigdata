@@ -26,8 +26,21 @@ local_networks:
 # the same Libtrace thread.
 enable_bidirectional_hasher: 0
 
-# Debug level 0-3
-debug: 0
+# The level of logging to output. Follow the priority mask set by syslog.h
+# Each option is a priority and will generate logs for all lower priority
+# options. E.g. setting to LOG_ALERT will only generate logs for LOG_ALERT
+# and LOG_EMERG and setting to LOG_INFO will generate logs for LOG_INFO,
+# LOG_NOTICE, LOG_WARNING, LOG_ERR, LOG_CRIT, LOG_ALERT and LOG LOG_EMERG.
+# Valid options in priority order:
+# LOG_EMERG
+# LOG_ALERT
+# LOG_CRIT
+# LOG_ERR
+# LOG_WARNING
+# LOG_NOTICE
+# LOG_INFO
+# LOG_DEBUG
+debug: LOG_DEBUG
 
 # capture modules
 foreach:

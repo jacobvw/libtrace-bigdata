@@ -85,12 +85,12 @@ static void *start_processing(libtrace_t *trace, libtrace_thread_t *thread,
     bool opt_false = 0;
     lfm_plugin_id_t plugid = LFM_PLUGIN_STANDARD;
     if (local->flow_manager->setConfigOption(LFM_CONFIG_TCP_TIMEWAIT, &opt_false) == 0) {
-        logger(LOG_ERR, "Unable to apply flow config");
-        return NULL;
+        logger(LOG_CRIT, "Unable to apply flow config");
+        exit(BD_FLOW_MANAGER_CONF);
     }
     if (local->flow_manager->setConfigOption(LFM_CONFIG_EXPIRY_PLUGIN, &plugid) == 0) {
-        logger(LOG_ERR, "Unable to apply flow config");
-        return NULL;
+        logger(LOG_CRIT, "Unable to apply flow config");
+        exit(BD_FLOW_MANAGER_CONF);
     }
 
     // create storage space for each modules countdown tickrate
@@ -317,12 +317,12 @@ int main(int argc, char *argv[]) {
     /* Initialise libprotoident */
     if (lpi_init_library() == -1) {
         logger(LOG_CRIT, "Unable to initialise libprotoident");
-        exit(BD_STARTUP_ERROR);
+        exit(BD_LIBPROTOIDENT_INIT);
     }
 
     /* init global data */
     if (pthread_mutex_init(&(global.lock), NULL) != 0) {
-        logger(LOG_CRIT, "Unable to create mutex");
+        logger(LOG_CRIT, "Unable to create global data mutex");
         exit(BD_STARTUP_ERROR);
     }
     global.callbacks = NULL;
@@ -340,7 +340,7 @@ int main(int argc, char *argv[]) {
         exit(BD_INVALID_CONFIG);
     }
     global.config->daemonise = todaemon;
-
+    set_loglevel(global.config->debug);
 
     /* create libtrace trace from supplied interface */
     trace = trace_create(global.config->interface);
@@ -387,7 +387,7 @@ int main(int argc, char *argv[]) {
         logger(LOG_CRIT, "Unable to start packet capture on %s",
             global.config->interface);
         libtrace_cleanup(trace, processing, reporter);
-        return 1;
+        exit(BD_TRACE_STARTUP);
     }
 
     /* wait till all threads are done */
@@ -397,7 +397,7 @@ int main(int argc, char *argv[]) {
         //trace_perror(trace, "Unable to read packets");
         logger(LOG_CRIT, "Unable to read packets");
         libtrace_cleanup(trace, processing, reporter);
-        return -1;
+        exit(BD_READ_PACKETS);
     }
 
     logger(LOG_INFO, "exiting libtrace-bigdata");

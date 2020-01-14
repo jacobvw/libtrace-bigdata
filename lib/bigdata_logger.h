@@ -10,6 +10,7 @@
 
 extern int daemonised;
 
+void set_loglevel(int level);
 void remove_pidfile(char *fname);
 void logger(int priority, const char *fmt, ...);
 void daemonise(char *name, char *pidfile);

@@ -65,6 +65,10 @@ enum {
     BD_INVALID_PARAMS = 8,
     BD_INVALID_INTERFACE = 9,
     BD_FILTER_INIT = 10,
+    BD_FLOW_MANAGER_CONF = 11,
+    BD_LIBPROTOIDENT_INIT = 12,
+    BD_TRACE_STARTUP = 13,
+    BD_READ_PACKETS = 14
 };
 
 /* Enumeration of events supported */

@@ -331,11 +331,31 @@ bd_conf_t *parse_config(char *filename, bd_global_t *g_data) {
                     // should now be a YAML_SCALAR_EVENT,
                     //  if not config is incorrect.
                     if (event.type != YAML_SCALAR_EVENT) {
-                        logger(LOG_ERR, "Config error: Expected integer for "
-                            "debug\n");
+                        logger(LOG_ERR, "Config error: Unexpected value for "
+                            "debug");
                         return NULL;
                     }
-                    conf->debug = atoi((char *)event.data.scalar.value);
+                    if (strcmp((char *)event.data.scalar.value, "LOG_DEBUG") == 0) {
+                        conf->debug = LOG_DEBUG;
+                    } else if (strcmp((char *)event.data.scalar.value, "LOG_INFO") == 0) {
+                        conf->debug = LOG_INFO;
+                    } else if (strcmp((char *)event.data.scalar.value, "LOG_NOTICE") == 0) {
+                        conf->debug = LOG_NOTICE;
+                    } else if (strcmp((char *)event.data.scalar.value, "LOG_WARNING") == 0) {
+                        conf->debug = LOG_WARNING;
+                    } else if (strcmp((char *)event.data.scalar.value, "LOG_ERR") == 0) {
+                        conf->debug = LOG_ERR;
+                    } else if (strcmp((char *)event.data.scalar.value, "LOG_CRIT") == 0) {
+                        conf->debug = LOG_CRIT;
+                    } else if (strcmp((char *)event.data.scalar.value, "LOG_ALERT") == 0) {
+                        conf->debug = LOG_ALERT;
+                    } else if (strcmp((char *)event.data.scalar.value, "LOG_EMERG") == 0) {
+                        conf->debug = LOG_EMERG;
+                    } else {
+                        logger(LOG_ERR, "Config error: Unknown value for debug, "
+                            " defaulting to LOG_INFO");
+                        conf->debug = LOG_INFO;
+                    }
                     // consume the event
                     consume_event(&parser, &event, &level);
                     break;
