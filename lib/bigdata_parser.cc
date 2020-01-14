@@ -341,29 +341,6 @@ bd_conf_t *parse_config(char *filename, bd_global_t *g_data) {
                     break;
                 }
 
-                if (strcmp((char *)event.data.scalar.value, "daemon") == 0) {
-                    // consume the first event which contains the value debug
-                    consume_event(&parser, &event, &level);
-                    // should now be a YAML_SCALAR_EVENT,
-                    //  if not config is incorrect.
-                    if (event.type != YAML_SCALAR_EVENT) {
-                        logger(LOG_ERR, "Config error: Expected 0 or 1 for "
-                            "daemon\n");
-                        return NULL;
-                    }
-                    if (strcmp((char *)event.data.scalar.value, "1") == 0 ||
-                        strcmp((char *)event.data.scalar.value, "true") == 0 ||
-                        strcmp((char *)event.data.scalar.value, "yes") == 0) {
-
-                        conf->daemonise = 1;
-                    } else {
-                        conf->daemonise = 0;
-                    }
-                    // consume the event
-                    consume_event(&parser, &event, &level);
-                    break;
-                }
-
                 // capture/output modules config
                 if (strcmp((char *)event.data.scalar.value, "foreach") == 0 ||
                     strcmp((char *)event.data.scalar.value, "where") == 0 ||
