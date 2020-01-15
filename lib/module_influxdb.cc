@@ -30,6 +30,8 @@ void *module_influxdb_starting(void *tls);
 int module_influxdb_post(bd_bigdata_t *bigdata, void *mls, bd_result_set *result);
 void *module_influxdb_stopping(void *tls, void *mls);
 static std::string module_influxdb_result_to_query(bd_result_set *result);
+static size_t module_influxdb_callback(void *buffer, size_t size, size_t nmemb,
+    void *userp);
 
 void *module_influxdb_starting(void *tls) {
 
@@ -70,6 +72,10 @@ void *module_influxdb_starting(void *tls) {
         curl_easy_setopt(opts->curl, CURLOPT_URL, buff);
         curl_easy_setopt(opts->curl, CURLOPT_PORT, config->port);
 
+        /* define callback function */
+        curl_easy_setopt(opts->curl, CURLOPT_WRITEFUNCTION,
+            module_influxdb_callback);
+
         if (config->ssl_verifypeer) {
             curl_easy_setopt(opts->curl, CURLOPT_SSL_VERIFYPEER, 1);
         } else {
@@ -78,6 +84,24 @@ void *module_influxdb_starting(void *tls) {
     }
 
     return opts;
+}
+
+static size_t module_influxdb_callback(void *buffer, size_t size, size_t nmemb,
+    void *userp) {
+
+    bool error;
+    char *errorstr;
+
+    /* influx only returns a string on error? */
+    errorstr = strstr((char *)buffer, "error");
+    if (errorstr == NULL) {
+        error = 0;
+    } else {
+        logger(LOG_INFO, "InfluxDB error: %.*s", strlen((char *)buffer)-1,
+            (char *)buffer);
+    }
+
+    return size *nmemb;
 }
 
 int module_influxdb_export_result(bd_bigdata_t *bigdata, mod_influxdb_opts_t *opts,
