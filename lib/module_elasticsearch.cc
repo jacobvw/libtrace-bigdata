@@ -22,7 +22,7 @@ typedef struct module_elasticsearch_options {
     CURL *curl;
     bd_result_set_t **results;
     int num_results;
-    bool elastic_online;
+    int elastic_online;
 } mod_elastic_opts_t;
 
 void *module_elasticsearch_starting(void *tls) {
@@ -48,7 +48,8 @@ void *module_elasticsearch_starting(void *tls) {
         }
         opts->num_results = 0;
     }
-    opts->elastic_online = 0;
+    /* set to -1. Unknown */
+    opts->elastic_online = -1;
 
     // init curl
     curl_global_init(CURL_GLOBAL_ALL);
@@ -107,10 +108,9 @@ static int module_elasticsearch_export(bd_bigdata_t *bigdata, mod_elastic_opts_t
 
     if (ret != CURLE_OK) {
 
-
+        /* If elasticsearch was previously online */
         if (opts->elastic_online) {
-            logger(LOG_INFO, "Elasticsearch is offline, result written to "
-                "temp storage.");
+            logger(LOG_INFO, "Elasticsearch is offline.");
         }
 
         logger(LOG_DEBUG, "Failed to post to elasticsearch: %s",
@@ -125,7 +125,8 @@ static int module_elasticsearch_export(bd_bigdata_t *bigdata, mod_elastic_opts_t
         return 2;
     } else {
 
-        if (!(opts->elastic_online)) {
+        /* if elasticsearch was previously offline of status was unknonwn */
+        if (opts->elastic_online < 1) {
             logger(LOG_INFO, "Elasticsearch is online.");
         }
 

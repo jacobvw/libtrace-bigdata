@@ -156,19 +156,13 @@ int bd_callback_trigger_output(bd_bigdata_t *bigdata, bd_result_set_t *result) {
             } else if (global->config->debug) {
 
                 if (ret == 0) {
-                    if (bigdata->global->config->debug > 1) {
-                        logger(LOG_DEBUG, "DEBUG 2: Result posted to %s", cbs->name);
-                    }
+                    //logger(LOG_DEBUG, "DEBUG 2: Result posted to %s", cbs->name);
                 } else if (ret == 1) {
-                    if (bigdata->global->config->debug > 1) {
-                        logger(LOG_DEBUG, "DEBUG 2: Result batched for %s", cbs->name);
-                    }
+                    //logger(LOG_DEBUG, "DEBUG 2: Result batched for %s", cbs->name);
                 } else if (ret == 2) {
-                    if (bigdata->global->config->debug > 1) {
-                        logger(LOG_DEBUG, "DEBUG 2: Result export failed for %s. %s should "
-                            "have exported the result to a temp file.", cbs->name,
-                            cbs->name);
-                    }
+                    //logger(LOG_DEBUG, "DEBUG 2: Result export failed for %s. %s should "
+                    //    "have exported the result to a temp file.", cbs->name,
+                    //    cbs->name);
                 }
             }
         }

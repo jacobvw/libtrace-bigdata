@@ -23,7 +23,7 @@ typedef struct module_influxdb_options {
     CURL *curl;
     bd_result_set_t **results;
     int num_results;
-    bool influx_online;
+    int influx_online;
 } mod_influxdb_opts_t;
 
 void *module_influxdb_starting(void *tls);
@@ -54,7 +54,8 @@ void *module_influxdb_starting(void *tls) {
         }
         opts->num_results = 0;
     }
-    opts->influx_online = 0;
+    /* set to -1. Unknown */
+    opts->influx_online = -1;
 
     // Initialise curl
     curl_global_init(CURL_GLOBAL_ALL);
@@ -92,8 +93,9 @@ int module_influxdb_export_result(bd_bigdata_t *bigdata, mod_influxdb_opts_t *op
     /* Check for errors */
     if(ret != CURLE_OK) {
 
+        /* If InfluxDB was previously online */
         if (opts->influx_online) {
-            logger(LOG_INFO, "InfluxDB is offline, result written to temp storage.");
+            logger(LOG_INFO, "InfluxDB is offline.");
         }
 
         logger(LOG_DEBUG, "Failed to post to influxDB: %s.", curl_easy_strerror(ret));
@@ -107,8 +109,8 @@ int module_influxdb_export_result(bd_bigdata_t *bigdata, mod_influxdb_opts_t *op
         return 2;
     } else {
 
-        /* If InfluxDB was previously offline */
-        if (!(opts->influx_online)) {
+        /* If InfluxDB was previously offline or status was unknown */
+        if (opts->influx_online < 1) {
             logger(LOG_INFO, "InfluxDB is online.");
         }
 
