@@ -81,11 +81,31 @@ void *module_elasticsearch_starting(void *tls) {
     return opts;
 }
 
+static int jsoneq(const char *json, jsmntok_t *tok, const char *s) {
+  if (tok->type == JSMN_STRING && (int)strlen(s) == tok->end - tok->start &&
+      strncmp(json + tok->start, s, tok->end - tok->start) == 0) {
+    return 0;
+  }
+  return -1;
+}
+
 /* define callback function for curl so output isnt spammed to standard output */
 static size_t module_elasticsearch_callback(void *buffer, size_t size, size_t nmemb,
     void *userp) {
 
-    /* todo: parse response to verify result was correctly indexed */
+    bool error;
+    char *errostr;
+
+    /* find the first occurance of errors in the json result */
+    errorstr = strstr((char *)buffer, "errors");
+    if (errorstr == NULL) {
+        error = 0;
+    } else {
+        // 8th char after the buffer should be t of f
+        if (errorstr[8] == 't') {
+            logger(LOG_INFO, "Elasticsearch error: %s", (char *)buffer);
+        }
+    }
 
     return size * nmemb;
 }
@@ -183,7 +203,7 @@ int module_elasticsearch_result(bd_bigdata_t *bigdata, void *mls, bd_result_set 
                 json = bd_result_set_to_json_string(cur_res);
 
                 out += buf2;
-                out += "\n";
+                //out += "\n";
                 out += json;
                 out += "\n";
 

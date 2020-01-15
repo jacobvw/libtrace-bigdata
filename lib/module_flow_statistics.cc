@@ -196,6 +196,8 @@ int module_flow_statistics_config(yaml_parser_t *parser, yaml_event_t *event, in
                         strcmp((char *)event->data.scalar.value, "t") == 0) {
 
                         config->enabled = 1;
+
+                        logger(LOG_INFO, "Flow Statistics Plugin Enabled");
                     }
                     break;
                 }
@@ -230,7 +232,7 @@ int module_flow_statistics_config(yaml_parser_t *parser, yaml_event_t *event, in
                         // check if this option is ALL, if so enabled all protocols
                         if (strcmp("ALL", (char *)event->data.scalar.value) == 0) {
                             config->monitor_all = 1;
-                            logger(LOG_INFO, "\tEnabling ALL protocols");
+                            logger(LOG_INFO, "Flow statistics - Enabling ALL protocols");
                         }
 
                         /* only need to enable indidual protocols if all is not set */
@@ -241,14 +243,14 @@ int module_flow_statistics_config(yaml_parser_t *parser, yaml_event_t *event, in
                             protocol = lpi_get_protocol_by_name((char *)event->data.scalar.value);
                             if (protocol != LPI_PROTO_UNKNOWN) {
                                 if (config->enabled) {
-                                    logger(LOG_INFO, "\tEnabling protocol: %s",
+                                    logger(LOG_INFO, "Flow statistics - Enabling protocol: %s",
                                         (char *)event->data.scalar.value);
                                 }
                                 config->protocol[protocol] = 1;
                             } else {
                                 if (config->enabled) {
-                                    logger(LOG_WARNING, "\tCould not find protocol: %s",
-                                        (char *)event->data.scalar.value);
+                                    logger(LOG_WARNING, "Flow statistics - Could not find "
+                                        "protocol: %s", (char *)event->data.scalar.value);
                                 }
                             }
                         }
@@ -285,7 +287,7 @@ int module_flow_statistics_config(yaml_parser_t *parser, yaml_event_t *event, in
                         // check if this option is ALL, if so enabled all protocols
                         if (strcmp("ALL", (char *)event->data.scalar.value) == 0) {
                             config->monitor_all = 1;
-                            logger(LOG_INFO, "\tEnabling ALL categories");
+                            logger(LOG_INFO, "Flow statistics - Enabling ALL categories");
                         }
 
                         /* Only need to enable seperate categories if all is not set */
@@ -296,14 +298,14 @@ int module_flow_statistics_config(yaml_parser_t *parser, yaml_event_t *event, in
                             category = lpi_get_category_by_name((char *)event->data.scalar.value);
                             if (category != LPI_CATEGORY_UNKNOWN) {
                                 if (config->enabled) {
-                                    logger(LOG_INFO, "\tEnabling category: %s",
+                                    logger(LOG_INFO, "Flow statistics - Enabling category: %s",
                                         (char *)event->data.scalar.value);
                                 }
                                 config->category[category] = 1;
                             } else {
                                 if (config->enabled) {
-                                    logger(LOG_WARNING, "\tCould not find category: %s",
-                                        (char *)event->data.scalar.value);
+                                    logger(LOG_WARNING, "Flow statistics - Could not find "
+                                        "category: %s", (char *)event->data.scalar.value);
                                 }
                             }
                         }
@@ -335,8 +337,6 @@ int module_flow_statistics_config(yaml_parser_t *parser, yaml_event_t *event, in
             module_flow_statistics_protocol_updated;
         config->callbacks->tick_cb = (cb_tick)module_flow_statistics_tick;
         config->callbacks->flowend_cb = (cb_flowend)module_flow_statistics_flowend;
-
-        logger(LOG_INFO, "Flow Statistics Plugin Enabled");
     }
 
     return 0;

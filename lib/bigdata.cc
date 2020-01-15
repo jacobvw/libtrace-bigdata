@@ -253,7 +253,7 @@ static void reporter_stopping(libtrace_t *trace, libtrace_thread_t *thread,
 }
 
 static void usage(char *prog) {
-    fprintf(stderr, "Usage: %s [OPTION...]\n"
+    fprintf(stderr, "Usage: %s [OPTIONS...]\n"
         "\n"
         "-c, --config=file\tconfiguration file to use\n"
         "-d, --daemonise\t\trun application as a daemon\n"
@@ -298,7 +298,7 @@ int main(int argc, char *argv[]) {
                 break;
             case 'h':
                 usage(argv[0]);
-                return 1;
+                return 0;
             case 'p':
                 pidfile = optarg;
                 break;
