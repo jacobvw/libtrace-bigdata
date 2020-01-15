@@ -253,7 +253,12 @@ static void reporter_stopping(libtrace_t *trace, libtrace_thread_t *thread,
 }
 
 static void usage(char *prog) {
-    fprintf(stderr, "Usage: %s -c configfile\n", prog);
+    fprintf(stderr, "Usage: %s [OPTION...]\n"
+        "\n"
+        "-c, --config=file\tconfiguration file to use\n"
+        "-d, --daemonise\t\trun application as a daemon\n"
+        "-p, --pidfile=file\tpid file when running as a daemon\n"
+        "-h, --help\t\tprint this help menu\n\n", prog);
 }
 
 int main(int argc, char *argv[]) {
@@ -305,8 +310,16 @@ int main(int argc, char *argv[]) {
     }
 
     if (configfile == NULL) {
-        logger(LOG_INFO, "libtrace-bigdata: no config file specified. Use -c to specify one.");
-        /* print usage */
+        logger(LOG_INFO, "libtrace-bigdata: no config file specified. "
+            "Use -c to specify one.");
+        usage(argv[0]);
+        exit(BD_INVALID_PARAMS);
+    }
+
+    if (todaemon && pidfile == NULL) {
+        logger(LOG_INFO, "libtrace-bigdata: pidfile must be supplied "
+            "when running in daemon mode. Use -p to specify one.\n");
+        usage(argv[0]);
         exit(BD_INVALID_PARAMS);
     }
 
