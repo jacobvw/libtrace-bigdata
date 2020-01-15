@@ -25,6 +25,9 @@ typedef struct module_elasticsearch_options {
     int elastic_online;
 } mod_elastic_opts_t;
 
+static size_t module_elasticsearch_callback(void *buffer, size_t size, size_t nmemb,
+    void *userp);
+
 void *module_elasticsearch_starting(void *tls) {
 
     struct curl_slist *headers = NULL;
@@ -76,12 +79,15 @@ void *module_elasticsearch_starting(void *tls) {
         } else {
             curl_easy_setopt(opts->curl, CURLOPT_SSL_VERIFYPEER, 0);
         }
+
+        // set the callback function
+        curl_easy_setopt(opts->curl, CURLOPT_WRITEFUNCTION,
+            module_elasticsearch_callback);
     }
 
     return opts;
 }
 
-/* define callback function for curl so output isnt spammed to standard output */
 static size_t module_elasticsearch_callback(void *buffer, size_t size, size_t nmemb,
     void *userp) {
 
@@ -111,9 +117,6 @@ static int module_elasticsearch_export(bd_bigdata_t *bigdata, mod_elastic_opts_t
     curl_easy_setopt(opts->curl, CURLOPT_URL, url);
     // set the payload in curl
     curl_easy_setopt(opts->curl, CURLOPT_POSTFIELDS, result);
-    // set callback to prevent libcurl sending spam to stdout
-    curl_easy_setopt(opts->curl, CURLOPT_WRITEFUNCTION,
-        module_elasticsearch_callback);
 
     // send to elasticsearch
     ret = curl_easy_perform(opts->curl);
@@ -137,7 +140,7 @@ static int module_elasticsearch_export(bd_bigdata_t *bigdata, mod_elastic_opts_t
         return 2;
     } else {
 
-        /* if elasticsearch was previously offline of status was unknonwn */
+        /* if elasticsearch was previously offline or status was unknonwn */
         if (opts->elastic_online < 1) {
             logger(LOG_INFO, "Elasticsearch is online.");
         }
