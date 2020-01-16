@@ -11,8 +11,8 @@ bd_result_set_t *bd_result_set_create(bd_bigdata_t *bigdata, const char *mod) {
         logger(LOG_CRIT, "Unable to allocate memory. func. bd_create_output_result_set()\n");
         exit(BD_OUTOFMEMORY);
     }
-    // allocate space for results
-    res->results = (bd_result_t *)malloc(sizeof(bd_result_t)*RESULT_SET_INIT_SIZE);
+    // allocate space for the result pointers
+    res->results = (bd_result_t **)malloc(sizeof(bd_result_t *)*RESULT_SET_INIT_SIZE);
     if (res->results == NULL) {
         logger(LOG_CRIT, "Unable to allocate memory. func. bd_create_output_result_set()\n");
         exit(BD_OUTOFMEMORY);
@@ -31,30 +31,44 @@ bd_result_set_t *bd_result_set_create(bd_bigdata_t *bigdata, const char *mod) {
 int bd_result_set_insert(bd_result_set_t *result_set, char const *key, bd_record_type dtype,
     bd_record_value value) {
 
+    bd_result_t *newresult;
+
     if (result_set == NULL) {
         logger(LOG_CRIT, "NULL result set. func. bd_result_set_insert()\n");
         exit(BD_OUTOFMEMORY);
     }
 
-    // re-allocated more result structures if needed
+    // re-allocated more result pointers if needed
     if (result_set->num_results >= result_set->allocated_results) {
         result_set->allocated_results += RESULT_SET_INC_SIZE;
-        result_set->results = (bd_result_t *)realloc(result_set->results,
-            sizeof(bd_result_t)*result_set->allocated_results);
+        result_set->results = (bd_result_t **)realloc(result_set->results,
+            sizeof(bd_result_t *)*result_set->allocated_results);
         if (result_set->results == NULL) {
             logger(LOG_CRIT, "Unable to allocate memory. func. bd_result_set_insert()\n");
             exit(BD_OUTOFMEMORY);
         }
     }
 
-    result_set->results[result_set->num_results].key = strdup(key);
-    if (result_set->results[result_set->num_results].key == NULL) {
+    /* create the new result */
+    newresult = (bd_result_t *)malloc(sizeof(bd_result_t));
+    if (newresult == NULL) {
+        fprintf(stderr, "Unable to allocate memory. func. bd_result_set_insert()\n");
+        exit(BD_OUTOFMEMORY);
+    }
+
+    /* populate the new result */
+    newresult->key = strdup(key);
+    if (newresult->key == NULL) {
         logger(LOG_CRIT, "Unable to allocate memory. func. bd_result_set_insert()\n");
         exit(BD_OUTOFMEMORY);
     }
-    result_set->results[result_set->num_results].type = dtype;
-    result_set->results[result_set->num_results].value = value;
+    newresult->type = dtype;
+    newresult->value = value;
 
+    /* link the new result to the array of results */
+    result_set->results[result_set->num_results] = newresult;
+
+    /* increment the number of stored results */
     result_set->num_results += 1;
 
     return 0;
@@ -262,27 +276,31 @@ int bd_result_set_free(bd_result_set_t *result_set) {
 
     if (result_set->results != NULL) {
         // iterate over each clearing any strings
-        for (i=0; i<result_set->num_results; i++) {
+        for (i = 0; i < result_set->num_results; i++) {
 
             /* free the value */
-            if (result_set->results[i].type == BD_TYPE_STRING ||
-                result_set->results[i].type == BD_TYPE_TAG ||
-                result_set->results[i].type == BD_TYPE_IP_STRING) {
+            if (result_set->results[i]->type == BD_TYPE_STRING ||
+                result_set->results[i]->type == BD_TYPE_TAG ||
+                result_set->results[i]->type == BD_TYPE_IP_STRING) {
 
-                if (result_set->results[i].value.data_string != NULL) {
-                    free(result_set->results[i].value.data_string);
-                    result_set->results[i].value.data_string = NULL;
+                if (result_set->results[i]->value.data_string != NULL) {
+                    free(result_set->results[i]->value.data_string);
+                    result_set->results[i]->value.data_string = NULL;
                 }
 
             }
 
             /* free the key */
-            if (result_set->results[i].key != NULL) {
-                free(result_set->results[i].key);
-                result_set->results[i].key = NULL;
+            if (result_set->results[i]->key != NULL) {
+                free(result_set->results[i]->key);
+                result_set->results[i]->key = NULL;
             }
+
+            /* free the result */
+            free(result_set->results[i]);
         }
 
+        /* free the pointer array used to hold results */
         free(result_set->results);
         result_set->results = NULL;
     }
@@ -381,39 +399,39 @@ std::string bd_result_set_to_json_string(bd_result_set_t *result) {
     for (int i = 0; i < result->num_results; i++) {
 
         json_string += ",\"";
-        json_string += result->results[i].key;
+        json_string += result->results[i]->key;
         json_string += "\":";
 
-        switch (result->results[i].type) {
+        switch (result->results[i]->type) {
             case BD_TYPE_TAG:
             case BD_TYPE_IP_STRING:
             case BD_TYPE_STRING:
                 json_string += "\"";
-                json_string += result->results[i].value.data_string;
+                json_string += result->results[i]->value.data_string;
                 json_string += "\"";
                 break;
             case BD_TYPE_FLOAT:
                 snprintf(buf, JSON_BUF_LEN, "%f",
-                    result->results[i].value.data_float);
+                    result->results[i]->value.data_float);
                 json_string += buf;
                 break;
             case BD_TYPE_DOUBLE:
                 snprintf(buf, JSON_BUF_LEN, "%lf",
-                    result->results[i].value.data_double);
+                    result->results[i]->value.data_double);
                 json_string += buf;
                 break;
             case BD_TYPE_INT:
                 snprintf(buf, JSON_BUF_LEN, "%li",
-                    result->results[i].value.data_int);
+                    result->results[i]->value.data_int);
                 json_string += buf;
                 break;
             case BD_TYPE_UINT:
                 snprintf(buf, JSON_BUF_LEN, "%lu",
-                    result->results[i].value.data_uint);
+                    result->results[i]->value.data_uint);
                 json_string += buf;
                 break;
             case BD_TYPE_BOOL:
-                if (result->results[i].value.data_bool) {
+                if (result->results[i]->value.data_bool) {
                     json_string += "true";
                 } else {
                     json_string += "false";

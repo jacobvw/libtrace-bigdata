@@ -366,31 +366,31 @@ static std::string module_influxdb_result_to_query(bd_result_set *result) {
     // add tag sets. This is meta data that doesnt change
     influx_line += "capture_application=libtrace-bigdata";
     for (int i = 0; i < result->num_results; i++) {
-        if (result->results[i].type == BD_TYPE_TAG) {
+        if (result->results[i]->type == BD_TYPE_TAG) {
             /* tag keys and tag values should escape commas, equal signs and spaces */
 
             influx_line += ",";
             /* if the tag key contains a space */
-            if (strstr(result->results[i].key, " ")) {
+            if (strstr(result->results[i]->key, " ")) {
                 // escape all spaces
-                char *w = bd_replaceWord(result->results[i].key, " ", "\\ ");
+                char *w = bd_replaceWord(result->results[i]->key, " ", "\\ ");
                 influx_line += w;
                 free(w);
             } else {
-                influx_line += result->results[i].key;
+                influx_line += result->results[i]->key;
             }
 
             influx_line += "=";
 
             /* if the tag result contains a space */
-            if (strstr(result->results[i].value.data_string, " ")) {
+            if (strstr(result->results[i]->value.data_string, " ")) {
                 /* escape all spaces */
-                char *w = bd_replaceWord(result->results[i].value.data_string,
+                char *w = bd_replaceWord(result->results[i]->value.data_string,
                     " ", "\\ ");
                 influx_line += w;
                 free(w);
             } else {
-                influx_line += result->results[i].value.data_string;
+                influx_line += result->results[i]->value.data_string;
             }
         }
     }
@@ -401,66 +401,66 @@ static std::string module_influxdb_result_to_query(bd_result_set *result) {
     // add data as field sets. This is data that does change
     for (int i = 0; i < result->num_results; i++) {
 
-        if (!first_pass && result->results[i].type != BD_TYPE_TAG) {
+        if (!first_pass && result->results[i]->type != BD_TYPE_TAG) {
             influx_line += ",";
         }
 
-        switch (result->results[i].type) {
+        switch (result->results[i]->type) {
             /* field keys should escape commas, equal signs and spaces */
             case BD_TYPE_IP_STRING:
             case BD_TYPE_STRING:
-                influx_line += result->results[i].key;
+                influx_line += result->results[i]->key;
                 influx_line += "=\"";
 
                 /* string field values should escape double quotes and backslashes */
-                if (strstr(result->results[i].value.data_string, "\"")) {
-                    char *w = bd_replaceWord(result->results[i].value.data_string,
+                if (strstr(result->results[i]->value.data_string, "\"")) {
+                    char *w = bd_replaceWord(result->results[i]->value.data_string,
                         "\"", "\\\"");
                     influx_line += w;
                     free(w);
                 } else {
-                    influx_line += result->results[i].value.data_string;
+                    influx_line += result->results[i]->value.data_string;
                 }
                 influx_line += "\"";
                 first_pass = 0;
                 break;
             case BD_TYPE_FLOAT:
-                snprintf(buf, INFLUX_BUF_LEN, "%f", result->results[i].value.data_float);
-                influx_line += result->results[i].key;
+                snprintf(buf, INFLUX_BUF_LEN, "%f", result->results[i]->value.data_float);
+                influx_line += result->results[i]->key;
                 influx_line += "=";
                 influx_line += buf;
                 first_pass = 0;
                 break;
             case BD_TYPE_DOUBLE:
-                snprintf(buf, INFLUX_BUF_LEN, "%lf", result->results[i].value.data_double);
-                influx_line += result->results[i].key;
+                snprintf(buf, INFLUX_BUF_LEN, "%lf", result->results[i]->value.data_double);
+                influx_line += result->results[i]->key;
                 influx_line += "=";
                 influx_line += buf;
                 first_pass = 0;
                 break;
             case BD_TYPE_INT:
-                snprintf(buf, INFLUX_BUF_LEN, "%li", result->results[i].value.data_int);
+                snprintf(buf, INFLUX_BUF_LEN, "%li", result->results[i]->value.data_int);
                 /* influxDB expects "i" and the end of a integer */
-                influx_line += result->results[i].key;
+                influx_line += result->results[i]->key;
                 influx_line += "=";
                 influx_line += buf;
                 influx_line += "i";
                 first_pass = 0;
                 break;
             case BD_TYPE_UINT:
-                snprintf(buf, INFLUX_BUF_LEN, "%li", result->results[i].value.data_uint);
+                snprintf(buf, INFLUX_BUF_LEN, "%li", result->results[i]->value.data_uint);
                 /* influxDB expects "u" at the end of uint however most versions do not
                    support it yet */
-                influx_line += result->results[i].key;
+                influx_line += result->results[i]->key;
                 influx_line += "=";
                 influx_line += buf;
                 influx_line += "i";
                 first_pass = 0;
                 break;
             case BD_TYPE_BOOL:
-                influx_line += result->results[i].key;
+                influx_line += result->results[i]->key;
                 influx_line += "=";
-                if (result->results[i].value.data_bool) { influx_line += "t"; }
+                if (result->results[i]->value.data_bool) { influx_line += "t"; }
                 else { influx_line += "f"; }
                 first_pass = 0;
                 break;

@@ -48,7 +48,7 @@ typedef struct bd_result {
 /* Structure to hold a set of results */
 typedef struct bd_result_set {
     const char *module;
-    bd_result_t *results;
+    bd_result_t **results;
     int num_results;
     int allocated_results;
     uint64_t timestamp;

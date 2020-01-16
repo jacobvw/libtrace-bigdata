@@ -72,9 +72,9 @@ int module_maxmind_result_cb(bd_bigdata_t *bigdata, void *mls, bd_result_set *re
 
     /* try to find a IP address in this result */
     for (int i = 0; i < result->num_results; i++) {
-        if (result->results[i].type == BD_TYPE_IP_STRING) {
+        if (result->results[i]->type == BD_TYPE_IP_STRING) {
             // get the IP
-            ip = result->results[i].value.data_string;
+            ip = result->results[i]->value.data_string;
 
             if (ip != NULL) {
 
@@ -91,7 +91,7 @@ int module_maxmind_result_cb(bd_bigdata_t *bigdata, void *mls, bd_result_set *re
                             if (entry_data.has_data) {
                                 // insert longitude into the result set
                                 snprintf(buf, sizeof(buf), "%s_longitude",
-                                    result->results[i].key);
+                                    result->results[i]->key);
                                 longitude = entry_data.double_value;
                                 if (config->coordinates) {
                                     bd_result_set_insert_double(result, buf,
@@ -106,7 +106,7 @@ int module_maxmind_result_cb(bd_bigdata_t *bigdata, void *mls, bd_result_set *re
                         if (status == MMDB_SUCCESS) {
                             if (entry_data.has_data) {
                                 snprintf(buf, sizeof(buf), "%s_latitude",
-                                    result->results[i].key);
+                                    result->results[i]->key);
                                 latitude = entry_data.double_value;
                                 if (config->coordinates) {
                                     bd_result_set_insert_double(result, buf,
@@ -121,11 +121,11 @@ int module_maxmind_result_cb(bd_bigdata_t *bigdata, void *mls, bd_result_set *re
                             char *geohash = module_maxmind_geohash_encode(latitude, longitude, 6);
                             // insert geohash into result set
                             snprintf(buf, sizeof(buf), "%s_geohash",
-                                result->results[i].key);
+                                result->results[i]->key);
                             bd_result_set_insert_tag(result, buf, geohash);
                             // grafana worldmap panel needs a value for each one??
                             snprintf(buf, sizeof(buf), "%s_geohash_value",
-                                result->results[i].key);
+                                result->results[i]->key);
                             bd_result_set_insert_uint(result, buf, 1);
                             free(geohash);
                         }
@@ -138,7 +138,7 @@ int module_maxmind_result_cb(bd_bigdata_t *bigdata, void *mls, bd_result_set *re
                         if (status == MMDB_SUCCESS) {
                             if (entry_data.has_data) {
                                 snprintf(buf, sizeof(buf), "%s_city",
-                                    result->results[i].key);
+                                    result->results[i]->key);
                                 snprintf(buf2, entry_data.data_size + 1, "%s",
                                     entry_data.utf8_string);
                                 bd_result_set_insert_string(result, buf, buf2);
@@ -153,7 +153,7 @@ int module_maxmind_result_cb(bd_bigdata_t *bigdata, void *mls, bd_result_set *re
                         if (status == MMDB_SUCCESS) {
                             if (entry_data.has_data) {
                                 snprintf(buf, sizeof(buf), "%s_country",
-                                    result->results[i].key);
+                                    result->results[i]->key);
                                 snprintf(buf2, entry_data.data_size + 1, "%s",
                                     entry_data.utf8_string);
                                 bd_result_set_insert_string(result, buf, buf2);

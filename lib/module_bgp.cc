@@ -1214,10 +1214,10 @@ void *module_bgp_reporter_starting(void *tls) {
         exit(BD_OUTOFMEMORY);
     }
 
+    storage_reporter->last_tick = 0;
     storage_reporter->session_starts = 0;
     storage_reporter->session_timeouts = 0;
     storage_reporter->session_closes = 0;
-
     storage_reporter->active_sessions = 0;
 
     return storage_reporter;
