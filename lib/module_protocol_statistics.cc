@@ -44,7 +44,7 @@ struct module_protocol_statistics_ip_compare {
             return 0;
         }
 
-        // if we get this far ip is not v4 or v6 so just label then as non matching
+        // if we get this far ip is not v4 or v6 so just label it as non matching
         return 1;
     }
 };
@@ -214,6 +214,9 @@ int module_protocol_statistics_stopping(void *tls, void *mls) {
 int module_protocol_statistics_tick(bd_bigdata_t *bigdata, void *mls, uint64_t tick) {
 
     int i;
+    std::set<struct sockaddr_storage,
+        module_protocol_statistics_ip_compare>::iterator it;
+    std::set<uint64_t>::iterator it_flow;
 
     // gain access to the stats
     mod_proto_stats_t *stats = (mod_proto_stats_t *)mls;
@@ -238,21 +241,34 @@ int module_protocol_statistics_tick(bd_bigdata_t *bigdata, void *mls, uint64_t t
         combine->proto_stats[i].in_packets = stats->proto_stats[i].in_packets;
         combine->proto_stats[i].out_packets = stats->proto_stats[i].out_packets;
 
-        // copy over src/dst ips
-        combine->proto_stats[i].esrc_ips->insert(stats->proto_stats[i].esrc_ips->begin(),
-            stats->proto_stats[i].esrc_ips->end());
-        combine->proto_stats[i].edst_ips->insert(stats->proto_stats[i].edst_ips->begin(),
-            stats->proto_stats[i].edst_ips->end());
+        // copy over internal/external src/dst ips
+        for (it = stats->proto_stats[i].esrc_ips->begin();
+            it != stats->proto_stats[i].esrc_ips->end(); it++) {
 
-        // copy over internal src/dst ips
-        combine->proto_stats[i].isrc_ips->insert(stats->proto_stats[i].isrc_ips->begin(),
-            stats->proto_stats[i].isrc_ips->end());
-        combine->proto_stats[i].idst_ips->insert(stats->proto_stats[i].idst_ips->begin(),
-            stats->proto_stats[i].idst_ips->end());
+            combine->proto_stats[i].esrc_ips->insert(*it);
+        }
+        for (it = stats->proto_stats[i].edst_ips->begin();
+            it != stats->proto_stats[i].edst_ips->end(); it++) {
+
+            combine->proto_stats[i].edst_ips->insert(*it);
+        }
+        for (it = stats->proto_stats[i].isrc_ips->begin();
+            it != stats->proto_stats[i].isrc_ips->end(); it++) {
+
+            combine->proto_stats[i].isrc_ips->insert(*it);
+        }
+        for (it = stats->proto_stats[i].idst_ips->begin();
+            it != stats->proto_stats[i].idst_ips->end(); it++) {
+
+            combine->proto_stats[i].idst_ips->insert(*it);
+        }
 
         // copy over flow ids
-        combine->proto_stats[i].flow_ids->insert(stats->proto_stats[i].flow_ids->begin(),
-            stats->proto_stats[i].flow_ids->end());
+        for (it_flow = stats->proto_stats[i].flow_ids->begin();
+            it_flow != stats->proto_stats[i].flow_ids->end(); it_flow++) {
+
+            combine->proto_stats[i].flow_ids->insert(*it_flow);
+        }
 
         // clear stats for current protocol
         module_protocol_statistics_clear_proto_stats(&(stats->proto_stats[i]));
@@ -302,6 +318,9 @@ int module_protocol_statistics_combiner(bd_bigdata_t *bigdata, void *mls,
     mod_proto_stats_t *res = (mod_proto_stats_t *)result;
     lpi_protocol_t protocol;
     lpi_category_t category;
+    std::set<struct sockaddr_storage,
+        module_protocol_statistics_ip_compare>::iterator it;
+    std::set<uint64_t>::iterator it_flow;
 
     if (tally->lastkey == 0) {
         tally->lastkey = tick;
@@ -386,19 +405,34 @@ int module_protocol_statistics_combiner(bd_bigdata_t *bigdata, void *mls,
         tally->proto_stats[i].in_packets += res->proto_stats[i].in_packets;
         tally->proto_stats[i].out_packets += res->proto_stats[i].out_packets;
 
-        // merge src/dst ip sets
-        tally->proto_stats[i].esrc_ips->insert(res->proto_stats[i].esrc_ips->begin(),
-            res->proto_stats[i].esrc_ips->end());
-        tally->proto_stats[i].edst_ips->insert(res->proto_stats[i].edst_ips->begin(),
-            res->proto_stats[i].edst_ips->end());
-        // merge local src/dst ip sets
-        tally->proto_stats[i].isrc_ips->insert(res->proto_stats[i].isrc_ips->begin(),
-            res->proto_stats[i].isrc_ips->end());
-        tally->proto_stats[i].idst_ips->insert(res->proto_stats[i].idst_ips->begin(),
-            res->proto_stats[i].idst_ips->end());
-        // merge flow id set
-        tally->proto_stats[i].flow_ids->insert(res->proto_stats[i].flow_ids->begin(),
-            res->proto_stats[i].flow_ids->end());
+        // copy over internal/external src/dst ips
+        for (it = res->proto_stats[i].esrc_ips->begin();
+            it != res->proto_stats[i].esrc_ips->end(); it++) {
+
+            tally->proto_stats[i].esrc_ips->insert(*it);
+        }
+        for (it = res->proto_stats[i].edst_ips->begin();
+            it != res->proto_stats[i].edst_ips->end(); it++) {
+
+            tally->proto_stats[i].edst_ips->insert(*it);
+        }
+        for (it = res->proto_stats[i].isrc_ips->begin();
+            it != res->proto_stats[i].isrc_ips->end(); it++) {
+
+            tally->proto_stats[i].isrc_ips->insert(*it);
+        }
+        for (it = res->proto_stats[i].idst_ips->begin();
+            it != res->proto_stats[i].idst_ips->end(); it++) {
+
+            tally->proto_stats[i].idst_ips->insert(*it);
+        }
+
+        // copy over flow ids
+        for (it_flow = res->proto_stats[i].flow_ids->begin();
+            it_flow != res->proto_stats[i].flow_ids->end(); it_flow++) {
+
+            tally->proto_stats[i].flow_ids->insert(*it_flow);
+        }
 
         // delete proto stats for the combined result
         module_protocol_statistics_delete_proto_stats(&(res->proto_stats[i]));
