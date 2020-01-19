@@ -68,7 +68,8 @@ enum {
     BD_FLOW_MANAGER_CONF = 11,
     BD_LIBPROTOIDENT_INIT = 12,
     BD_TRACE_STARTUP = 13,
-    BD_READ_PACKETS = 14
+    BD_READ_PACKETS = 14,
+    BD_TEMP_FILE = 15
 };
 
 /* Enumeration of events supported */
@@ -121,6 +122,7 @@ typedef struct bigdata_config {
     bd_network_t **local_subnets;
     int local_subnets_count;
     bd_dir_method_t dir_method;
+    char *temp_path;
 } bd_conf_t;
 
 typedef struct bigdata_network {

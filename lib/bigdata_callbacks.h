@@ -63,7 +63,8 @@ typedef struct bigdata_callback_set {
     cb_category category_cb[LPI_CATEGORY_LAST];
     /* file pointer to export results to if external database is
      * not accessable */
-    FILE *temp_stor;
+    FILE *temp_file;
+    char *temp_filename;
     bd_cb_set *next;
 } bd_cb_set;
 

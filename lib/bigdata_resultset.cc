@@ -334,23 +334,22 @@ int bd_result_set_wrap_free(bd_result_set_wrap_t *r) {
 
 int bd_result_string_store(bd_cb_set *cbs, std::string result) {
 
-    return fprintf(cbs->temp_stor, "%s\n", result.c_str());
+    return fprintf(cbs->temp_file, "%s\n", result.c_str());
 }
 
 char *bd_result_string_read(bd_cb_set *cbs) {
 
     char *buf;
     long filesize;
-    char filename[100];
     size_t readsize;
 
     // flush the files output buffer
-    fflush(cbs->temp_stor);
+    fflush(cbs->temp_file);
 
     // determine the filesize
-    fseek(cbs->temp_stor, 0, SEEK_END);
-    filesize = ftell(cbs->temp_stor);
-    fseek(cbs->temp_stor, 0, SEEK_SET);
+    fseek(cbs->temp_file, 0, SEEK_END);
+    filesize = ftell(cbs->temp_file);
+    fseek(cbs->temp_file, 0, SEEK_SET);
 
     // if filesize is 0 nothing in file so return NULL
     if (filesize == 0) {
@@ -366,7 +365,7 @@ char *bd_result_string_read(bd_cb_set *cbs) {
 
     /* read the file into the buffer, this could become problematic if a datastore is down
      * for a long period of time causing a very large temp file. */
-    readsize = fread(buf, 1, filesize, cbs->temp_stor);
+    readsize = fread(buf, 1, filesize, cbs->temp_file);
     /* make sure something was actually read, if not return */
     if (readsize == 0) {
         return NULL;
@@ -374,10 +373,21 @@ char *bd_result_string_read(bd_cb_set *cbs) {
     buf[filesize] = '\0';
 
     /* close the temp file, remove it, and recreate it */
-    fclose(cbs->temp_stor);
-    snprintf(filename, sizeof(filename), "/tmp/libtrace-bigdata.%s", cbs->name);
-    remove(filename);
-    cbs->temp_stor = fopen(filename, "a+");
+    if (fclose(cbs->temp_file) != 0) {
+        logger(LOG_CRIT, "Unable to close temporary file %s. func. "
+            "bd_result_string_read()", cbs->temp_filename);
+        exit(BD_TEMP_FILE);
+    }
+    if (remove(cbs->temp_filename) != 0) {
+        logger(LOG_CRIT, "Unable to remove temporary file %s. func. "
+            "bd_result_string_read()", cbs->temp_filename);
+        exit(BD_TEMP_FILE);
+    }
+    if ((cbs->temp_file = fopen(cbs->temp_filename, "a+")) == NULL) {
+        logger(LOG_CRIT, "Unable to create temporary file %s. func. "
+            "bd_result_string_read()", cbs->temp_filename);
+        exit(BD_TEMP_FILE);
+    }
 
     return buf;
 }

@@ -152,7 +152,7 @@ bd_conf_t *parse_config(char *filename, bd_global_t *g_data) {
     conf->enable_bidirectional_hasher = 1;
     conf->debug = 0;
     conf->dir_method = DIR_METHOD_PORT;
-
+    conf->temp_path = NULL;
 
     int level = 0;
 
@@ -356,6 +356,22 @@ bd_conf_t *parse_config(char *filename, bd_global_t *g_data) {
                             " defaulting to LOG_INFO");
                         conf->debug = LOG_INFO;
                     }
+                    // consume the event
+                    consume_event(&parser, &event, &level);
+                    break;
+                }
+
+                if (strcmp((char *)event.data.scalar.value, "temp_path") == 0) {
+                    // consume the first event which contains the value debug
+                    consume_event(&parser, &event, &level);
+                    // should now be a YAML_SCALAR_EVENT,
+                    //  if not config is incorrect.
+                    if (event.type != YAML_SCALAR_EVENT) {
+                        logger(LOG_ERR, "Config error: Unexpected value for "
+                            "temp_path");
+                        return NULL;
+                    }
+                    conf->temp_path = strdup((char *)event.data.scalar.value);
                     // consume the event
                     consume_event(&parser, &event, &level);
                     break;

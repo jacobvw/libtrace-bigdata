@@ -43,6 +43,13 @@ enable_bidirectional_hasher: 0
 # LOG_DEBUG
 debug: LOG_INFO
 
+# The location that temporary files should be written to. Temporary files are
+# used when any of the enabled output plugins destinations are offline, instead
+# of removing the data it is written to a temporary file. When the output
+# destination is back online the data written to the temporary file is then sent
+# to the output destination.
+temp_path: /tmp
+
 # capture modules
 foreach:
 

@@ -418,8 +418,17 @@ int bd_callback_trigger_reporter_starting(bd_bigdata_t *bigdata) {
         // setup temp file storage used to hold results when external datastores
         // are not available. only applicable to plugins with the output event
         if (cbs->reporter_output_cb != NULL) {
-            snprintf(buf, sizeof(buf), "/tmp/libtrace-bigdata.%s", cbs->name);
-            cbs->temp_stor = fopen(buf, "a+");
+            snprintf(buf, sizeof(buf), "%s/libtrace-bigdata.%s",
+                bigdata->global->config->temp_path,
+                cbs->name);
+
+            cbs->temp_filename = (char *)strdup(buf);
+            if ((cbs->temp_file = fopen(buf, "a+")) == NULL) {
+                logger(LOG_CRIT, "Unable to create temporary file %s, Check "
+                    "temp_file config option is correct and the directory exists "
+                    "with the correct permissions.");
+                exit(BD_TEMP_FILE);
+            }
         }
 
         cb_counter += 1;
@@ -461,7 +470,12 @@ int bd_callback_trigger_reporter_stopping(bd_bigdata_t *bigdata) {
 
         // close the temp file storage
         if (cbs->reporter_output_cb != NULL) {
-            fclose(cbs->temp_stor);
+            if (fclose(cbs->temp_file) != 0) {
+                logger(LOG_CRIT, "Unable to close temporary file %s. func."
+                    "bd_callback_trigger_reporter_stopping()",
+                    cbs->temp_filename);
+                exit(BD_TEMP_FILE);
+            }
         }
 
         cb_counter += 1;
