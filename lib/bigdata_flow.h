@@ -6,6 +6,7 @@
 
 /* Flow record structure */
 typedef struct bigdata_flow_record {
+    uint64_t flow_id;
     double start_ts;
     double ttfb;			/* time to first byte */
     double end_ts;

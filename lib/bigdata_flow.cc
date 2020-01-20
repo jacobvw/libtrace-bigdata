@@ -85,6 +85,7 @@ static int flow_init_metrics(bd_bigdata_t *bigdata, uint8_t dir, double ts) {
         flow_record->dst_ip.ss_family = AF_UNSPEC;
     }
 
+    flow_record->flow_id = bd_flow_get_id(bigdata->flow);
     flow_record->src_port = trace_get_source_port(bigdata->packet);
     flow_record->dst_port = trace_get_destination_port(bigdata->packet);
     flow_record->start_ts = ts;
