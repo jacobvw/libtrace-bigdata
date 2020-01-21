@@ -29,5 +29,6 @@ bigdata_SOURCES = bigdata.cc bigdata.h \
                 module_http.cc module_http.h \
                 module_http_picoparser.c module_http_picoparser.h \
                 module_bgp.cc module_bgp.h \
+                module_smtp.cc module_smtp.h \
 		$(KAFKASOURCE) \
 		$(MAXMINDSOURCES)
