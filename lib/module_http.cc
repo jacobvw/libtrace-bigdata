@@ -135,6 +135,13 @@ int module_http_packet(bd_bigdata_t *bigdata, void *mls) {
             for (int i = 0; i != num_headers; ++i) {
                 request->headers[i].name = strndup(headers[i].name, (int)headers[i].name_len);
                 request->headers[i].value = strndup(headers[i].value, (int)headers[i].value_len);
+
+                /* if the request value contains a " escape it */
+                if (strstr(request->headers[i].value, "\"")) {
+                    char *w = bd_replaceWord(request->headers[i].value, "\"", "\\\"");
+                    free(request->headers[i].value);
+                    request->headers[i].value = w;
+                }
             }
             request->num_headers = num_headers;
 
@@ -190,7 +197,15 @@ int module_http_packet(bd_bigdata_t *bigdata, void *mls) {
                         (int)headers[i].name_len, headers[i].name);
                     snprintf(header_value, sizeof(header_value), "%.*s", (int)headers[i].value_len,
                         headers[i].value);
-                    bd_result_set_insert_string(result_set, header_name, header_value);
+
+                    /* if the response value contains a " escape it */
+                    if (strstr(header_value, "\"")) {
+                        char *w = bd_replaceWord(header_value, "\"", "\\\"");
+                        bd_result_set_insert_string(result_set, header_name, header_value);
+                        free(w);
+                    } else {
+                        bd_result_set_insert_string(result_set, header_name, header_value);
+                    }
                 }
 
                 /* insert the timestamp */
