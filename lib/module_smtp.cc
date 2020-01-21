@@ -1,4 +1,6 @@
 #include "module_smtp.h"
+#include <list>
+#include <string>
 
 #define MAIL 0x4D 0x41 0x49 0x4C
 #define EHLO 0x45 0x48 0x4C 0x4F
@@ -15,16 +17,18 @@ mod_smtp_conf *config;
 
 typedef struct module_smtp_session {
 
-    bool seen_srv_helo;
-    bool seen_cli_helo;
-    bool seen_from;
-    bool seen_to;
-    bool seen_data;
+    /* 0 == not seen, 1 == sent, 2 == confirmed */
+    int seen_srv_helo;
+    int seen_cli_helo;
+    int seen_from;
+    int seen_to;
+    int seen_data;
+    int seen_quit;
 
     char *srv_helo;
     char *cli_helo;
     char *from;
-    char *to;
+    std::list<char *> to;
     char *data;
 } mod_smtp_sess;
 
@@ -44,8 +48,6 @@ void *module_smtp_starting(void *tls) {
     }
 
     storage->sessions = new std::map<uint64_t, mod_smtp_sess>;
-
-    logger(LOG_INFO, "smtp starting");
 
     return storage;
 }
@@ -104,6 +106,14 @@ int module_smtp_packet(bd_bigdata_t *bigdata, void *mls) {
         if (payload[0] == 0x32 && payload[1] == 0x32 &&
             payload[2] == 0x30) {
 
+            /* init session state */
+            session.seen_srv_helo = 0;
+            session.seen_cli_helo = 0;
+            session.seen_from = 0;
+            session.seen_to = 0;
+            session.seen_data = 0;
+            session.seen_quit = 0;
+
             session.seen_srv_helo = 1;
             session.srv_helo = strndup(payload, remaining);
 
@@ -115,53 +125,195 @@ int module_smtp_packet(bd_bigdata_t *bigdata, void *mls) {
     } else {
         session = it->second;
 
-        /* if message starts with HELO or EHLO this is the
-         * clients helo message */
+        /* 1xx - informational. */
+
+        /* 101 - the serber os unable to connect. */
+
+        /* 111 - connection refused or inability to open an
+                 SMTP strea. */
+
+
+        /* 2xx - success. */
+
+        /* 200 - system status message or help reply. */
+
+        /* 214 - a response to the help command. */
+
+        /* 220 - the server is ready. */
+
+        /* 221 - the server is closing its transmission channel. */
+        if (payload[0] == 0x32 && payload[1] == 0x32 &&
+            payload[2] == 0x31) {
+
+            if (session.seen_quit == 1) {
+                session.seen_quit = 2;
+                logger(LOG_INFO, "session closing");
+            }
+        }
+
+        /* 250 - requested mail action okay completed. */
+        if (payload[0] == 0x32 && payload[1] == 0x35 &&
+            payload[2] == 0x30) {
+
+           /* this should be a cli helo/ehlo confirmation
+            * with extensions supplied if ehlo */
+           if (session.seen_cli_helo == 1) {
+               session.seen_cli_helo = 2;
+               logger(LOG_INFO, "cli helo ok");
+           }
+
+           /* this should be a mail from OK message */
+           if (session.seen_from == 1) {
+               session.seen_from = 2;
+               logger(LOG_INFO, "mail from ok");
+           }
+
+           /* this should be a rcpt to OK message */
+           if (session.seen_to == 1) {
+               session.seen_to = 2;
+               logger(LOG_INFO, "rcpt to ok");
+           }
+
+           /* this should be after data is sent confirming */
+           if (session.seen_data == 2) {
+               logger(LOG_INFO, "mail queued?");
+           }
+
+        }
+
+        /* 251 - user not local will forward. */
+
+        /* 252 - cannot verify the user, but it will try to deliver
+                 the message anyway. */
+
+        /* 3xx - redirection */
+
+        /* 354 - start mail input */
+        if (payload[0] == 0x33 && payload[1] == 0x35 &&
+            payload[2] == 0x34) {
+
+            session.seen_data = 2;
+            logger(LOG_INFO, "start mail input");
+        }
+
+
+
+        /* 4xx - persistent transient failure
+                 In most cases when receiving a 4xx error the
+                 sending mail server will attempt to retry delivery
+                 after a delay, and may repeatedly do so for up to
+                 a day or two depending on configuration before
+                 reporting to their user that the mail could not be
+                 delivered. */
+
+        /* 420 - timeout connection problem. */
+
+        /* 421 - service is unavailable due to a connection problem. */
+
+        /* 422 - the recipient's mailbox has exceeded its storage limit. */
+
+        /* 431 - not enough space on the disk. */
+
+        /* 432 - recipient's incoming mail queue has been stopped. */
+
+        /* 441 - the recipient's server is not responding. */
+
+        /* 442 - the connection was dropped during the transmission. */
+
+        /* 446 - the maximum hop count was exceeded for the message. */
+
+        /* 447 - message timed out because of issues concerning the
+                 incoming server. */
+
+        /* 449 - routing error. */
+
+        /* 450 - user's mailbox in unavailable. */
+
+        /* 451 - aborted - local error in processing. */
+
+        /* 452 - to many emails sent or to many recipients. */
+
+        /* 471 - an error of your mail server. */
+
+
+
+        /* 5xx - permanent errors
+                 These errors will result in the SMTP connection
+                 being dropped, and the sending mail server will
+                 advise the user that their mail could not be
+                 delivered. */
+
+        /* 500 - syntax error */
+
+        /* 501 - syntax error in parameters or arguments. */
+
+        /* 503 - bad sequence of commands, or requires auth. */
+        if (payload[0] == 0x35 && payload[1] == 0x30 &&
+            payload[2] == 0x33) {
+
+        }
+
+        /* 504 - command parameter is not implemented */
+
+        /* 510 - bad email address */
+
+        /* 511 - bad email address */
+
+        /* 512 - host server for the recipient's domain name
+                 cannot be found in DNS. */
+
+        /* 513 - address type is incorrect. */
+
+        /* 523 - size of you mail exceeds the server limits. */
+
+        /* 530 - authentication problem. */
+
+        /* 541 - the recipient address rejected your message. */
+
+        /* 550 - non-existent email address. */
+        if (payload[0] == 0x35 && payload[1] == 0x35 &&
+            payload[2] == 0x30) {
+
+            /* error message for a rcpt to */
+            if (session.seen_to == 1) {
+                session.seen_to = 2;
+                logger(LOG_INFO, "rcpt error");
+            }
+        }
+
+        /* 551 - user not local or invalid address - relay denied. */
+
+        /* 552 - exceeded storage allocation. */
+
+        /* 553 - mailbox name invalid. */
+        if (payload[0] == 0x35 && payload[1] == 0x35 &&
+            payload[2] == 0x33) {
+
+        }
+
+        /* 554 - transaction has failed. */
+
+
+
+
+
+
+
+        /* HELO or EHLO */
         if ((payload[0] == 0x45 && payload[1] == 0x48 &&
             payload[2] == 0x4C && payload[3] == 0x4F) ||
             (payload[0] == 0x48 && payload[1] == 0x45 &&
             payload[2] == 0x4C && payload[3] == 0x4F)) {
 
+            /* if the client sends a helo back its seen the
+             * one from the server */
+            session.seen_srv_helo = 2;
+
+            /* indicate the client has sent the helo */
             session.seen_cli_helo = 1;
             session.cli_helo = strndup(payload, remaining);
 
             logger(LOG_INFO, "%s", session.cli_helo);
-
-        }
-
-        /* 221 - service closing transmission */
-        if (payload[0] == 0x32 && payload[1] == 0x32 &&
-            payload[2] == 0x31) {
-
-        }
-
-        /* 250 - server supported features? */
-        if (payload[0] == 0x32 && payload[1] == 0x35 &&
-            payload[2] == 0x30) {
-
-            /* move payload up to return code */
-            payload += 4;
-
-            /* 2.1.0 sender ok */
-            if (payload[0] == 0x32 && payload[2] == 0x31 &&
-                payload[4] == 0x30) {
-
-                logger(LOG_INFO, "SENDER OK");
-            }
-
-            /* 2.1.5 rcpt ok */
-            if (payload[0] == 0x32 && payload[2] == 0x31 &&
-                payload[4] == 0x35) {
-
-                logger(LOG_INFO, "RCPT OK");
-            }
-
-            /* 2.6.0 queued for delivery */
-            if (payload[0] == 0x32 && payload[2] == 0x36 &&
-                payload[4] == 0x30) {
-
-                logger(LOG_INFO, "Queued for delivery");
-            }
 
         }
 
@@ -172,8 +324,13 @@ int module_smtp_packet(bd_bigdata_t *bigdata, void *mls) {
             payload[6] == 0x52 && payload[7] == 0x4F &&
             payload[8] == 0x4D) {
 
-            session.seen_from = 1;
+            /* if a MAIL FROM has been seen erase old one update
+             * new one */
+            if (session.seen_from) {
+                free(session.from);
+            }
             session.from = strndup(payload, remaining);
+            session.seen_from = 1;
 
             logger(LOG_INFO, "%s", session.from);
         }
@@ -185,9 +342,27 @@ int module_smtp_packet(bd_bigdata_t *bigdata, void *mls) {
             payload[6] == 0x4F) {
 
             session.seen_to = 1;
-            session.to = strndup(payload, remaining);
+            char *w = strndup(payload, remaining);
+            session.to.push_back(w);
 
-            logger(LOG_INFO, "%s", session.to);
+            logger(LOG_INFO, "%s", w);
+        }
+
+        /* DATA */
+        if (payload[0] == 0x44 && payload[1] == 0x41 &&
+            payload[2] == 0x54 && payload[3] == 0x41) {
+
+            session.seen_data = 1;
+
+            logger(LOG_INFO, "seen data");
+        }
+
+        /* QUIT */
+        if (payload[0] == 0x51 && payload[1] == 0x55 &&
+            payload[2] == 0x49 && payload[3] == 0x54) {
+
+            session.seen_quit = 1;
+            logger(LOG_INFO, "quit");
         }
 
         it->second = session;
@@ -202,8 +377,6 @@ int module_smtp_stopping(void *tls, void *mls) {
 
     delete(storage->sessions);
     free(storage);
-
-    logger(LOG_INFO, "smtp stopping");
 
     return 0;
 }
@@ -230,6 +403,5 @@ int module_smtp_init(bd_bigdata_t *bigdata) {
 
     bd_register_cb_set(bigdata, config->callbacks);
 
-    logger(LOG_INFO, "here");
 }
 
