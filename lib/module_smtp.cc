@@ -12,6 +12,10 @@
 
 typedef struct module_smtp_config {
     bd_cb_set *callbacks;
+
+    bool enabled;
+    int timeout_request;
+    int timeout_check;
 } mod_smtp_conf;
 mod_smtp_conf *config;
 
@@ -30,11 +34,19 @@ typedef struct module_smtp_session {
     char *from;
     std::list<char *> to;
     char *data;
+
+    /* used to expire sessions that have not seen
+       any packets for the timeout_request value. */
+    double last_timestamp;
 } mod_smtp_sess;
 
 typedef struct module_smtp_storage {
     std::map<uint64_t, mod_smtp_sess> *sessions;
 } mod_smtp_stor;
+
+void module_smtp_generate_result(bd_bigdata_t *bigdata,
+    mod_smtp_sess *session);
+void module_smtp_free_session(mod_smtp_sess *session);
 
 void *module_smtp_starting(void *tls) {
 
@@ -89,7 +101,7 @@ int module_smtp_packet(bd_bigdata_t *bigdata, void *mls) {
 
     payload = (char *)trace_get_payload_from_tcp((libtrace_tcp_t *)payload, &remaining);
     /* no tcp payload */
-    if (payload == NULL) {
+    if (payload == NULL || remaining == 0) {
         return 0;
     }
 
@@ -145,10 +157,13 @@ int module_smtp_packet(bd_bigdata_t *bigdata, void *mls) {
         if (payload[0] == 0x32 && payload[1] == 0x32 &&
             payload[2] == 0x31) {
 
-            if (session.seen_quit == 1) {
-                session.seen_quit = 2;
-                logger(LOG_INFO, "session closing");
-            }
+            /* the final message in the SMTP transaction?? so generate
+               a result for this session. */
+            module_smtp_generate_result(bigdata, &session);
+            /* cleanup memory used by the smtp session */
+            module_smtp_free_session(&(it->second));
+            storage->sessions->erase(it);
+            return 0;
         }
 
         /* 250 - requested mail action okay completed. */
@@ -381,6 +396,117 @@ int module_smtp_stopping(void *tls, void *mls) {
     return 0;
 }
 
+void module_smtp_generate_result(bd_bigdata_t *bigdata,
+    mod_smtp_sess *session) {
+
+    bd_result_set_t *result;
+    std::list<char *>::iterator it;
+    char buf[100];
+    int i = 0;
+    struct timeval tv;
+
+    result = bd_result_set_create(bigdata, "smtp");
+
+    bd_result_set_insert_string(result, "from", session->from);
+    /* insert each recipient */
+    for (it = session->to.begin(); it != session->to.end(); ++it) {
+        snprintf(buf, sizeof(buf), "to_%d", i);
+        bd_result_set_insert_string(result, buf, *it);
+        i += 1;
+    }
+
+    tv = trace_get_timeval(bigdata->packet);
+    bd_result_set_insert_timestamp(result, tv.tv_sec);
+
+    bd_result_set_publish(bigdata, result, tv.tv_sec);
+}
+
+void module_smtp_free_session(mod_smtp_sess *session) {
+
+    std::list<char *>::iterator it;
+
+    free(session->srv_helo);
+    free(session->cli_helo);
+    free(session->from);
+
+    /* free each rcpt */
+    for (it = session->to.begin(); it != session->to.end(); ++it) {
+        free(*it);
+    }
+}
+
+int module_smtp_tick(bd_bigdata_t *bigdata, void *mls, uint64_t tick) {
+
+}
+
+int module_smtp_config(yaml_parser_t *parser, yaml_event_t *event,
+    int *level) {
+
+    int enter_level = *level;
+    bool first_pass = 1;
+
+    while (enter_level != *level || first_pass) {
+        first_pass = 0;
+        switch(event->type) {
+            case YAML_SCALAR_EVENT:
+                if (strcmp((char *)event->data.scalar.value, "enabled") == 0) {
+                    consume_event(parser, event, level);
+                    if (strcmp((char *)event->data.scalar.value, "1") == 0 ||
+                        strcmp((char *)event->data.scalar.value, "yes") == 0 ||
+                        strcmp((char *)event->data.scalar.value, "true") == 0 ||
+                        strcmp((char *)event->data.scalar.value, "t") == 0) {
+
+                        config->enabled = 1;
+                    }
+                    break;
+                }
+                if (strcmp((char *)event->data.scalar.value, "timeout_request") == 0) {
+                    consume_event(parser, event, level);
+                    config->timeout_request = atoi((char *)event->data.scalar.value);
+                    if (config->timeout_request == 0) {
+                        logger(LOG_WARNING, "Invalid timeout_request value. "
+                            "module_dns. setting to default 20 seconds");
+                        config->timeout_request = 20;
+                    }
+                    break;
+                }
+                if (strcmp((char *)event->data.scalar.value, "timeout_check") == 0) {
+                    consume_event(parser, event, level);
+                    config->timeout_check = atoi((char *)event->data.scalar.value);
+                    if (config->timeout_check == 0) {
+                        logger(LOG_WARNING, "Invalid timeout_check value. "
+                            "module_dns. setting to default 20 seconds");
+                        config->timeout_check = 20;
+                    }
+                    break;
+                }
+                consume_event(parser, event, level);
+                break;
+            default:
+                consume_event(parser, event, level);
+                break;
+        }
+    }
+
+    if (config->enabled) {
+        bd_register_start_event(config->callbacks,
+            (cb_start)module_smtp_starting);
+        bd_register_packet_event(config->callbacks,
+            (cb_packet)module_smtp_packet);
+        bd_register_stop_event(config->callbacks,
+            (cb_stop)module_smtp_stopping);
+
+        bd_register_tick_event(config->callbacks,
+            (cb_tick)module_smtp_tick);
+        bd_add_tickrate_to_cb_set(config->callbacks,
+            config->timeout_check);
+
+        bd_add_filter_to_cb_set(config->callbacks, "port 25");
+    }
+
+    return 0;
+}
+
 int module_smtp_init(bd_bigdata_t *bigdata) {
 
     config = (mod_smtp_conf *)malloc(sizeof(mod_smtp_conf));
@@ -390,18 +516,20 @@ int module_smtp_init(bd_bigdata_t *bigdata) {
         exit(BD_OUTOFMEMORY);
     }
 
+    config->enabled = 0;
+    config->timeout_request = 60;
+    config->timeout_check = 60;
+
+    /* create callback set */
     config->callbacks = bd_create_cb_set("smtp");
 
-    bd_register_start_event(config->callbacks,
-        (cb_start)module_smtp_starting);
-    bd_register_packet_event(config->callbacks,
-        (cb_packet)module_smtp_packet);
-    bd_register_stop_event(config->callbacks,
-        (cb_stop)module_smtp_stopping);
+    /* register to the config event */
+    bd_register_config_event(config->callbacks,
+        (cb_config)module_smtp_config);
 
-    bd_add_filter_to_cb_set(config->callbacks, "port 25");
-
+    /* register the callback set */
     bd_register_cb_set(bigdata, config->callbacks);
 
+    return 0;
 }
 

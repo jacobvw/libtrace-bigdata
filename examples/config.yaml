@@ -124,6 +124,14 @@ foreach:
     # generate and export statistics every X seconds (timeout_check determines interval)
     statistics: 1
 
+  # SMTP module
+  smtp:
+    enabled: 0
+    # how long to wait between responses before any state information is cleared
+    timeout_request: 60
+    # how often to check for expired state information
+    timeout_check: 60
+
 # filtering modules
 filter:
   # The maxmind plugin will insert latitude and longitude coordinates for each
