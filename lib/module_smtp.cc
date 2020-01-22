@@ -45,7 +45,7 @@ typedef struct module_smtp_storage {
 } mod_smtp_stor;
 
 void module_smtp_generate_result(bd_bigdata_t *bigdata,
-    mod_smtp_sess *session);
+    mod_smtp_sess *session, int code);
 void module_smtp_free_session(mod_smtp_sess *session);
 
 void *module_smtp_starting(void *tls) {
@@ -129,6 +129,9 @@ int module_smtp_packet(bd_bigdata_t *bigdata, void *mls) {
             session.seen_srv_helo = 1;
             session.srv_helo = strndup(payload, remaining);
 
+            session.last_timestamp =
+                trace_get_seconds(bigdata->packet);
+
             storage->sessions->insert({flow_id, session});
 
             logger(LOG_INFO, "%s", session.srv_helo);
@@ -136,6 +139,11 @@ int module_smtp_packet(bd_bigdata_t *bigdata, void *mls) {
 
     } else {
         session = it->second;
+
+        /* update last seen timestamp for this smtp session */
+        session.last_timestamp = trace_get_seconds(bigdata->packet);
+
+
 
         /* 1xx - informational. */
 
@@ -159,7 +167,7 @@ int module_smtp_packet(bd_bigdata_t *bigdata, void *mls) {
 
             /* the final message in the SMTP transaction?? so generate
                a result for this session. */
-            module_smtp_generate_result(bigdata, &session);
+            module_smtp_generate_result(bigdata, &session, 221);
             /* cleanup memory used by the smtp session */
             module_smtp_free_session(&(it->second));
             storage->sessions->erase(it);
@@ -259,7 +267,7 @@ int module_smtp_packet(bd_bigdata_t *bigdata, void *mls) {
                  delivered. */
 
         /* 500 - syntax error */
-
+        
         /* 501 - syntax error in parameters or arguments. */
 
         /* 503 - bad sequence of commands, or requires auth. */
@@ -269,11 +277,23 @@ int module_smtp_packet(bd_bigdata_t *bigdata, void *mls) {
         }
 
         /* 504 - command parameter is not implemented */
+        if (payload[0] == 0x35 && payload[1] == 0x30 &&
+            payload[2] == 0x34) {
 
+
+        }
         /* 510 - bad email address */
+        if (payload[0] == 0x35 && payload[1] == 0x31 &&
+            payload[2] == 0x30) {
 
+
+        }
         /* 511 - bad email address */
+        if (payload[0] == 0x35 && payload[1] == 0x31 &&
+            payload[2] == 0x31) {
 
+
+        }
         /* 512 - host server for the recipient's domain name
                  cannot be found in DNS. */
 
@@ -288,6 +308,11 @@ int module_smtp_packet(bd_bigdata_t *bigdata, void *mls) {
         /* 550 - non-existent email address. */
         if (payload[0] == 0x35 && payload[1] == 0x35 &&
             payload[2] == 0x30) {
+
+            module_smtp_generate_result(bigdata, &session, 550);
+            /* cleanup memory used by the smtp session */
+            module_smtp_free_session(&(it->second));
+            storage->sessions->erase(it);
 
             /* error message for a rcpt to */
             if (session.seen_to == 1) {
@@ -382,6 +407,8 @@ int module_smtp_packet(bd_bigdata_t *bigdata, void *mls) {
 
         it->second = session;
     }
+
+    return 0;
 }
 
 int module_smtp_stopping(void *tls, void *mls) {
@@ -397,7 +424,7 @@ int module_smtp_stopping(void *tls, void *mls) {
 }
 
 void module_smtp_generate_result(bd_bigdata_t *bigdata,
-    mod_smtp_sess *session) {
+    mod_smtp_sess *session, int code) {
 
     bd_result_set_t *result;
     std::list<char *>::iterator it;
@@ -407,12 +434,29 @@ void module_smtp_generate_result(bd_bigdata_t *bigdata,
 
     result = bd_result_set_create(bigdata, "smtp");
 
-    bd_result_set_insert_string(result, "from", session->from);
-    /* insert each recipient */
-    for (it = session->to.begin(); it != session->to.end(); ++it) {
-        snprintf(buf, sizeof(buf), "to_%d", i);
-        bd_result_set_insert_string(result, buf, *it);
-        i += 1;
+    bd_result_set_insert_int(result, "return_code", code);
+
+    if (session->seen_cli_helo) {
+        bd_result_set_insert_string(result, "cli_helo",
+            session->cli_helo);
+    }
+
+    if (session->seen_srv_helo) {
+        bd_result_set_insert_string(result, "srv_helo",
+            session->srv_helo);
+    }
+
+    if (session->seen_from) {
+        bd_result_set_insert_string(result, "from", session->from);
+    }
+
+    if (session->seen_to) {
+        /* insert each recipient */
+        for (it = session->to.begin(); it != session->to.end(); ++it) {
+            snprintf(buf, sizeof(buf), "to_%d", i);
+            bd_result_set_insert_string(result, buf, *it);
+            i += 1;
+        }
     }
 
     tv = trace_get_timeval(bigdata->packet);
@@ -425,9 +469,17 @@ void module_smtp_free_session(mod_smtp_sess *session) {
 
     std::list<char *>::iterator it;
 
-    free(session->srv_helo);
-    free(session->cli_helo);
-    free(session->from);
+    if (session->srv_helo) {
+        free(session->srv_helo);
+    }
+
+    if (session->seen_cli_helo) {
+        free(session->cli_helo);
+    }
+
+    if (session->seen_from) {
+        free(session->from);
+    }
 
     /* free each rcpt */
     for (it = session->to.begin(); it != session->to.end(); ++it) {
@@ -437,6 +489,24 @@ void module_smtp_free_session(mod_smtp_sess *session) {
 
 int module_smtp_tick(bd_bigdata_t *bigdata, void *mls, uint64_t tick) {
 
+    fprintf(stderr, "tick\n");
+
+    mod_smtp_stor *storage = (mod_smtp_stor *)mls;
+
+    std::map<uint64_t, mod_smtp_sess>::iterator it;
+
+    for (it = storage->sessions->begin(); it !=
+        storage->sessions->end(); ) {
+
+        if (tick >= (it->second.last_timestamp + config->timeout_request)) {
+            module_smtp_free_session(&(it->second));
+            storage->sessions->erase(it++);
+        } else {
+            ++it;
+        }
+    }
+
+    return 0;
 }
 
 int module_smtp_config(yaml_parser_t *parser, yaml_event_t *event,
@@ -502,6 +572,8 @@ int module_smtp_config(yaml_parser_t *parser, yaml_event_t *event,
             config->timeout_check);
 
         bd_add_filter_to_cb_set(config->callbacks, "port 25");
+
+        logger(LOG_INFO, "SMTP Plugin Enabled");
     }
 
     return 0;
