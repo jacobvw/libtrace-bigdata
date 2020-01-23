@@ -22,11 +22,14 @@ Flow *flow_per_packet(bd_bigdata_t *bigdata) {
     /* Libflowmanager only deals with IP traffic, so ignore anything
      * that is not ipv4 or ipv6 */
     ip = (libtrace_ip_t *)trace_get_layer3(bigdata->packet, &l3_type, NULL);
-    if (l3_type != TRACE_ETHERTYPE_IP && l3_type != TRACE_ETHERTYPE_IPV6) {
-        return NULL;
-    }
+
     /* ignore packets with no ip header */
     if (ip == NULL) {
+        return NULL;
+    }
+
+    /* ignore packets that are not ipv4 or ipv6 */
+    if (l3_type != TRACE_ETHERTYPE_IP && l3_type != TRACE_ETHERTYPE_IPV6) {
         return NULL;
     }
 
