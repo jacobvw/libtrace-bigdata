@@ -72,6 +72,35 @@
 
 /* TLS application data types. TLS packet type 23 */
 
+/* https://tools.ietf.org/html/draft-davidben-tls-grease-01
+ * These random extensions need to be ignored for ja3. */
+static uint16_t GREASE[] = {
+    0x0a0a,
+    0x1a1a,
+    0x2a2a,
+    0x3a3a,
+    0x4a4a,
+    0x5a5a,
+    0x6a6a,
+    0x7a7a,
+    0x8a8a,
+    0x9a9a,
+    0xaaaa,
+    0xbaba,
+    0xcaca,
+    0xdada,
+    0xeaea,
+    0xfafa,
+};
+static int module_tls_ext_grease(int ext) {
+    int s = sizeof(GREASE) / sizeof(GREASE[0]);
+    for (int i = 0; i < s; i++) {
+        if (ext == GREASE[i]) {
+            return 1;
+        }
+    }
+    return 0;
+}
 
 
 /* structure prototypes */
@@ -442,9 +471,10 @@ mod_tls_server *module_tls_parse_server_hello(bd_bigdata_t *bigdata, char *paylo
         extension = ntohs(*(uint16_t *)payload);
         extension_len = ntohs(*(uint16_t *)(payload+2));
 
-        /* insert the extension code */
-        server->extensions->push_back(extension);
-
+        /* insert the extension code if not GREASE */
+        if (!module_tls_ext_grease(extension)) {
+            server->extensions->push_back(extension);
+        }
 
         /* reduce extensions length by the length of this
          * extension. */
@@ -538,9 +568,11 @@ mod_tls_client *module_tls_parse_client_hello(bd_bigdata_t *bigdata,
      * skipping over the cipher length field. */
     payload += 2;
 
-    /* copy over each ciper */
+    /* copy over each ciper only if not grease */
     for (i = 0; i < num_ciphers; i++) {
-        client->ciphers->push_back(ntohs(*(uint16_t *)payload));
+        if (!module_tls_ext_grease(ntohs(*(uint16_t *)payload))) {
+            client->ciphers->push_back(ntohs(*(uint16_t *)payload));
+        }
         /* move payload to the next cipher */
         payload += 2;
     }
@@ -561,10 +593,12 @@ mod_tls_client *module_tls_parse_client_hello(bd_bigdata_t *bigdata,
         extension = ntohs(*(uint16_t *)payload);
         extension_len = ntohs(*(uint16_t *)(payload+2));
 
-        /* to calculate ja3 we need the extension codes */
-        client->extensions->push_back(ntohs(*(uint16_t *)payload));
+        /* insert extension code for ja3, only if not GREASE */
+        if (!module_tls_ext_grease(extension)) {
+            client->extensions->push_back(extension);
+        }
 
-        switch (ntohs(*(uint16_t *)payload)) {
+        switch (extension) {
             case TLS_EXTENSION_SERVER_NAME: {
                 module_tls_parse_server_name_extension(payload,
                     client);
