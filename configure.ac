@@ -24,13 +24,15 @@ PKG_PROG_PKG_CONFIG
 # Checks for libraries.
 
 # Checks for header files.
-AC_CHECK_HEADERS([arpa/inet.h limits.h netdb.h netinet/in.h stddef.h stdint.h stdlib.h string.h sys/socket.h syslog.h])
+AC_CHECK_HEADERS([arpa/inet.h limits.h netdb.h netinet/in.h stddef.h stdint.h stdlib.h string.h sys/socket.h syslog.h openssl/md5.h])
 
 AC_CHECK_LIB([trace], [trace_pstart],,[AC_MSG_ERROR(Libtrace 4.0.1 or greater is required to compile Libtrace-bigdata)])
 AC_CHECK_LIB([protoident], [lpi_get_category_by_protocol],,[AC_MSG_ERROR(Libprotoident 2.0.15 or greater is required to compile Libtrace-bigdata)])
 AC_CHECK_LIB([yaml], [yaml_parser_initialize],,[AC_MSG_ERROR(Libyaml is required to compile Libtrace-bigdata)])
 AC_CHECK_LIB([flowmanager], [lfm_version_three],,[AC_MSG_ERROR(Libflowmanager 3.0.0 or greater is required to compile Libtrace-bigdata)])
 AC_CHECK_LIB([curl], [curl_global_init],,[AC_MSG_ERROR(Libcurl is required to compile Libtrace-bigdata)])
+AC_CHECK_LIB([crypto], [EVP_EncryptInit], [], [AC_MSG_FAILURE([can't find openssl crypto lib])])
+
 
 # check for librdkafka
 rdkafkafound=true
