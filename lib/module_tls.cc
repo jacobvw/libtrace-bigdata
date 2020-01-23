@@ -187,6 +187,7 @@ int module_tls_packet(bd_bigdata_t *bigdata, void *mls) {
     mod_tls_handshake *tls_handshake;
     uint64_t flow_id;
     std::map<uint64_t, mod_tls_handshake *>::iterator it;
+    mod_tls_hdr *hdr;
 
     /* this only deals with flow data. */
     if (bigdata->flow == NULL) {
@@ -247,64 +248,98 @@ int module_tls_packet(bd_bigdata_t *bigdata, void *mls) {
         }
     }
 
-    /* payload[0] should be pointing at tls packet type */
-    switch (payload[0]) {
+    /* loop over each tls protocol in the packet */
+    while (remaining > 0) {
 
-        case TLS_PACKET_CHANGE_CIPHER_SPEC: {
+        hdr = (mod_tls_hdr *)payload;
 
-        break;
-        }
-
-        case TLS_PACKET_ALERT: {
-
-        break;
-        }
-
-        case TLS_PACKET_HANDSHAKE: {
-
-            /* what type of handshake is this message. */
-            switch ((payload+5)[0]) {
-
-                 case TLS_HANDSHAKE_HELO_REQUEST: {
-
-                     break;
-                 }
-                 case TLS_HANDSHAKE_CLIENT_HELLO: {
-                     tls_handshake->client =
-                         module_tls_parse_client_hello(bigdata, payload+5);
-
-                     break;
-                 }
-                 case TLS_HANDSHAKE_SERVER_HELLO: {
-                     tls_handshake->server =
-                         module_tls_parse_server_hello(bigdata, payload+5);
-                     break;
-                 }
-                 case TLS_HANDSHAKE_CERTIFICATE:
-                 case TLS_HANDSHAKE_SERVER_KEY_EXCHANGE:
-                 case TLS_HANDSHAKE_CERTIFICATE_REQUEST:
-                 case TLS_HANDSHAKE_SERVER_DONE:
-                 case TLS_HANDSHAKE_CERTIFICATE_VERIFY:
-                 case TLS_HANDSHAKE_CLIENT_KEY_EXCHANGE:
-                 case TLS_HANDSHAKE_FINISHED:
-                 default: {
-                     break;
-                 }
+        switch (payload[0]) {
+            case TLS_PACKET_CHANGE_CIPHER_SPEC: {
+                fprintf(stderr, "change ciper spec\n");
+                break;
             }
 
-            break;
+            case TLS_PACKET_ALERT: {
+                fprintf(stderr, "tls alert\n");
+                break;
+            }
+
+            case TLS_PACKET_HANDSHAKE: {
+
+                /* what type of handshake is this message. */
+                switch ((payload+5)[0]) {
+
+                     case TLS_HANDSHAKE_HELO_REQUEST: {
+                         fprintf(stderr, "hello request\n");
+                         break;
+                     }
+                     case TLS_HANDSHAKE_CLIENT_HELLO: {
+                         fprintf(stderr, "client handshake\n");
+                         tls_handshake->client =
+                             module_tls_parse_client_hello(bigdata, payload+5);
+
+                         break;
+                     }
+                     case TLS_HANDSHAKE_SERVER_HELLO: {
+                         fprintf(stderr, "server hello\n");
+                         tls_handshake->server =
+                             module_tls_parse_server_hello(bigdata, payload+5);
+                         break;
+                     }
+                     case TLS_HANDSHAKE_CERTIFICATE: {
+                         fprintf(stderr, "got certificate\n");
+                         break;
+                     }
+                     case TLS_HANDSHAKE_SERVER_KEY_EXCHANGE:
+                         fprintf(stderr, "got server key exchange\n");
+                         break;
+                     case TLS_HANDSHAKE_CERTIFICATE_REQUEST:
+                         fprintf(stderr, "got certificate request\n");
+                         break;
+                     case TLS_HANDSHAKE_SERVER_DONE:
+                         fprintf(stderr, "got server done\n");
+                         break;
+                     case TLS_HANDSHAKE_CERTIFICATE_VERIFY:
+                         fprintf(stderr, "got certificate verify\n");
+                         break;
+                     case TLS_HANDSHAKE_CLIENT_KEY_EXCHANGE:
+                         fprintf(stderr, "got client key exchange\n");
+                         break;
+                     case TLS_HANDSHAKE_FINISHED:
+                         fprintf(stderr, "got handshake finished\n");
+                         break;
+                     default: {
+                         /* unknown handshake type */
+                         fprintf(stderr, "unknonw handshake\n");
+                         break;
+                     }
+                }
+
+                break;
+            }
+
+            case TLS_PACKET_APPLICATION_DATA: {
+                fprintf(stderr, "tls packet app data\n");
+                break;
+            }
+
+            default: {
+                fprintf(stderr, "unknown\n");
+                break;
+            }
         }
 
-        case TLS_PACKET_APPLICATION_DATA: {
-
-        break;
+        /* if the tls header size says we have more than the remaining
+         * just ignore it. Its most likely a certificate that has been
+         * fragmented over multiple packets */
+        if (remaining > (ntohs(hdr->length) + sizeof(mod_tls_hdr))) {
+            remaining = 0;
+        } else {
+            /* the size within the header does not include the size of
+             * the header itself. */
+            remaining -= (ntohs(hdr->length) + sizeof(mod_tls_hdr));
+            payload += (ntohs(hdr->length) + sizeof(mod_tls_hdr));
         }
-
-        default: {
-
-        break;
-        }
-
     }
 
     return 0;
@@ -382,7 +417,9 @@ mod_tls_server *module_tls_parse_server_hello(bd_bigdata_t *bigdata, char *paylo
     server->version = ntohs(hdr->version);
 
     /* move to the cipher */
-    payload += sizeof(mod_tls_handshake_hdr);
+    payload += sizeof(mod_tls_handshake_hdr) +
+        hdr->session_id_len;
+
     server->cipher = ntohs(*(uint16_t *)payload);
 
     /* move to compression method */
@@ -402,8 +439,8 @@ mod_tls_server *module_tls_parse_server_hello(bd_bigdata_t *bigdata, char *paylo
 
         ext = (mod_tls_ext_hdr *)payload;
 
-        extension = ntohs(ext->type);
-        extension_len = ntohs(ext->len);
+        extension = ntohs(*(uint16_t *)payload);
+        extension_len = ntohs(*(uint16_t *)(payload+2));
 
         /* insert the extension code */
         server->extensions->push_back(extension);
@@ -411,15 +448,15 @@ mod_tls_server *module_tls_parse_server_hello(bd_bigdata_t *bigdata, char *paylo
 
         /* reduce extensions length by the length of this
          * extension. */
-        extensions_len -= (extension_len + sizeof(mod_tls_ext_hdr));
+        extensions_len -= (extension_len + 4);
         /* advance payload forward to the next extension */
-        payload += (extension_len + sizeof(mod_tls_ext_hdr));
+        payload += (extension_len + 4);
     }
 
     /* generate server ja3 md5 */
     module_tls_generate_server_ja3_md5(server);
 
-    return NULL;
+    return server;
 }
 
 mod_tls_client *module_tls_client_create() {
@@ -559,7 +596,6 @@ mod_tls_client *module_tls_parse_client_hello(bd_bigdata_t *bigdata,
         payload += (extension_len + 4);
     }
 
-
     /* generate the ja3 string */
     module_tls_generate_client_ja3_md5(client);
 
@@ -603,7 +639,6 @@ void module_tls_generate_server_ja3_md5(mod_tls_server *server) {
     server->ja3_md5 = strndup(md5string, 33);
 }
 
-/* generates the ja3 string then convert to the MD5 hash of it. */
 void module_tls_generate_client_ja3_md5(mod_tls_client *client) {
 
     char ja3[2000];
