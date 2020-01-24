@@ -49,7 +49,7 @@ int bd_tls_update(bd_bigdata_t *bigdata, bd_tls_handshake *tls_handshake);
 bd_tls_handshake *bd_tls_handshake_create();
 void bd_tls_handshake_destroy(bd_tls_handshake *handshake);
 
-char *bd_tls_get_server_ja3_md5(bd_flow_record_t *flow_rec);
-char *bd_tls_get_client_ja3_md5(bd_flow_record_t *flow_rec);
+char *bd_tls_get_ja3_md5(Flow *flow);
+char *bd_tls_get_ja3s_md5(Flow *flow);
 
 #endif

@@ -77,6 +77,10 @@ int bd_result_set_insert(bd_result_set_t *result_set, char const *key, bd_record
 int bd_result_set_insert_string(bd_result_set_t *result_set, char const *key,
     const char *value) {
 
+    if (value == NULL) {
+        return 1;
+    }
+
     union bd_record_value val;
     val.data_string = strdup(value);
     if (val.data_string == NULL) {

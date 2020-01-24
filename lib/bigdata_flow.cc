@@ -476,6 +476,19 @@ double bd_flow_get_time_to_first_byte(Flow *flow) {
     return flow_record->ttfb;
 }
 
+bd_tls_handshake *bd_flow_get_tls_handshake(Flow *flow) {
+
+    bd_flow_record_t *flow_record = bd_flow_get_record(flow);
+
+    if (flow_record == NULL) {
+        logger(LOG_DEBUG, "Unable to get flow record. func. "
+            "bd_flow_get_tls_handshake()");
+        return NULL;
+    }
+
+    return flow_record->tls_handshake;
+}
+
 /* PRIVATE FUNCTIONS */
 static char *sockaddr_storage_to_string(struct sockaddr_storage *ptr, char *space,
     int spacelen) {

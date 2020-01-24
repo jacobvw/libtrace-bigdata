@@ -219,7 +219,6 @@ bd_tls_handshake *bd_tls_handshake_create() {
 
     return handshake;
 }
-
 void bd_tls_handshake_destroy(bd_tls_handshake *handshake) {
 
     if (handshake->client != NULL) {
@@ -235,52 +234,44 @@ void bd_tls_handshake_destroy(bd_tls_handshake *handshake) {
     free(handshake);
 }
 
-char *bd_tls_get_client_ja3_md5(bd_flow_record_t *flow_rec) {
+char *bd_tls_get_ja3_md5(Flow *flow) {
 
-    if (flow_rec == NULL) {
-        logger(LOG_DEBUG, "Null flow record passed into. func. "
-            "bd_tls_get_client_ja3_md5()");
-        return NULL;
-    }
+    bd_tls_handshake *handshake;
 
-    if (flow_rec->tls_handshake == NULL) {
+    handshake = bd_flow_get_tls_handshake(flow);
+    if (handshake == NULL) {
         logger(LOG_DEBUG, "Flow record does not contain a tls "
-            "handshake. func. bd_tls_get_client_ja3_md5()");
+            "handshake. func. bd_tls_get_ja3_md5()");
         return NULL;
     }
 
-    if (flow_rec->tls_handshake->client == NULL) {
+    if (handshake->client == NULL) {
         logger(LOG_DEBUG, "A TLS client hello has not been seen "
-            "for this flow. func. bd_tls_get_server_ja3_md5()");
+            "for this flow. func. bd_tls_get_ja3_md5()");
         return NULL;
     }
 
-    return flow_rec->tls_handshake->client->ja3_md5;
+    return handshake->client->ja3_md5;
 }
-char *bd_tls_get_server_ja3_md5(bd_flow_record_t *flow_rec) {
+char *bd_tls_get_ja3s_md5(Flow *flow) {
 
-    if (flow_rec == NULL) {
-        logger(LOG_DEBUG, "Null flow record passed into. func. "
-            "bd_tls_get_server_ja3_md5()");
-        return NULL;
-    }
+    bd_tls_handshake *handshake;
 
-    if (flow_rec->tls_handshake == NULL) {
+    handshake = bd_flow_get_tls_handshake(flow);
+    if (handshake == NULL) {
         logger(LOG_DEBUG, "Flow record does not contain a tls "
-            "handshake. func. bd_tls_get_server_ja3_md5()");
+            "handshake. func. bd_tls_get_ja3s_md5()");
         return NULL;
     }
 
-    if (flow_rec->tls_handshake->server == NULL) {
+    if (handshake->server == NULL) {
         logger(LOG_DEBUG, "A TLS server hello has not been seen "
-            "for this flow. func. bd_tls_get_server_ja3_md5()");
+            "for this flow. func. bd_tls_get_ja3s_md5()");
         return NULL;
     }
 
-    return flow_rec->tls_handshake->server->ja3_md5;
+    return handshake->server->ja3_md5;
 }
-
-
 
 
 int bd_tls_update(bd_bigdata_t *bigdata, bd_tls_handshake *tls_handshake) {
@@ -351,16 +342,17 @@ int bd_tls_update(bd_bigdata_t *bigdata, bd_tls_handshake *tls_handshake) {
                          break;
                      }
                      case TLS_HANDSHAKE_CLIENT_HELLO: {
-                         //fprintf(stderr, "client handshake\n");
-                         tls_handshake->client =
-                             bd_tls_parse_client_hello(bigdata, payload+5);
-
+                         if (tls_handshake->client == NULL) {
+                             tls_handshake->client =
+                                 bd_tls_parse_client_hello(bigdata, payload+5);
+                         }
                          break;
                      }
                      case TLS_HANDSHAKE_SERVER_HELLO: {
-                         //fprintf(stderr, "server hello\n");
-                         tls_handshake->server =
-                             bd_tls_parse_server_hello(bigdata, payload+5);
+                         if (tls_handshake->server == NULL) {
+                             tls_handshake->server =
+                                 bd_tls_parse_server_hello(bigdata, payload+5);
+                         }
                          break;
                      }
                      case TLS_HANDSHAKE_CERTIFICATE: {

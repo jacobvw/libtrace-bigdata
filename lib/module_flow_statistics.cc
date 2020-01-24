@@ -104,10 +104,10 @@ int module_flow_statistics_foreach_flow(Flow *flow, void *data) {
             /* include tls info if this is an encrypted flow if enabled */
             if (f->c->export_tls &&
                 flow_rec->lpi_module->protocol == LPI_PROTO_SSL) {
-                bd_result_set_insert_string(res, "client_ja3_md5",
-                    bd_tls_get_client_ja3_md5(flow_rec));
-                bd_result_set_insert_string(res, "server_ja3_md5",
-                    bd_tls_get_server_ja3_md5(flow_rec));
+                bd_result_set_insert_string(res, "ja3",
+                    bd_tls_get_ja3_md5(flow));
+                bd_result_set_insert_string(res, "ja3s",
+                    bd_tls_get_ja3s_md5(flow));
             }
 
             bd_result_set_insert_timestamp(res, f->tick);
@@ -230,10 +230,10 @@ int module_flow_statistics_protocol_updated(bd_bigdata_t *bigdata, void *mls, lp
         /* include tls info if this is an encrypted flow if enabled */
         if (config->export_tls && newproto == LPI_PROTO_SSL) {
 
-            bd_result_set_insert_string(res, "client_ja3_md5",
-                bd_tls_get_client_ja3_md5(flow_rec));
-            bd_result_set_insert_string(res, "server_ja3_md5",
-                bd_tls_get_server_ja3_md5(flow_rec));
+            bd_result_set_insert_string(res, "ja3",
+                bd_tls_get_ja3_md5(bigdata->flow));
+            bd_result_set_insert_string(res, "ja3s",
+                bd_tls_get_ja3s_md5(bigdata->flow));
         }
 
         // set the timestamp for the result
@@ -304,10 +304,10 @@ int module_flow_statistics_flowend(bd_bigdata_t *bigdata, void *mls, bd_flow_rec
         if (config->export_tls &&
             flow_record->lpi_module->protocol == LPI_PROTO_SSL) {
 
-            bd_result_set_insert_string(res, "client_ja3_md5",
-                bd_tls_get_client_ja3_md5(flow_record));
-            bd_result_set_insert_string(res, "server_ja3_md5",
-                bd_tls_get_server_ja3_md5(flow_record));
+            bd_result_set_insert_string(res, "ja3",
+                bd_tls_get_ja3_md5(bigdata->flow));
+            bd_result_set_insert_string(res, "ja3s",
+                bd_tls_get_ja3s_md5(bigdata->flow));
         }
 
         /* Makes most sense to insert the timestamp from when the flow ended here??
