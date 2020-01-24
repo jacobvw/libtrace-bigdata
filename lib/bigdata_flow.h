@@ -3,6 +3,7 @@
 #define BIGDATA_FLOW_H
 
 #include "bigdata.h"
+#include "bigdata_tls.h"
 
 /* Flow record structure */
 typedef struct bigdata_flow_record {
@@ -21,6 +22,10 @@ typedef struct bigdata_flow_record {
     uint8_t init_dir;
     lpi_data_t lpi;
     lpi_module_t *lpi_module;
+
+    /* SSL/TLS information for the flow */
+    bigdata_tls_handshake *tls_handshake;
+
 } bd_flow_record_t;
 
 /* private functions */

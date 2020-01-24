@@ -94,6 +94,10 @@ foreach:
     # for category names. ALL can be used to monitor all categories.
     protocol_categories:
       - Remote_Access
+    # export tls related fields on tls flows. These include the ja3_md5 hash for
+    # the client/server hello messages and the hostname requested in the client
+    # hello.
+    export_tls: 1
 
   # statistics module
   statistics:

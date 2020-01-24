@@ -21,7 +21,6 @@ static void init_modules(bd_bigdata_t *bigdata) {
 #ifdef HAVE_LIBMAXMINDDB
     module_maxmind_init(bigdata);
 #endif
-    module_tls_init(bigdata);
 }
 
 static void libtrace_cleanup(libtrace_t *trace, libtrace_callback_set_t *processing,

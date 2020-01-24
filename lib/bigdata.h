@@ -32,6 +32,7 @@ typedef struct bigdata_flow_record bd_flow_record_t;
 #include "bigdata_parser.h"
 #include "bigdata_flow.h"
 #include "bigdata_logger.h"
+#include "bigdata_tls.h"
 
 // Input Plugins
 #include "module_dns.h"
@@ -40,7 +41,6 @@ typedef struct bigdata_flow_record bd_flow_record_t;
 #include "module_flow_statistics.h"
 #include "module_http.h"
 #include "module_bgp.h"
-#include "module_tls.h"
 
 // Filter plugins
 #include "module_maxmind.h"

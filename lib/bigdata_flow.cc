@@ -102,6 +102,8 @@ static int flow_init_metrics(bd_bigdata_t *bigdata, uint8_t dir, double ts) {
     lpi_init_data(&flow_record->lpi);
     flow_record->lpi_module = NULL;
 
+    flow_record->tls_handshake = bd_tls_handshake_create();
+
     // link flow record to the flow
     bigdata->flow->extension = flow_record;
 
@@ -123,6 +125,9 @@ static int flow_process_metrics(bd_bigdata_t *bigdata, double dir, double ts) {
         flow_record->in_packets += 1;
         flow_record->in_bytes += trace_get_payload_length(bigdata->packet);
     }
+
+    /* update any tls information */
+    bd_tls_update(bigdata, flow_record->tls_handshake);
 
     /* update libprotoident */
     lpi_updated = lpi_update_data(bigdata->packet, &flow_record->lpi,
@@ -184,6 +189,9 @@ int flow_expire(bd_bigdata_t *bigdata) {
 
         /* trigger the flowend event */
         bd_callback_trigger_flowend(bigdata);
+
+        /* destroy any tls information stored */
+        bd_tls_handshake_destroy(flow_record->tls_handshake);
 
         // Free the metrics structure and release the flow to libflowmanager
         free(flow_record);

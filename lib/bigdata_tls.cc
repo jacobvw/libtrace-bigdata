@@ -1,4 +1,5 @@
-#include "module_tls.h"
+#include "bigdata.h"
+#include "bigdata_tls.h"
 #include <list>
 #include <openssl/md5.h>
 
@@ -70,6 +71,62 @@
 #define TLS_EXTENSION_APP_LAYER_PROTO_NEGOTIATION 16
 #define TLS_EXTENSION_PADDING 21
 
+/* Cipher Suite codes */
+#define TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 0xc02f
+#define TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256 0xc02b
+#define TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384 0xc030
+#define TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384 0xc02c
+#define TLS_DHE_RSA_WITH_AES_128_GCM_SHA256 0x009e
+#define TLS_DHE_DSS_WITH_AES_128_GCM_SHA256 0x00a2
+#define TLS_DHE_DSS_WITH_AES_256_GCM_SHA384 0x00a3
+#define TLS_DHE_RSA_WITH_AES_256_GCM_SHA384 0x009f
+#define TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256 0xc027
+#define TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256 0xc023
+#define TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA 0xc013
+#define TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA 0xc009
+#define TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384 0xc028
+#define TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384 0xc024
+#define TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA 0xc014
+#define TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA 0xc00a
+#define TLS_DHE_RSA_WITH_AES_128_CBC_SHA256 0x0067
+#define TLS_DHE_RSA_WITH_AES_128_CBC_SHA 0x0033
+#define TLS_DHE_DSS_WITH_AES_128_CBC_SHA256 0x0040
+#define TLS_DHE_RSA_WITH_AES_256_CBC_SHA256 0x006b
+#define TLS_DHE_DSS_WITH_AES_256_CBC_SHA 0x0038
+#define TLS_DHE_RSA_WITH_AES_256_CBC_SHA 0x0039
+#define TLS_RSA_WITH_AES_128_GCM_SHA256 0x009c
+#define TLS_RSA_WITH_AES_256_GCM_SHA384 0x009d
+#define TLS_RSA_WITH_AES_128_CBC_SHA256 0x003c
+#define TLS_RSA_WITH_AES_256_CBC_SHA256 0x003d
+#define TLS_RSA_WITH_AES_128_CBC_SHA 0x002f
+#define TLS_RSA_WITH_AES_256_CBC_SHA 0x0035
+#define TLS_DH_DSS_WITH_AES_256_GCM_SHA384 0x00a5
+#define TLS_DH_RSA_WITH_AES_256_GCM_SHA384 0x00a1
+#define TLS_DHE_DSS_WITH_AES_256_CBC_SHA256 0x006a
+#define TLS_DH_RSA_WITH_AES_256_CBC_SHA256 0x0069
+#define TLS_DH_DSS_WITH_AES_256_CBC_SHA256 0x0068
+#define TLS_DH_RSA_WITH_AES_256_CBC_SHA 0x0037
+#define TLS_DH_DSS_WITH_AES_256_CBC_SHA 0x0036
+#define TLS_DH_DSS_WITH_AES_128_GCM_SHA256 0x00a4
+#define TLS_DH_RSA_WITH_AES_128_GCM_SHA256 0x00a0
+#define TLS_DH_RSA_WITH_AES_128_CBC_SHA256 0x003f
+#define TLS_DH_DSS_WITH_AES_128_CBC_SHA256 0x003e
+#define TLS_DHE_DSS_WITH_AES_128_CBC_SHA 0x0032
+#define TLS_DH_RSA_WITH_AES_128_CBC_SHA 0x0031
+#define TLS_DH_DSS_WITH_AES_128_CBC_SHA 0x0030
+#define TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA 0x0088
+#define TLS_DHE_DSS_WITH_CAMELLIA_256_CBC_SHA 0x0087
+#define TLS_DH_RSA_WITH_CAMELLIA_256_CBC_SHA 0x0086
+#define TLS_DH_DSS_WITH_CAMELLIA_256_CBC_SHA 0x0085
+#define TLS_RSA_WITH_CAMELLIA_256_CBC_SHA 0x0084
+#define TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA 0x0045
+#define TLS_DHE_DSS_WITH_CAMELLIA_128_CBC_SHA 0x0044
+#define TLS_DH_RSA_WITH_CAMELLIA_128_CBC_SHA 0x0043
+#define TLS_DH_DSS_WITH_CAMELLIA_128_CBC_SHA 0x0042
+#define TLS_RSA_WITH_CAMELLIA_128_CBC_SHA 0x0041
+#define TLS_RSA_WITH_3DES_EDE_CBC_SHA 0x000a
+#define TLS_EMPTY_RENEGOTIATION_INFO_SCSV 0x00ff
+
 /* TLS application data types. TLS packet type 23 */
 
 /* https://tools.ietf.org/html/draft-davidben-tls-grease-01
@@ -92,7 +149,7 @@ static uint16_t GREASE[] = {
     0xeaea,
     0xfafa,
 };
-static int module_tls_ext_grease(int ext) {
+static int bd_tls_ext_grease(int ext) {
     int s = sizeof(GREASE) / sizeof(GREASE[0]);
     for (int i = 0; i < s; i++) {
         if (ext == GREASE[i]) {
@@ -103,128 +160,137 @@ static int module_tls_ext_grease(int ext) {
 }
 
 
-/* structure prototypes */
-typedef struct module_tls_handshake mod_tls_handshake;
-
-typedef struct module_tls_config {
-    bd_cb_set *callbacks;
-} mod_tls_conf;
-mod_tls_conf *config;
-
-typedef struct module_tls_storage {
-    /* map to store tls handshakes against each flow id */
-    std::map<uint64_t, mod_tls_handshake *> *tls;
-} mod_tls_stor;
-
 /* TLS header, This is at the begining of every
  * tls packet. */
-typedef struct module_tls_header {
+typedef struct bigdata_tls_header {
     uint8_t type;
     uint16_t version;
     uint16_t length;
-} PACKED mod_tls_hdr;
+} PACKED bd_tls_hdr;
 
 /* TLS handshake header */
-typedef struct module_tls_handshake_header {
+typedef struct bigdata_tls_handshake_header {
     uint8_t type;
     uint8_t length[3];
     uint16_t version;
     char random[32];
     uint8_t session_id_len;
-} PACKED mod_tls_handshake_hdr;
+} PACKED bd_tls_handshake_hdr;
 
 /* TLS extension header */
-typedef struct module_tls_extension_header {
+typedef struct bigdata_tls_extension_header {
     uint16_t type;
     uint16_t len;
-} PACKED mod_tls_ext_hdr;
-
-/* structures used to describe a tls session */
-typedef struct module_tls_client {
-
-    uint16_t version;
-
-    /* codes need to calculate ja3 */
-    std::list<uint16_t> *extensions;
-    std::list<uint16_t> *ciphers;
-    std::list<uint16_t> *ec_curves;
-    std::list<uint16_t> *ec_points;
-
-    char *ja3_md5;
-    char *host_name;
-
-} mod_tls_client;
-typedef struct module_tls_server {
-
-    uint16_t version;
-    uint16_t cipher;
-    uint8_t compression_method;
-
-    std::list<uint16_t> *extensions;
-
-    char *ja3_md5;
-
-} mod_tls_server;
-typedef struct module_tls_handshake {
-
-    uint16_t version;
-    char *version_protocol;
-    uint16_t cipher;
-    char *next_protocol;
-
-    mod_tls_client *client;
-    mod_tls_server *server;
-
-} mod_tls_handshake;
+} PACKED bd_tls_ext_hdr;
 
 
 /* function prototypes */
-mod_tls_client *module_tls_client_create();
-void module_tls_client_destroy(mod_tls_client *client);
+static bd_tls_client *bd_tls_client_create();
+static void bd_tls_client_destroy(bd_tls_client *client);
+static bd_tls_server *bd_tls_server_create();
+static void bd_tls_server_destroy(bd_tls_server *server);
 
-mod_tls_client *module_tls_parse_client_hello(bd_bigdata_t *bigdata, char *payload);
-mod_tls_server *module_tls_parse_server_hello(bd_bigdata_t *bigdata, char *payload);
+static bd_tls_client *bd_tls_parse_client_hello(bd_bigdata_t *bigdata, char *payload);
+static bd_tls_server *bd_tls_parse_server_hello(bd_bigdata_t *bigdata, char *payload);
 
-void module_tls_parse_ec_point_extension(char *payload, mod_tls_client *client);
-void module_tls_parse_ec_curves_extension(char *payload, mod_tls_client *client);
-void module_tls_parse_server_name_extension(char *payload, mod_tls_client *client);
+static void bd_tls_parse_ec_point_extension(char *payload, bd_tls_client *client);
+static void bd_tls_parse_ec_curves_extension(char *payload, bd_tls_client *client);
+static void bd_tls_parse_server_name_extension(char *payload, bd_tls_client *client);
 
-void module_tls_generate_server_ja3_md5(mod_tls_server *server);
-void module_tls_generate_client_ja3_md5(mod_tls_client *client);
+static void bd_tls_generate_server_ja3_md5(bd_tls_server *server);
+static void bd_tls_generate_client_ja3_md5(bd_tls_client *client);
 
+/* API functions */
+bd_tls_handshake *bd_tls_handshake_create() {
 
+    bd_tls_handshake *handshake;
 
-void *module_tls_starting(void *tls) {
+    handshake = (bd_tls_handshake *)malloc(
+        sizeof(bd_tls_handshake));
 
-    mod_tls_stor *storage;
+    if (handshake == NULL) {
+        logger(LOG_CRIT, "Unable to allocate memory. func. "
+            "bd_tls_handshake_create())");
+        exit(BD_OUTOFMEMORY);
+    }
 
-    storage = (mod_tls_stor *)malloc(sizeof(mod_tls_stor));
+    handshake->client = NULL;
+    handshake->server = NULL;
 
-    storage->tls = new std::map<uint64_t, mod_tls_handshake *>;
-
-    return storage;
+    return handshake;
 }
 
-int module_tls_packet(bd_bigdata_t *bigdata, void *mls) {
+void bd_tls_handshake_destroy(bd_tls_handshake *handshake) {
+
+    if (handshake->client != NULL) {
+        bd_tls_client_destroy(handshake->client);
+        handshake->client = NULL;
+    }
+
+    if (handshake->server != NULL) {
+        bd_tls_server_destroy(handshake->server);
+        handshake->server = NULL;
+    }
+
+    free(handshake);
+}
+
+char *bd_tls_get_client_ja3_md5(bd_flow_record_t *flow_rec) {
+
+    if (flow_rec == NULL) {
+        logger(LOG_DEBUG, "Null flow record passed into. func. "
+            "bd_tls_get_client_ja3_md5()");
+        return NULL;
+    }
+
+    if (flow_rec->tls_handshake == NULL) {
+        logger(LOG_DEBUG, "Flow record does not contain a tls "
+            "handshake. func. bd_tls_get_client_ja3_md5()");
+        return NULL;
+    }
+
+    if (flow_rec->tls_handshake->client == NULL) {
+        logger(LOG_DEBUG, "A TLS client hello has not been seen "
+            "for this flow. func. bd_tls_get_server_ja3_md5()");
+        return NULL;
+    }
+
+    return flow_rec->tls_handshake->client->ja3_md5;
+}
+char *bd_tls_get_server_ja3_md5(bd_flow_record_t *flow_rec) {
+
+    if (flow_rec == NULL) {
+        logger(LOG_DEBUG, "Null flow record passed into. func. "
+            "bd_tls_get_server_ja3_md5()");
+        return NULL;
+    }
+
+    if (flow_rec->tls_handshake == NULL) {
+        logger(LOG_DEBUG, "Flow record does not contain a tls "
+            "handshake. func. bd_tls_get_server_ja3_md5()");
+        return NULL;
+    }
+
+    if (flow_rec->tls_handshake->server == NULL) {
+        logger(LOG_DEBUG, "A TLS server hello has not been seen "
+            "for this flow. func. bd_tls_get_server_ja3_md5()");
+        return NULL;
+    }
+
+    return flow_rec->tls_handshake->server->ja3_md5;
+}
+
+
+
+
+int bd_tls_update(bd_bigdata_t *bigdata, bd_tls_handshake *tls_handshake) {
 
     void *layer3;
     char *payload = NULL;
     uint8_t proto;
     uint16_t ethertype;
     uint32_t remaining;
-    mod_tls_stor *storage;
-    mod_tls_handshake *tls_handshake;
-    uint64_t flow_id;
-    std::map<uint64_t, mod_tls_handshake *>::iterator it;
-    mod_tls_hdr *hdr;
-
-    /* this only deals with flow data. */
-    if (bigdata->flow == NULL) {
-        return 0;
-    }
-
-    flow_id = bd_flow_get_id(bigdata->flow);
-    storage = (mod_tls_stor *)mls;
+    bd_tls_hdr *hdr;
 
     layer3 = trace_get_layer3(bigdata->packet, &ethertype, &remaining);
     /* make sure layer3 was found. */
@@ -240,15 +306,12 @@ int module_tls_packet(bd_bigdata_t *bigdata, void *mls) {
         payload = (char *)trace_get_payload_from_ip6((libtrace_ip6_t *)layer3, &proto,
             &remaining);
     }
-    /* no payload? */
     if (payload == NULL) {
         return 0;
     }
 
     /* get TCP payload */
     payload = (char *)trace_get_payload_from_tcp((libtrace_tcp_t *)payload, &remaining);
-
-    /* no tcp payload? */
     if (payload == NULL || remaining == 0) {
         return 0;
     }
@@ -262,34 +325,19 @@ int module_tls_packet(bd_bigdata_t *bigdata, void *mls) {
         return 0;
     }
 
-    /* see if any tls state is held for this flow */
-    it = storage->tls->find(flow_id);
-    /* if so get pointer to it else create it */
-    if (it != storage->tls->end()) {
-        tls_handshake = it->second;
-    } else {
-        tls_handshake = (mod_tls_handshake *)malloc(sizeof(
-            mod_tls_handshake));
-        if (tls_handshake == NULL) {
-            logger(LOG_CRIT, "Unable to allocate memory. func. "
-                "module_tls_packet()");
-            exit(BD_OUTOFMEMORY);
-        }
-    }
-
     /* loop over each tls protocol in the packet */
     while (remaining > 0) {
 
-        hdr = (mod_tls_hdr *)payload;
+        hdr = (bd_tls_hdr *)payload;
 
         switch (payload[0]) {
             case TLS_PACKET_CHANGE_CIPHER_SPEC: {
-                fprintf(stderr, "change ciper spec\n");
+                //fprintf(stderr, "change ciper spec\n");
                 break;
             }
 
             case TLS_PACKET_ALERT: {
-                fprintf(stderr, "tls alert\n");
+                //fprintf(stderr, "tls alert\n");
                 break;
             }
 
@@ -299,47 +347,47 @@ int module_tls_packet(bd_bigdata_t *bigdata, void *mls) {
                 switch ((payload+5)[0]) {
 
                      case TLS_HANDSHAKE_HELO_REQUEST: {
-                         fprintf(stderr, "hello request\n");
+                         //fprintf(stderr, "hello request\n");
                          break;
                      }
                      case TLS_HANDSHAKE_CLIENT_HELLO: {
-                         fprintf(stderr, "client handshake\n");
+                         //fprintf(stderr, "client handshake\n");
                          tls_handshake->client =
-                             module_tls_parse_client_hello(bigdata, payload+5);
+                             bd_tls_parse_client_hello(bigdata, payload+5);
 
                          break;
                      }
                      case TLS_HANDSHAKE_SERVER_HELLO: {
-                         fprintf(stderr, "server hello\n");
+                         //fprintf(stderr, "server hello\n");
                          tls_handshake->server =
-                             module_tls_parse_server_hello(bigdata, payload+5);
+                             bd_tls_parse_server_hello(bigdata, payload+5);
                          break;
                      }
                      case TLS_HANDSHAKE_CERTIFICATE: {
-                         fprintf(stderr, "got certificate\n");
+                         //fprintf(stderr, "got certificate\n");
                          break;
                      }
                      case TLS_HANDSHAKE_SERVER_KEY_EXCHANGE:
-                         fprintf(stderr, "got server key exchange\n");
+                         //fprintf(stderr, "got server key exchange\n");
                          break;
                      case TLS_HANDSHAKE_CERTIFICATE_REQUEST:
-                         fprintf(stderr, "got certificate request\n");
+                         //fprintf(stderr, "got certificate request\n");
                          break;
                      case TLS_HANDSHAKE_SERVER_DONE:
-                         fprintf(stderr, "got server done\n");
+                         //fprintf(stderr, "got server done\n");
                          break;
                      case TLS_HANDSHAKE_CERTIFICATE_VERIFY:
-                         fprintf(stderr, "got certificate verify\n");
+                         //fprintf(stderr, "got certificate verify\n");
                          break;
                      case TLS_HANDSHAKE_CLIENT_KEY_EXCHANGE:
-                         fprintf(stderr, "got client key exchange\n");
+                         //fprintf(stderr, "got client key exchange\n");
                          break;
                      case TLS_HANDSHAKE_FINISHED:
-                         fprintf(stderr, "got handshake finished\n");
+                         //fprintf(stderr, "got handshake finished\n");
                          break;
                      default: {
                          /* unknown handshake type */
-                         fprintf(stderr, "unknonw handshake\n");
+                         //fprintf(stderr, "unknonw handshake\n");
                          break;
                      }
                 }
@@ -348,12 +396,12 @@ int module_tls_packet(bd_bigdata_t *bigdata, void *mls) {
             }
 
             case TLS_PACKET_APPLICATION_DATA: {
-                fprintf(stderr, "tls packet app data\n");
+                //fprintf(stderr, "tls packet app data\n");
                 break;
             }
 
             default: {
-                fprintf(stderr, "unknown\n");
+                //fprintf(stderr, "unknown\n");
                 break;
             }
         }
@@ -361,47 +409,27 @@ int module_tls_packet(bd_bigdata_t *bigdata, void *mls) {
         /* if the tls header size says we have more than the remaining
          * just ignore it. Its most likely a certificate that has been
          * fragmented over multiple packets */
-        if (remaining > (ntohs(hdr->length) + sizeof(mod_tls_hdr))) {
+        if (remaining > (ntohs(hdr->length) + sizeof(bd_tls_hdr))) {
             remaining = 0;
         } else {
             /* the size within the header does not include the size of
              * the header itself. */
-            remaining -= (ntohs(hdr->length) + sizeof(mod_tls_hdr));
-            payload += (ntohs(hdr->length) + sizeof(mod_tls_hdr));
+            remaining -= (ntohs(hdr->length) + sizeof(bd_tls_hdr));
+            payload += (ntohs(hdr->length) + sizeof(bd_tls_hdr));
         }
     }
 
     return 0;
 }
 
-int module_tls_init(bd_bigdata_t *bigdata) {
+static bd_tls_server *bd_tls_server_create() {
 
-    config = (mod_tls_conf *)malloc(sizeof(mod_tls_conf));
-    if (config == NULL) {
-        logger(LOG_CRIT, "Unable to allocate memory. func. "
-            "module_tls_init()");
-        exit(BD_OUTOFMEMORY);
-    }
+    bd_tls_server *server;
 
-    config->callbacks = bd_create_cb_set("tls");
-
-    bd_register_start_event(config->callbacks, (cb_start)module_tls_starting);
-    bd_register_packet_event(config->callbacks, (cb_packet)module_tls_packet);
-
-    bd_register_cb_set(bigdata, config->callbacks);
-
-    return 0;
-
-}
-
-mod_tls_server *module_tls_server_create() {
-
-    mod_tls_server *server;
-
-    server = (mod_tls_server *)malloc(sizeof(mod_tls_server));
+    server = (bd_tls_server *)malloc(sizeof(bd_tls_server));
     if (server == NULL) {
         logger(LOG_CRIT, "Unable to allocate memory. func. "
-            "module_tls_server_create()");
+            "bd_tls_server_create()");
         exit(BD_OUTOFMEMORY);
     }
 
@@ -412,7 +440,11 @@ mod_tls_server *module_tls_server_create() {
     return server;
 }
 
-void module_tls_server_destroy(mod_tls_server *server) {
+static void bd_tls_server_destroy(bd_tls_server *server) {
+
+    if (server == NULL) {
+     return;
+    }
 
     delete(server->extensions);
 
@@ -424,11 +456,11 @@ void module_tls_server_destroy(mod_tls_server *server) {
     free(server);
 }
 
-mod_tls_server *module_tls_parse_server_hello(bd_bigdata_t *bigdata, char *payload) {
+static bd_tls_server *bd_tls_parse_server_hello(bd_bigdata_t *bigdata, char *payload) {
 
-    mod_tls_server *server;
-    mod_tls_handshake_hdr *hdr;
-    mod_tls_ext_hdr *ext;
+    bd_tls_server *server;
+    bd_tls_handshake_hdr *hdr;
+    bd_tls_ext_hdr *ext;
     uint16_t length;
     uint16_t extensions_len;
     uint16_t extension_len;
@@ -436,8 +468,8 @@ mod_tls_server *module_tls_parse_server_hello(bd_bigdata_t *bigdata, char *paylo
     int i;
 
     /* create the server */
-    server = module_tls_server_create();
-    hdr = (mod_tls_handshake_hdr *)payload;
+    server = bd_tls_server_create();
+    hdr = (bd_tls_handshake_hdr *)payload;
 
     /* calculate length of the hello message */
     length = hdr->length[0] << 16 | hdr->length[1] << 8 |
@@ -446,7 +478,7 @@ mod_tls_server *module_tls_parse_server_hello(bd_bigdata_t *bigdata, char *paylo
     server->version = ntohs(hdr->version);
 
     /* move to the cipher */
-    payload += sizeof(mod_tls_handshake_hdr) +
+    payload += sizeof(bd_tls_handshake_hdr) +
         hdr->session_id_len;
 
     server->cipher = ntohs(*(uint16_t *)payload);
@@ -466,13 +498,13 @@ mod_tls_server *module_tls_parse_server_hello(bd_bigdata_t *bigdata, char *paylo
     /* extensions */
     for (i = 0; i < extensions_len; i++) {
 
-        ext = (mod_tls_ext_hdr *)payload;
+        ext = (bd_tls_ext_hdr *)payload;
 
         extension = ntohs(*(uint16_t *)payload);
         extension_len = ntohs(*(uint16_t *)(payload+2));
 
         /* insert the extension code if not GREASE */
-        if (!module_tls_ext_grease(extension)) {
+        if (!bd_tls_ext_grease(extension)) {
             server->extensions->push_back(extension);
         }
 
@@ -484,19 +516,19 @@ mod_tls_server *module_tls_parse_server_hello(bd_bigdata_t *bigdata, char *paylo
     }
 
     /* generate server ja3 md5 */
-    module_tls_generate_server_ja3_md5(server);
+    bd_tls_generate_server_ja3_md5(server);
 
     return server;
 }
 
-mod_tls_client *module_tls_client_create() {
+static bd_tls_client *bd_tls_client_create() {
 
-    mod_tls_client *client;
+    bd_tls_client *client;
 
-    client = (mod_tls_client *)malloc(sizeof(mod_tls_client));
+    client = (bd_tls_client *)malloc(sizeof(bd_tls_client));
     if (client == NULL) {
         logger(LOG_CRIT, "Unable to allocate memory. func. "
-            "module_tls_parse_client_hello()");
+            "bd_tls_parse_client_hello()");
         exit(BD_OUTOFMEMORY);
     }
     client->extensions = new std::list<uint16_t>;
@@ -510,7 +542,11 @@ mod_tls_client *module_tls_client_create() {
     return client;
 }
 
-void module_tls_client_destroy(mod_tls_client *client) {
+static void bd_tls_client_destroy(bd_tls_client *client) {
+
+    if (client == NULL) {
+        return;
+    }
 
     delete(client->extensions);
     delete(client->ciphers);
@@ -530,11 +566,11 @@ void module_tls_client_destroy(mod_tls_client *client) {
     free(client);
 }
 
-mod_tls_client *module_tls_parse_client_hello(bd_bigdata_t *bigdata,
+static bd_tls_client *bd_tls_parse_client_hello(bd_bigdata_t *bigdata,
     char *payload) {
 
-    mod_tls_client *client;
-    mod_tls_handshake_hdr *hdr;
+    bd_tls_client *client;
+    bd_tls_handshake_hdr *hdr;
     uint32_t length;
     uint16_t num_ciphers;
     uint16_t cipher_len;
@@ -544,9 +580,9 @@ mod_tls_client *module_tls_parse_client_hello(bd_bigdata_t *bigdata,
     int i = 0;
 
     /* create the client */
-    client = module_tls_client_create();
+    client = bd_tls_client_create();
 
-    hdr = (mod_tls_handshake_hdr *)payload;
+    hdr = (bd_tls_handshake_hdr *)payload;
 
     /* calculate length of the hello message */
     length = hdr->length[0] << 16 | hdr->length[1] << 8 |
@@ -556,7 +592,7 @@ mod_tls_client *module_tls_parse_client_hello(bd_bigdata_t *bigdata,
     client->version = ntohs(hdr->version);
 
     /* advance the payload pointer to the ciphers length */
-    payload += sizeof(mod_tls_handshake_hdr) +
+    payload += sizeof(bd_tls_handshake_hdr) +
         hdr->session_id_len;
 
     /* get number of cipher suites listed. Listed in bytes
@@ -570,7 +606,7 @@ mod_tls_client *module_tls_parse_client_hello(bd_bigdata_t *bigdata,
 
     /* copy over each ciper only if not grease */
     for (i = 0; i < num_ciphers; i++) {
-        if (!module_tls_ext_grease(ntohs(*(uint16_t *)payload))) {
+        if (!bd_tls_ext_grease(ntohs(*(uint16_t *)payload))) {
             client->ciphers->push_back(ntohs(*(uint16_t *)payload));
         }
         /* move payload to the next cipher */
@@ -594,23 +630,23 @@ mod_tls_client *module_tls_parse_client_hello(bd_bigdata_t *bigdata,
         extension_len = ntohs(*(uint16_t *)(payload+2));
 
         /* insert extension code for ja3, only if not GREASE */
-        if (!module_tls_ext_grease(extension)) {
+        if (!bd_tls_ext_grease(extension)) {
             client->extensions->push_back(extension);
         }
 
         switch (extension) {
             case TLS_EXTENSION_SERVER_NAME: {
-                module_tls_parse_server_name_extension(payload,
+                bd_tls_parse_server_name_extension(payload,
                     client);
                 break;
             }
             case TLS_EXTENSION_EC_CURVES: {
-                module_tls_parse_ec_curves_extension(payload,
+                bd_tls_parse_ec_curves_extension(payload,
                     client);
                 break;
             }
             case TLS_EXTENSION_EC_POINT_FORMATS: {
-                module_tls_parse_ec_point_extension(payload,
+                bd_tls_parse_ec_point_extension(payload,
                     client);
                 break;
             }
@@ -631,12 +667,12 @@ mod_tls_client *module_tls_parse_client_hello(bd_bigdata_t *bigdata,
     }
 
     /* generate the ja3 string */
-    module_tls_generate_client_ja3_md5(client);
+    bd_tls_generate_client_ja3_md5(client);
 
     return client;
 }
 
-void module_tls_generate_server_ja3_md5(mod_tls_server *server) {
+static void bd_tls_generate_server_ja3_md5(bd_tls_server *server) {
 
     char ja3[2000];
     char buf[20];
@@ -673,7 +709,7 @@ void module_tls_generate_server_ja3_md5(mod_tls_server *server) {
     server->ja3_md5 = strndup(md5string, 33);
 }
 
-void module_tls_generate_client_ja3_md5(mod_tls_client *client) {
+static void bd_tls_generate_client_ja3_md5(bd_tls_client *client) {
 
     char ja3[2000];
     char ciphers[500] = "";
@@ -753,8 +789,8 @@ void module_tls_generate_client_ja3_md5(mod_tls_client *client) {
     client->ja3_md5 = strndup(md5string, 33);
 }
 
-void module_tls_parse_ec_point_extension(char *payload,
-    mod_tls_client *client) {
+static void bd_tls_parse_ec_point_extension(char *payload,
+    bd_tls_client *client) {
 
     uint16_t len;
     uint8_t format_len;
@@ -771,8 +807,8 @@ void module_tls_parse_ec_point_extension(char *payload,
     }
 }
 
-void module_tls_parse_ec_curves_extension(char *payload,
-    mod_tls_client *client) {
+static void bd_tls_parse_ec_curves_extension(char *payload,
+    bd_tls_client *client) {
 
     uint16_t len;
     uint16_t num_curves;
@@ -791,8 +827,8 @@ void module_tls_parse_ec_curves_extension(char *payload,
 
 }
 
-void module_tls_parse_server_name_extension(char *payload,
-    mod_tls_client *client) {
+static void bd_tls_parse_server_name_extension(char *payload,
+    bd_tls_client *client) {
 
     uint16_t len;
     uint16_t list_len;

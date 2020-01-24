@@ -19,6 +19,7 @@ bigdata_SOURCES = bigdata.cc bigdata.h \
 		bigdata_parser.cc bigdata_parser.h \
 		bigdata_resultset.cc bigdata_resultset.h \
 		bigdata_logger.cc bigdata_logger.h \
+		bigdata_tls.cc bigdata_tls.h \
 		module_dns.cc module_dns.h module_dns_spcdns.h module_dns_spcdns_codec.c \
 		module_dns_spcdns_mappings.c module_dns_spcdns_mappings.h \
 		module_protocol_statistics.cc module_protocol_statistics.h \
@@ -29,6 +30,5 @@ bigdata_SOURCES = bigdata.cc bigdata.h \
                 module_http.cc module_http.h \
                 module_http_picoparser.c module_http_picoparser.h \
                 module_bgp.cc module_bgp.h \
-                module_tls.cc module_tls.h \
 		$(KAFKASOURCE) \
 		$(MAXMINDSOURCES)

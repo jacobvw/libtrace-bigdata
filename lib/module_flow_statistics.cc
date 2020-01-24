@@ -9,6 +9,7 @@ struct module_flow_statistics_config {
     bool monitor_all;
     bool protocol[LPI_PROTO_LAST];
     bool category[LPI_CATEGORY_LAST];
+    bool export_tls;
 };
 /* global varible used to read from module configuration */
 static struct module_flow_statistics_config *config;
@@ -99,6 +100,15 @@ int module_flow_statistics_foreach_flow(Flow *flow, void *data) {
             bd_result_set_insert_uint(res, "out_bytes", stats.out_bytes);
             bd_result_set_insert_uint(res, "in_bytes_total", flow_rec->in_bytes);
             bd_result_set_insert_uint(res, "out_bytes_total", flow_rec->out_bytes);
+
+            /* include tls info if this is an encrypted flow if enabled */
+            if (f->c->export_tls &&
+                flow_rec->lpi_module->protocol == LPI_PROTO_SSL) {
+                bd_result_set_insert_string(res, "client_ja3_md5",
+                    bd_tls_get_client_ja3_md5(flow_rec));
+                bd_result_set_insert_string(res, "server_ja3_md5",
+                    bd_tls_get_server_ja3_md5(flow_rec));
+            }
 
             bd_result_set_insert_timestamp(res, f->tick);
 
@@ -217,6 +227,15 @@ int module_flow_statistics_protocol_updated(bd_bigdata_t *bigdata, void *mls, lp
         bd_result_set_insert_uint(res, "in_bytes_total", flow_rec->in_bytes);
         bd_result_set_insert_uint(res, "out_bytes_total", flow_rec->out_bytes);
 
+        /* include tls info if this is an encrypted flow if enabled */
+        if (config->export_tls && newproto == LPI_PROTO_SSL) {
+
+            bd_result_set_insert_string(res, "client_ja3_md5",
+                bd_tls_get_client_ja3_md5(flow_rec));
+            bd_result_set_insert_string(res, "server_ja3_md5",
+                bd_tls_get_server_ja3_md5(flow_rec));
+        }
+
         // set the timestamp for the result
         tv = trace_get_timeval(bigdata->packet);
         bd_result_set_insert_timestamp(res, tv.tv_sec);
@@ -281,6 +300,16 @@ int module_flow_statistics_flowend(bd_bigdata_t *bigdata, void *mls, bd_flow_rec
         bd_result_set_insert_uint(res, "in_bytes_total", flow_record->in_bytes);
         bd_result_set_insert_uint(res, "out_bytes_total", flow_record->out_bytes);
 
+        /* include tls info if this is an encrypted flow if enabled */
+        if (config->export_tls &&
+            flow_record->lpi_module->protocol == LPI_PROTO_SSL) {
+
+            bd_result_set_insert_string(res, "client_ja3_md5",
+                bd_tls_get_client_ja3_md5(flow_record));
+            bd_result_set_insert_string(res, "server_ja3_md5",
+                bd_tls_get_server_ja3_md5(flow_record));
+        }
+
         /* Makes most sense to insert the timestamp from when the flow ended here??
            Because the packet received in this function is not for the current flow */
         bd_result_set_insert_timestamp(res, flow_record->end_ts);
@@ -325,6 +354,17 @@ int module_flow_statistics_config(yaml_parser_t *parser, yaml_event_t *event, in
                         config->enabled = 1;
 
                         logger(LOG_INFO, "Flow Statistics Plugin Enabled");
+                    }
+                    break;
+                }
+                if (strcmp((char *)event->data.scalar.value, "export_tls") == 0) {
+                    consume_event(parser, event, level);
+                    if (strcmp((char *)event->data.scalar.value, "1") == 0 ||
+                        strcmp((char *)event->data.scalar.value, "yes") == 0 ||
+                        strcmp((char *)event->data.scalar.value, "true") == 0 ||
+                        strcmp((char *)event->data.scalar.value, "t") == 0) {
+
+                        config->export_tls = 1;
                     }
                     break;
                 }
@@ -510,6 +550,7 @@ int module_flow_statistics_init(bd_bigdata_t *bigdata) {
     for (i = 0; i < LPI_CATEGORY_LAST; i++) {
         config->category[i] = 0;
     }
+    config->export_tls = 0;
 
     /* create callback set used to map callback functions to each event */
     config->callbacks = bd_create_cb_set("flow_statistics");
