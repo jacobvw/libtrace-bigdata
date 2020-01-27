@@ -392,13 +392,21 @@ int bd_callback_trigger_tick(bd_bigdata_t *bigdata, uint64_t tick) {
     }
 
     // output some libtrace stats if debug is enabled
-    if (config->debug) {
-        libtrace_stat_t *stats = trace_create_statistics();
-        trace_get_statistics(bigdata->trace, stats);
+    libtrace_stat_t *stats = trace_create_statistics();
+    trace_get_statistics(bigdata->trace, stats);
+
+    // Statistics should be sent to INFO debug level if the number of
+    // dropped packets has changed.
+    if (stats->dropped > l_data->dropped_packets) {
+        logger(LOG_INFO, "Accepted %lu packets, Dropped %lu packets",
+            stats->accepted, stats->dropped);
+        l_data->dropped_packets = stats->dropped;
+    } else {
         logger(LOG_DEBUG, "Accepted %lu packets, Dropped %lu packets",
             stats->accepted, stats->dropped);
-        free(stats);
     }
+
+    free(stats);
 
     return ret;
 }

@@ -146,6 +146,7 @@ typedef struct bigdata_thread_processing_local {
 
     uint64_t *c_tickrate;       // Each thread must have its own countdown tickrate
                                 // for every module.
+    uint64_t dropped_packets;	// the number of packets dropped on the thread.
 } bd_thread_local_t;
 
 // thread local storage for reporter thread

@@ -104,6 +104,9 @@ static void *start_processing(libtrace_t *trace, libtrace_thread_t *thread,
         local->c_tickrate[i] = 0;
     }
 
+    // initialise the number of dropped packets
+    local->dropped_packets = 0;
+
     // init bigdata structure
     init_bigdata(&bigdata, trace, thread, NULL, NULL, (bd_global_t *)global,
         (void *)local);
