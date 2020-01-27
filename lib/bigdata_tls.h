@@ -44,12 +44,59 @@ typedef struct bigdata_tls_handshake {
 
 } bd_tls_handshake;
 
+/* Create a tls structure to hold tls handshake information.
+ *
+ * @returns	bd_tls_handshake structure.
+ */
+bd_tls_handshake *bd_tls_handshake_create();
+
+/* Update any state held by the tls handshake structure with the current packet.
+ *
+ * @params	bigdata - bigdata structure.
+ *		bd_tls_handshake - tls handshake structure.
+ * @returns	0 on success.
+ *		-1 on error.
+ */
 int bd_tls_update(bd_bigdata_t *bigdata, bd_tls_handshake *tls_handshake);
 
-bd_tls_handshake *bd_tls_handshake_create();
+/* Destroy a tls handshake structure created with bd_tls_handshake_create().
+ *
+ * @params	bd_tls_handshake - tls handshake structure to destroy.
+ */
 void bd_tls_handshake_destroy(bd_tls_handshake *handshake);
 
+/* Checks if the flow is a tls flow.
+ *
+ * @params	flow - Libflowmanager flow.
+ * @returns	1 if the flow is a tls flow.
+ *		0 if the flow is NOT a tls flow.
+ */
+int bd_tls_flow(Flow *flow);
+
+/* Get the ja3 md5 hash for the tls flow.
+ *
+ * @params	flow - Libflowmanager flow.
+ * @returns	pointer to the ja3 md5 string for the flow. This memory
+ *              handled by the application core and should NOT be free'd by the user.
+ *		NULL on error or unknown.
+ */
 char *bd_tls_get_ja3_md5(Flow *flow);
+
+/* Get the ja3s md5 hash for the tls flow.
+ *
+ * @params      flow - Libflowmanager flow.
+ * @returns     pointer to the ja3s md5 string for the flow. This memory
+ *              handled by the application core and should NOT be free'd by the user.
+ *              NULL on error or unknown.
+ */
 char *bd_tls_get_ja3s_md5(Flow *flow);
+
+/* Returns the tls handshake structure for the supplied flow.
+ *
+ * @params      flow - The flow.
+ * @returns     pointer to the mod_tls_handshake structure for the flow.
+ *              null on error.
+ */
+bd_tls_handshake *bd_tls_get_handshake(Flow *flow);
 
 #endif

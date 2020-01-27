@@ -238,7 +238,7 @@ char *bd_tls_get_ja3_md5(Flow *flow) {
 
     bd_tls_handshake *handshake;
 
-    handshake = bd_flow_get_tls_handshake(flow);
+    handshake = bd_tls_get_handshake(flow);
     if (handshake == NULL) {
         logger(LOG_DEBUG, "Flow record does not contain a tls "
             "handshake. func. bd_tls_get_ja3_md5()");
@@ -262,7 +262,7 @@ char *bd_tls_get_ja3s_md5(Flow *flow) {
 
     bd_tls_handshake *handshake;
 
-    handshake = bd_flow_get_tls_handshake(flow);
+    handshake = bd_tls_get_handshake(flow);
     if (handshake == NULL) {
         logger(LOG_DEBUG, "Flow record does not contain a tls "
             "handshake. func. bd_tls_get_ja3s_md5()");
@@ -281,6 +281,34 @@ char *bd_tls_get_ja3s_md5(Flow *flow) {
     }
 
     return handshake->server->ja3_md5;
+}
+int bd_tls_flow(Flow *flow) {
+
+    bd_tls_handshake *handshake;
+
+    handshake = bd_tls_get_handshake(flow);
+
+    /* musnt be a tls flow if client and server hello's are NULL */
+    if (handshake->client == NULL &&
+        handshake->server == NULL) {
+
+        return 0;
+    }
+
+    return 1;
+
+}
+bd_tls_handshake *bd_tls_get_handshake(Flow *flow) {
+
+    bd_flow_record_t *flow_record = bd_flow_get_record(flow);
+
+    if (flow_record == NULL) {
+        logger(LOG_DEBUG, "Unable to get flow record. func. "
+            "bd_tls_get_handshake()");
+        return NULL;
+    }
+
+    return flow_record->tls_handshake;
 }
 
 

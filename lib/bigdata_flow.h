@@ -217,12 +217,4 @@ uint64_t bd_flow_get_end_time_milliseconds(Flow *flow);
  */
 double bd_flow_get_time_to_first_byte(Flow *flow);
 
-/* Returns the tls handshake structure for the supplied flow.
- *
- * @params	flow - The flow.
- * @returns	pointer to the mod_tls_handshake structure for the flow.
- *		null on error.
- */
-bd_tls_handshake *bd_flow_get_tls_handshake(Flow *flow);
-
 #endif

@@ -101,13 +101,19 @@ int module_flow_statistics_foreach_flow(Flow *flow, void *data) {
             bd_result_set_insert_uint(res, "in_bytes_total", flow_rec->in_bytes);
             bd_result_set_insert_uint(res, "out_bytes_total", flow_rec->out_bytes);
 
-            /* include tls info if this is an encrypted flow if enabled */
-            if (f->c->export_tls &&
-                flow_rec->lpi_module->protocol == LPI_PROTO_SSL) {
-                bd_result_set_insert_string(res, "ja3",
-                    bd_tls_get_ja3_md5(flow));
-                bd_result_set_insert_string(res, "ja3s",
-                    bd_tls_get_ja3s_md5(flow));
+            /* include tls info if this is an encrypted flow and export_tls is enabled */
+            if (f->c->export_tls && bd_tls_flow(flow)) {
+
+                char *ja3 = bd_tls_get_ja3_md5(flow);
+                char *ja3s = bd_tls_get_ja3s_md5(flow);
+
+                if (ja3 != NULL) {
+                    bd_result_set_insert_string(res, "ja3", ja3);
+                }
+
+                if (ja3s != NULL) {
+                    bd_result_set_insert_string(res, "ja3s", ja3s);
+                }
             }
 
             bd_result_set_insert_timestamp(res, f->tick);
@@ -227,13 +233,19 @@ int module_flow_statistics_protocol_updated(bd_bigdata_t *bigdata, void *mls, lp
         bd_result_set_insert_uint(res, "in_bytes_total", flow_rec->in_bytes);
         bd_result_set_insert_uint(res, "out_bytes_total", flow_rec->out_bytes);
 
-        /* include tls info if this is an encrypted flow if enabled */
-        if (config->export_tls && newproto == LPI_PROTO_SSL) {
+        /* include tls info if this is an encrypted flow and export_tls is enabled */
+        if (config->export_tls && bd_tls_flow(bigdata->flow)) {
 
-            bd_result_set_insert_string(res, "ja3",
-                bd_tls_get_ja3_md5(bigdata->flow));
-            bd_result_set_insert_string(res, "ja3s",
-                bd_tls_get_ja3s_md5(bigdata->flow));
+            char *ja3 = bd_tls_get_ja3_md5(bigdata->flow);
+            char *ja3s = bd_tls_get_ja3s_md5(bigdata->flow);
+
+            if (ja3 != NULL) {
+                bd_result_set_insert_string(res, "ja3", ja3);
+            }
+
+            if (ja3s != NULL) {
+                bd_result_set_insert_string(res, "ja3s", ja3s);
+            }
         }
 
         // set the timestamp for the result
@@ -300,14 +312,19 @@ int module_flow_statistics_flowend(bd_bigdata_t *bigdata, void *mls, bd_flow_rec
         bd_result_set_insert_uint(res, "in_bytes_total", flow_record->in_bytes);
         bd_result_set_insert_uint(res, "out_bytes_total", flow_record->out_bytes);
 
-        /* include tls info if this is an encrypted flow if enabled */
-        if (config->export_tls &&
-            flow_record->lpi_module->protocol == LPI_PROTO_SSL) {
+        /* include tls info if this is an encrypted flow and export_tls is enabled */
+        if (config->export_tls && bd_tls_flow(bigdata->flow)) {
 
-            bd_result_set_insert_string(res, "ja3",
-                bd_tls_get_ja3_md5(bigdata->flow));
-            bd_result_set_insert_string(res, "ja3s",
-                bd_tls_get_ja3s_md5(bigdata->flow));
+            char *ja3 = bd_tls_get_ja3_md5(bigdata->flow);
+            char *ja3s = bd_tls_get_ja3s_md5(bigdata->flow);
+
+            if (ja3 != NULL) {
+                bd_result_set_insert_string(res, "ja3", ja3);
+            }
+
+            if (ja3s != NULL) {
+                bd_result_set_insert_string(res, "ja3s", ja3s);
+            }
         }
 
         /* Makes most sense to insert the timestamp from when the flow ended here??
