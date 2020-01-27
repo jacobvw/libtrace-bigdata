@@ -251,6 +251,11 @@ char *bd_tls_get_ja3_md5(Flow *flow) {
         return NULL;
     }
 
+    /* if not generated generate the ja3 */
+    if (handshake->client->ja3_md5 == NULL) {
+        bd_tls_generate_client_ja3_md5(handshake->client);
+    }
+
     return handshake->client->ja3_md5;
 }
 char *bd_tls_get_ja3s_md5(Flow *flow) {
@@ -268,6 +273,11 @@ char *bd_tls_get_ja3s_md5(Flow *flow) {
         logger(LOG_DEBUG, "A TLS server hello has not been seen "
             "for this flow. func. bd_tls_get_ja3s_md5()");
         return NULL;
+    }
+
+    /* if not generated, generate the ja3s */
+    if (handshake->server->ja3_md5 == NULL) {
+        bd_tls_generate_server_ja3_md5(handshake->server);
     }
 
     return handshake->server->ja3_md5;
@@ -401,7 +411,7 @@ int bd_tls_update(bd_bigdata_t *bigdata, bd_tls_handshake *tls_handshake) {
         /* if the tls header size says we have more than the remaining
          * just ignore it. Its most likely a certificate that has been
          * fragmented over multiple packets */
-        if (remaining > (ntohs(hdr->length) + sizeof(bd_tls_hdr))) {
+        if (remaining < (ntohs(hdr->length) + sizeof(bd_tls_hdr))) {
             remaining = 0;
         } else {
             /* the size within the header does not include the size of
@@ -506,9 +516,6 @@ static bd_tls_server *bd_tls_parse_server_hello(bd_bigdata_t *bigdata, char *pay
         /* advance payload forward to the next extension */
         payload += (extension_len + 4);
     }
-
-    /* generate server ja3 md5 */
-    bd_tls_generate_server_ja3_md5(server);
 
     return server;
 }
@@ -657,9 +664,6 @@ static bd_tls_client *bd_tls_parse_client_hello(bd_bigdata_t *bigdata,
         /* advance payload forward to the next extension */
         payload += (extension_len + 4);
     }
-
-    /* generate the ja3 string */
-    bd_tls_generate_client_ja3_md5(client);
 
     return client;
 }
