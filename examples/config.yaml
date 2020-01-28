@@ -143,6 +143,18 @@ filter:
       - city
       - country
 
+  # The ja3 plugin will insert the user agent for the ja3 signature found within a result set.
+  # more information can be found at
+  # https://engineering.salesforce.com/tls-fingerprinting-with-ja3-and-ja3s-247362855967 
+  ja3:
+    enabled: 0
+    # Location of the signature file to use. Can be obtained from
+    # https://ja3er.com/getAllUasJson.
+    # Users can create their own signature file with the following structure:
+    # [{"User-Agent":"user agent name", "md5":"MD5HASH"},
+    #  {"User-Agent":"user agent name", "md5":"MD5HASH"}]
+    signatures: /etc/bigdata/ja3signatures.json
+
 # output modules
 where:
 
