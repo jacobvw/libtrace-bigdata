@@ -180,6 +180,8 @@ int module_ja3_config(yaml_parser_t *parser, yaml_event_t *event, int *level) {
         bd_register_reporter_start_event(config->callbacks, module_ja3_starting);
         bd_register_reporter_filter_event(config->callbacks, module_ja3_result);
         bd_register_reporter_stop_event(config->callbacks, module_ja3_stopping);
+
+        logger(LOG_INFO, "JA3 Plugin Enabled");
     }
 
     return 0;
@@ -198,7 +200,7 @@ int module_ja3_init(bd_bigdata_t *bigdata) {
     config->enabled = 0;
     config->signatures = NULL;
 
-    bd_register_config_event(config->callbacks, module_maxmind_config_cb);
+    bd_register_config_event(config->callbacks, module_ja3_config);
 
     bd_register_cb_set(bigdata, config->callbacks);
 
