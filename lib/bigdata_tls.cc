@@ -197,8 +197,8 @@ static void bd_tls_parse_ec_point_extension(char *payload, bd_tls_client *client
 static void bd_tls_parse_ec_curves_extension(char *payload, bd_tls_client *client);
 static void bd_tls_parse_server_name_extension(char *payload, bd_tls_client *client);
 
-static void bd_tls_generate_server_ja3_md5(bd_tls_server *server);
-static void bd_tls_generate_client_ja3_md5(bd_tls_client *client);
+static int bd_tls_generate_server_ja3_md5(bd_tls_server *server);
+static int bd_tls_generate_client_ja3_md5(bd_tls_client *client);
 
 /* API functions */
 bd_tls_handshake *bd_tls_handshake_create() {
@@ -252,7 +252,11 @@ char *bd_tls_get_ja3_md5(Flow *flow) {
 
     /* if not generated generate the ja3 */
     if (handshake->client->ja3_md5 == NULL) {
-        bd_tls_generate_client_ja3_md5(handshake->client);
+        /* bd_tls_generate_client_ja3_md5 returns 0 on success, 1
+         * on error. return NULL if a error occured */
+        if (bd_tls_generate_client_ja3_md5(handshake->client)) {
+            return NULL;
+        }
     }
 
     return handshake->client->ja3_md5;
@@ -276,7 +280,11 @@ char *bd_tls_get_ja3s_md5(Flow *flow) {
 
     /* if not generated, generate the ja3s */
     if (handshake->server->ja3_md5 == NULL) {
-        bd_tls_generate_server_ja3_md5(handshake->server);
+        /* bd_tls_generate_server_ja3_md5 returns 0 on success, 1
+         * on error. return NULL if a error occured */
+        if (bd_tls_generate_server_ja3_md5(handshake->server)) {
+            return NULL;
+        }
     }
 
     return handshake->server->ja3_md5;
@@ -712,7 +720,7 @@ static bd_tls_client *bd_tls_parse_client_hello(bd_bigdata_t *bigdata,
     return client;
 }
 
-static void bd_tls_generate_server_ja3_md5(bd_tls_server *server) {
+static int bd_tls_generate_server_ja3_md5(bd_tls_server *server) {
 
     char ja3[2000];
     char buf[20];
@@ -720,6 +728,12 @@ static void bd_tls_generate_server_ja3_md5(bd_tls_server *server) {
     unsigned char md5[16];
     char md5string[33];
     std::list<uint16_t>::iterator it;
+
+    if (server == NULL) {
+        logger(LOG_DEBUG, "NULL bd_tls_server structure. func. "
+            "bd_tls_generate_server_ja3_md5()");
+        return 1;
+    }
 
     /* extensions */
     for (it = server->extensions->begin(); it !=
@@ -747,9 +761,16 @@ static void bd_tls_generate_server_ja3_md5(bd_tls_server *server) {
     }
 
     server->ja3_md5 = strndup(md5string, 33);
+    if (server->ja3_md5 == NULL) {
+        logger(LOG_CRIT, "Unable to allocate memory. func. "
+            "bd_tls_generate_server_ja3_md5()");
+        exit(BD_OUTOFMEMORY);
+    }
+
+    return 0;
 }
 
-static void bd_tls_generate_client_ja3_md5(bd_tls_client *client) {
+static int bd_tls_generate_client_ja3_md5(bd_tls_client *client) {
 
     char ja3[2000];
     char ciphers[500] = "";
@@ -759,8 +780,13 @@ static void bd_tls_generate_client_ja3_md5(bd_tls_client *client) {
     char buf[20];
     unsigned char md5[16];
     char md5string[33];
-
     std::list<uint16_t>::iterator it;
+
+    if (client == NULL) {
+        logger(LOG_DEBUG, "NULL bd_tls_client structure. func. "
+            "bd_tls_generate_client_ja3_md5()");
+        return 1;
+    }
 
     /* ciphers */
     for (it = client->ciphers->begin(); it !=
@@ -827,6 +853,13 @@ static void bd_tls_generate_client_ja3_md5(bd_tls_client *client) {
     }
 
     client->ja3_md5 = strndup(md5string, 33);
+    if (client->ja3_md5 == NULL) {
+        logger(LOG_CRIT, "Unable to allocate memory. func. "
+            "bd_tls_generate_client_ja3_md5()");
+        exit(BD_OUTOFMEMORY);
+    }
+
+    return 0;
 }
 
 static void bd_tls_parse_ec_point_extension(char *payload,
@@ -893,6 +926,11 @@ static void bd_tls_parse_server_name_extension(char *payload,
             case 0x00: {
                 client->host_name = strndup((payload+5),
                     name_len);
+                if (client->host_name == NULL) {
+                    logger(LOG_CRIT, "Unable to allocate memory. func. "
+                        "bd_tls_parse_server_name_extension()");
+                    exit(BD_OUTOFMEMORY);
+                }
                 break;
             }
         }
