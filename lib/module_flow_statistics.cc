@@ -106,6 +106,7 @@ int module_flow_statistics_foreach_flow(Flow *flow, void *data) {
 
                 char *ja3 = bd_tls_get_ja3_md5(flow);
                 char *ja3s = bd_tls_get_ja3s_md5(flow);
+                char *hostname = bd_tls_get_request_hostname(flow);
 
                 if (ja3 != NULL) {
                     bd_result_set_insert_string(res, "ja3", ja3);
@@ -113,6 +114,11 @@ int module_flow_statistics_foreach_flow(Flow *flow, void *data) {
 
                 if (ja3s != NULL) {
                     bd_result_set_insert_string(res, "ja3s", ja3s);
+                }
+
+                if (hostname != NULL) {
+                    bd_result_set_insert_string(res, "request_hostname",
+                        hostname);
                 }
             }
 
@@ -238,6 +244,7 @@ int module_flow_statistics_protocol_updated(bd_bigdata_t *bigdata, void *mls, lp
 
             char *ja3 = bd_tls_get_ja3_md5(bigdata->flow);
             char *ja3s = bd_tls_get_ja3s_md5(bigdata->flow);
+            char *hostname = bd_tls_get_request_hostname(bigdata->flow);
 
             if (ja3 != NULL) {
                 bd_result_set_insert_string(res, "ja3", ja3);
@@ -245,6 +252,11 @@ int module_flow_statistics_protocol_updated(bd_bigdata_t *bigdata, void *mls, lp
 
             if (ja3s != NULL) {
                 bd_result_set_insert_string(res, "ja3s", ja3s);
+            }
+
+            if (hostname != NULL) {
+                bd_result_set_insert_string(res, "request_hostname",
+                    hostname);
             }
         }
 
@@ -317,6 +329,7 @@ int module_flow_statistics_flowend(bd_bigdata_t *bigdata, void *mls, bd_flow_rec
 
             char *ja3 = bd_tls_get_ja3_md5(bigdata->flow);
             char *ja3s = bd_tls_get_ja3s_md5(bigdata->flow);
+            char *hostname = bd_tls_get_request_hostname(bigdata->flow);
 
             if (ja3 != NULL) {
                 bd_result_set_insert_string(res, "ja3", ja3);
@@ -324,6 +337,11 @@ int module_flow_statistics_flowend(bd_bigdata_t *bigdata, void *mls, bd_flow_rec
 
             if (ja3s != NULL) {
                 bd_result_set_insert_string(res, "ja3s", ja3s);
+            }
+
+            if (hostname != NULL) {
+                bd_result_set_insert_string(res, "request_hostname",
+                    hostname);
             }
         }
 

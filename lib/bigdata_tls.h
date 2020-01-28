@@ -99,4 +99,13 @@ char *bd_tls_get_ja3s_md5(Flow *flow);
  */
 bd_tls_handshake *bd_tls_get_handshake(Flow *flow);
 
+/* Returns the hostname seen inside the the client tls hello message.
+ *
+ * @params	flow - The flow.
+ * @returns	pointer to the hostname seen inside the client hello. This memory
+ *		is handled by the application core and should NOT be free'd by the user.
+ *		NULL on error or unknown.
+ */
+char *bd_tls_get_request_hostname(Flow *flow);
+
 #endif

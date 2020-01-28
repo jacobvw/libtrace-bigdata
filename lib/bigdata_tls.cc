@@ -233,7 +233,6 @@ void bd_tls_handshake_destroy(bd_tls_handshake *handshake) {
 
     free(handshake);
 }
-
 char *bd_tls_get_ja3_md5(Flow *flow) {
 
     bd_tls_handshake *handshake;
@@ -287,6 +286,9 @@ int bd_tls_flow(Flow *flow) {
     bd_tls_handshake *handshake;
 
     handshake = bd_tls_get_handshake(flow);
+    if (handshake == NULL) {
+        return 0;
+    }
 
     /* musnt be a tls flow if client and server hello's are NULL */
     if (handshake->client == NULL &&
@@ -310,7 +312,21 @@ bd_tls_handshake *bd_tls_get_handshake(Flow *flow) {
 
     return flow_record->tls_handshake;
 }
+char *bd_tls_get_request_hostname(Flow *flow) {
 
+    bd_tls_handshake *handshake;
+
+    handshake = bd_tls_get_handshake(flow);
+    if (handshake == NULL) {
+        return NULL;
+    }
+
+    if (handshake->client == NULL) {
+        return NULL;
+    }
+
+    return handshake->client->host_name;
+}
 
 int bd_tls_update(bd_bigdata_t *bigdata, bd_tls_handshake *tls_handshake) {
 
