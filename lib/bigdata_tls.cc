@@ -3,6 +3,14 @@
 #include <list>
 #include <openssl/md5.h>
 
+/* buffer sizes used to generate ja3 md5 */
+#define BD_TLS_JA3_LEN 10000
+#define BD_TLS_EXT_LEN 5000
+#define BD_TLS_CPHR_LEN 5000
+#define BD_TLS_ECC_LEN 5000
+#define BD_TLS_ECP_LEN 5000
+#define BD_TLS_BUF_LEN 40
+
 /* TLS packet types */
 #define TLS_PACKET_CHANGE_CIPHER_SPEC 20
 #define TLS_PACKET_ALERT 21
@@ -722,11 +730,11 @@ static bd_tls_client *bd_tls_parse_client_hello(bd_bigdata_t *bigdata,
 
 static int bd_tls_generate_server_ja3_md5(bd_tls_server *server) {
 
-    char ja3[2000];
-    char buf[20];
-    char extensions[500] = "";
-    unsigned char md5[16];
-    char md5string[33];
+    char ja3[BD_TLS_JA3_LEN] = "\0";
+    char buf[BD_TLS_BUF_LEN] = "\0";
+    char extensions[BD_TLS_EXT_LEN] = "\0";
+    unsigned char md5[16] = "\0";
+    char md5string[33] = "\0";
     std::list<uint16_t>::iterator it;
 
     if (server == NULL) {
@@ -747,10 +755,15 @@ static int bd_tls_generate_server_ja3_md5(bd_tls_server *server) {
     }
 
     /* construct ja3 string */
-    snprintf(ja3, sizeof(ja3), "%u,%u,%s",
+    if (snprintf(ja3, sizeof(ja3), "%u,%u,%s",
         server->version,
         server->cipher,
-        extensions);
+        extensions) < 0) {
+
+        logger(LOG_WARNING, "JA3 string buffer to small. func. "
+            "bd_tls_generate_server_ja3_md5()");
+        return 1;
+    }
 
     /* run MD5 hash over it */
     MD5((const unsigned char *)ja3, strlen(ja3), md5);
@@ -772,14 +785,14 @@ static int bd_tls_generate_server_ja3_md5(bd_tls_server *server) {
 
 static int bd_tls_generate_client_ja3_md5(bd_tls_client *client) {
 
-    char ja3[2000];
-    char ciphers[500] = "";
-    char extensions[500] = "";
-    char ec_curves[500] = "";
-    char ec_points[500] = "";
-    char buf[20];
-    unsigned char md5[16];
-    char md5string[33];
+    char ja3[BD_TLS_JA3_LEN] = "\0";
+    char ciphers[BD_TLS_CPHR_LEN] = "\0";
+    char extensions[BD_TLS_EXT_LEN] = "\0";
+    char ec_curves[BD_TLS_ECC_LEN] = "\0";
+    char ec_points[BD_TLS_ECP_LEN] = "\0";
+    char buf[BD_TLS_BUF_LEN] = "\0";
+    unsigned char md5[16] = "\0";
+    char md5string[33] = "\0";
     std::list<uint16_t>::iterator it;
 
     if (client == NULL) {
@@ -837,12 +850,17 @@ static int bd_tls_generate_client_ja3_md5(bd_tls_client *client) {
     }
 
     /* construct the ja3 string */
-    snprintf(ja3, sizeof(ja3), "%u,%s,%s,%s,%s",
+    if (snprintf(ja3, sizeof(ja3), "%u,%s,%s,%s,%s",
         client->version,
         ciphers,
         extensions,
         ec_curves,
-        ec_points);
+        ec_points) < 0) {
+
+        logger(LOG_WARNING, "JA3 string buffer to small. func. "
+            "bd_tls_generate_client_ja3_md5()");
+        return 1;
+    }
 
     /* run MD5 hash over it */
     MD5((const unsigned char *)ja3, strlen(ja3), md5);
