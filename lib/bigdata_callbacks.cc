@@ -434,7 +434,7 @@ int bd_callback_trigger_reporter_starting(bd_bigdata_t *bigdata) {
             if ((cbs->temp_file = fopen(buf, "a+")) == NULL) {
                 logger(LOG_CRIT, "Unable to create temporary file %s, Check "
                     "temp_file config option is correct and the directory exists "
-                    "with the correct permissions.");
+                    "with the correct permissions.", cbs->temp_filename);
                 exit(BD_TEMP_FILE);
             }
         }

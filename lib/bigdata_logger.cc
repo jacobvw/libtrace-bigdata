@@ -110,7 +110,10 @@ void daemonise(char *name, char *pidfile) {
         default:
             _exit(0);
     }
-    chdir("/");
+    if (chdir("/") == -1) {
+        logger(LOG_CRIT, "Unable to change dir. func. daemonise");
+        exit(1);
+    }
     umask(0133);
     close(0);
     close(1);
