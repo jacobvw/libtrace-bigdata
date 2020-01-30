@@ -78,6 +78,7 @@
 #define TLS_EXTENSION_NEXT_PROTOCOL_NEGOTIATION 13172
 #define TLS_EXTENSION_APP_LAYER_PROTO_NEGOTIATION 16
 #define TLS_EXTENSION_PADDING 21
+#define TLS_EXTENSION_SUPPORTED_VERSIONS 43
 
 /* Cipher Suite codes */
 #define TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 0xc02f
@@ -167,7 +168,6 @@ static int bd_tls_ext_grease(int ext) {
     return 0;
 }
 
-
 /* TLS header, This is at the begining of every
  * tls packet. */
 typedef struct bigdata_tls_header {
@@ -198,12 +198,21 @@ static void bd_tls_client_destroy(bd_tls_client *client);
 static bd_tls_server *bd_tls_server_create();
 static void bd_tls_server_destroy(bd_tls_server *server);
 
-static bd_tls_client *bd_tls_parse_client_hello(bd_bigdata_t *bigdata, char *payload);
-static bd_tls_server *bd_tls_parse_server_hello(bd_bigdata_t *bigdata, char *payload);
+static bd_tls_client *bd_tls_parse_client_hello(bd_bigdata_t *bigdata,
+    char *payload);
+static bd_tls_server *bd_tls_parse_server_hello(bd_bigdata_t *bigdata,
+    char *payload);
 
-static void bd_tls_parse_ec_point_extension(char *payload, bd_tls_client *client);
-static void bd_tls_parse_ec_curves_extension(char *payload, bd_tls_client *client);
-static void bd_tls_parse_server_name_extension(char *payload, bd_tls_client *client);
+static void bd_tls_parse_ec_point_extension(char *payload,
+    bd_tls_client *client);
+static void bd_tls_parse_ec_curves_extension(char *payload,
+    bd_tls_client *client);
+static void bd_tls_parse_server_name_extension(char *payload,
+    bd_tls_client *client);
+static void bd_tls_parse_session_ticket_extension(char *payload,
+    bd_tls_client *client);
+static void bd_tls_parse_support_versions_extension(char *payload,
+    bd_tls_client *client);
 
 static int bd_tls_generate_server_ja3_md5(bd_tls_server *server);
 static int bd_tls_generate_client_ja3_md5(bd_tls_client *client);
@@ -222,6 +231,8 @@ bd_tls_handshake *bd_tls_handshake_create() {
         exit(BD_OUTOFMEMORY);
     }
 
+    handshake->tls_completed = 0;
+    handshake->tls_resumed = 0;
     handshake->client = NULL;
     handshake->server = NULL;
 
@@ -328,21 +339,97 @@ bd_tls_handshake *bd_tls_get_handshake(Flow *flow) {
 
     return flow_record->tls_handshake;
 }
-char *bd_tls_get_request_hostname(Flow *flow) {
+char *bd_tls_get_client_extension_sni(Flow *flow) {
 
-    bd_tls_handshake *handshake;
-
-    handshake = bd_tls_get_handshake(flow);
+    bd_tls_handshake *handshake = bd_tls_get_handshake(flow);
     if (handshake == NULL) {
         return NULL;
     }
-
     if (handshake->client == NULL) {
         return NULL;
     }
-
-    return handshake->client->host_name;
+    return handshake->client->extension_sni;
 }
+uint16_t bd_tls_get_server_hello_version(Flow *flow) {
+
+    bd_tls_handshake *handshake = bd_tls_get_handshake(flow);
+    if (handshake == NULL) {
+        return 0;
+    }
+    if (handshake->server == NULL) {
+        return 0;
+    }
+    return handshake->server->version;
+}
+uint16_t bd_tls_get_client_hello_version(Flow *flow) {
+
+    bd_tls_handshake *handshake = bd_tls_get_handshake(flow);
+    if (handshake == NULL) {
+        return 0;
+    }
+    if (handshake->client == NULL) {
+        return 0;
+    }
+    return handshake->client->version;
+}
+uint16_t bd_tls_get_server_selected_cipher(Flow *flow) {
+
+    bd_tls_handshake *handshake = bd_tls_get_handshake(flow);
+    if (handshake == NULL) {
+        return 0;
+    }
+    if (handshake->server == NULL) {
+        return 0;
+    }
+    return handshake->server->cipher;
+}
+uint8_t bd_tls_get_server_selected_compression(Flow *flow) {
+
+    bd_tls_handshake *handshake = bd_tls_get_handshake(flow);
+    if (handshake == NULL) {
+        return 0;
+    }
+    if (handshake->server == NULL) {
+        return 0;
+    }
+    return handshake->server->compression_method;
+}
+std::list<uint16_t> *bd_tls_get_client_supported_ciphers(Flow *flow) {
+
+    bd_tls_handshake *handshake = bd_tls_get_handshake(flow);
+    if (handshake == NULL) {
+        return NULL;
+    }
+    if (handshake->client == NULL) {
+        return NULL;
+    }
+    return handshake->client->ciphers;
+}
+std::list<uint8_t> *bd_tls_get_client_supported_compression(Flow *flow) {
+
+    bd_tls_handshake *handshake = bd_tls_get_handshake(flow);
+    if (handshake == NULL) {
+        return NULL;
+    }
+    if (handshake->client == NULL) {
+        return NULL;
+    }
+    return handshake->client->compression_methods;
+}
+uint16_t bd_tls_get_version(Flow *flow) {
+
+    /* The version decided for the tls session is normally sent.
+     * in the tls server hello. */
+    bd_tls_handshake *handshake = bd_tls_get_handshake(flow);
+    if (handshake == NULL) {
+        return 0;
+    }
+    if (handshake->server == NULL) {
+        return 0;
+    }
+    return handshake->server->version;
+}
+
 
 int bd_tls_update(bd_bigdata_t *bigdata, bd_tls_handshake *tls_handshake) {
 
@@ -458,7 +545,9 @@ int bd_tls_update(bd_bigdata_t *bigdata, bd_tls_handshake *tls_handshake) {
             }
 
             case TLS_PACKET_APPLICATION_DATA: {
-                //fprintf(stderr, "tls packet app data\n");
+                /* the tls handshake must be complete if we have
+                 * received application data. */
+                tls_handshake->tls_completed = 1;
                 break;
             }
 
@@ -518,7 +607,8 @@ static void bd_tls_server_destroy(bd_tls_server *server) {
     free(server);
 }
 
-static bd_tls_server *bd_tls_parse_server_hello(bd_bigdata_t *bigdata, char *payload) {
+static bd_tls_server *bd_tls_parse_server_hello(bd_bigdata_t *bigdata,
+    char *payload) {
 
     bd_tls_server *server;
     bd_tls_handshake_hdr *hdr;
@@ -590,12 +680,15 @@ static bd_tls_client *bd_tls_client_create() {
             "bd_tls_parse_client_hello()");
         exit(BD_OUTOFMEMORY);
     }
+    client->compression_methods = new std::list<uint8_t>;
     client->extensions = new std::list<uint16_t>;
     client->ciphers = new std::list<uint16_t>;
     client->ec_curves = new std::list<uint16_t>;
     client->ec_points = new std::list<uint16_t>;
 
-    client->host_name = NULL;
+    client->extension_versions = new std::list<uint16_t>;
+
+    client->extension_sni = NULL;
     client->ja3_md5 = NULL;
 
     return client;
@@ -607,14 +700,17 @@ static void bd_tls_client_destroy(bd_tls_client *client) {
         return;
     }
 
+    delete(client->compression_methods);
     delete(client->extensions);
     delete(client->ciphers);
     delete(client->ec_curves);
     delete(client->ec_points);
 
-    if (client->host_name != NULL) {
-        free(client->host_name);
-        client->host_name = NULL;
+    delete(client->extension_versions);
+
+    if (client->extension_sni != NULL) {
+        free(client->extension_sni);
+        client->extension_sni = NULL;
     }
 
     if (client->ja3_md5 != NULL) {
@@ -636,6 +732,7 @@ static bd_tls_client *bd_tls_parse_client_hello(bd_bigdata_t *bigdata,
     uint16_t extensions_len;
     uint16_t extension;
     uint16_t extension_len;
+    uint8_t compression_methods_len;
     int i = 0;
 
     /* create the client */
@@ -650,19 +747,17 @@ static bd_tls_client *bd_tls_parse_client_hello(bd_bigdata_t *bigdata,
     /* get the clients tls version */
     client->version = ntohs(hdr->version);
 
+
     /* advance the payload pointer to the ciphers length */
     payload += sizeof(bd_tls_handshake_hdr) +
         hdr->session_id_len;
-
     /* get number of cipher suites listed. Listed in bytes
      * and each cipher is 2 bytes. */
     cipher_len = ntohs(*(uint16_t *)payload);
     num_ciphers = cipher_len / 2;
-
     /* advance the payload pointer to the ciphers.
      * skipping over the cipher length field. */
     payload += 2;
-
     /* copy over each ciper only if not grease */
     for (i = 0; i < num_ciphers; i++) {
         if (!bd_tls_ext_grease(ntohs(*(uint16_t *)payload))) {
@@ -672,16 +767,25 @@ static bd_tls_client *bd_tls_parse_client_hello(bd_bigdata_t *bigdata,
         payload += 2;
     }
 
-    /* should now be at the compression methods length.
-     * Jump over this and the length of compression methods. */
-    payload += 1 + (*(uint8_t *)payload);
+
+    /* should now be at the compression methods length */
+    compression_methods_len = *(uint8_t *)payload;
+    /* move to the first compression method */
+    payload += 1;
+    /* copy over each compression method */
+    for (i = 0; i < compression_methods_len; i++) {
+        client->compression_methods->push_back(
+            *(uint8_t *)payload);
+        /* move to the next compression method */
+        payload += 1;
+    }
+
+
 
     /* should now be at the extensions length */
     extensions_len = ntohs(*(uint16_t *)payload);
-
     /* move forward to the position of the first extension */
     payload += 2;
-
     /* loop over each client extension */
     for (i = 0; i < extensions_len; i++) {
 
@@ -710,14 +814,19 @@ static bd_tls_client *bd_tls_parse_client_hello(bd_bigdata_t *bigdata,
                 break;
             }
             case TLS_EXTENSION_SESSION_TICKET: {
+                bd_tls_parse_session_ticket_extension(payload,
+                    client);
                 break;
+            }
+            case TLS_EXTENSION_SUPPORTED_VERSIONS: {
+                bd_tls_parse_support_versions_extension(payload,
+                    client);
             }
             default: {
                 /* dont know this extension move to next */
                 break;
             }
         }
-
         /* reduce extensions length by the length of this
          * extension. */
         extensions_len -= (extension_len + 4);
@@ -918,6 +1027,44 @@ static void bd_tls_parse_ec_curves_extension(char *payload,
 
 }
 
+static void bd_tls_parse_session_ticket_extension(char *payload,
+    bd_tls_client *client) {
+
+    uint16_t len;
+
+    len = ntohs(*(uint16_t *)(payload+2));
+
+    /* move to the session ticket data */
+    payload += 4;
+
+    /* next len bytes contain the session tick data */
+
+}
+
+/* UNTESTED */
+static void bd_tls_parse_support_versions_extension(char *payload,
+    bd_tls_client *client) {
+
+    uint16_t len;
+    int num_versions;
+    int i;
+
+    len = ntohs(*(uint16_t *)(payload+2));
+    num_versions = *(uint8_t *)(payload+4) / 2;
+
+    /* jump to the first version */
+    payload += 5;
+    for(i = 0; i < num_versions; i++) {
+        /* push the version to the list */
+        client->extension_versions->push_back(*(uint16_t *)payload);
+
+//        fprintf(stderr, "supported versions %u\n", *(uint16_t *)payload);
+
+        /* move to the next version */
+        payload += 2;
+    }
+}
+
 static void bd_tls_parse_server_name_extension(char *payload,
     bd_tls_client *client) {
 
@@ -942,9 +1089,9 @@ static void bd_tls_parse_server_name_extension(char *payload,
         switch (*(uint8_t *)(payload+2)) {
             /* hostname */
             case 0x00: {
-                client->host_name = strndup((payload+5),
+                client->extension_sni = strndup((payload+5),
                     name_len);
-                if (client->host_name == NULL) {
+                if (client->extension_sni == NULL) {
                     logger(LOG_CRIT, "Unable to allocate memory. func. "
                         "bd_tls_parse_server_name_extension()");
                     exit(BD_OUTOFMEMORY);

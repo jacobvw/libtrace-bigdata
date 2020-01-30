@@ -9,14 +9,19 @@ typedef struct bigdata_tls_client {
 
     uint16_t version;
 
+    std::list<uint8_t> *compression_methods;
     /* codes need to calculate ja3 */
     std::list<uint16_t> *extensions;
     std::list<uint16_t> *ciphers;
     std::list<uint16_t> *ec_curves;
     std::list<uint16_t> *ec_points;
 
+    /* extension data */
+    std::list<uint16_t> *extension_versions;
+
     char *ja3_md5;
-    char *host_name;
+    /* sni hostname */
+    char *extension_sni;
 
 } bd_tls_client;
 
@@ -34,10 +39,10 @@ typedef struct bigdata_tls_server {
 
 typedef struct bigdata_tls_handshake {
 
-    uint16_t version;
-    char *version_protocol;
-    uint16_t cipher;
-    char *next_protocol;
+    /* if the tls handshake is complete */
+    bool tls_completed;
+    /* if this tls session has been resumed */
+    bool tls_resumed;
 
     bd_tls_client *client;
     bd_tls_server *server;
@@ -99,13 +104,29 @@ char *bd_tls_get_ja3s_md5(Flow *flow);
  */
 bd_tls_handshake *bd_tls_get_handshake(Flow *flow);
 
-/* Returns the hostname seen inside the the client tls hello message.
+/* Returns the sni hostname seen inside the client tls hello message.
+ * Note:/ TLS1.3 encrypts the sni so tls1.3 flows will return NULL.
  *
  * @params	flow - The flow.
  * @returns	pointer to the hostname seen inside the client hello. This memory
  *		is handled by the application core and should NOT be free'd by the user.
  *		NULL on error or unknown.
  */
-char *bd_tls_get_request_hostname(Flow *flow);
+char *bd_tls_get_client_extension_sni(Flow *flow);
+
+uint16_t bd_tls_get_server_hello_version(Flow *flow);
+
+uint16_t bd_tls_get_client_hello_version(Flow *flow);
+
+uint16_t bd_tls_get_server_selected_cipher(Flow *flow);
+
+uint8_t bd_tls_get_server_selected_compression(Flow *flow);
+
+uint16_t bd_tls_get_version(Flow *flow);
+
+std::list<uint16_t> *bd_tls_get_client_supported_ciphers(Flow *flow);
+
+std::list<uint8_t> *bd_tls_get_client_supported_compression(Flow *flow);
+
 
 #endif

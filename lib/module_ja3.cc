@@ -110,16 +110,16 @@ int module_ja3_result(bd_bigdata_t *bigdata, void *mls, bd_result_set *result) {
 
         if (result->results[i]->type == BD_TYPE_STRING) {
 
-            if (strcmp(result->results[i]->key, "ja3") == 0) {
+            if (strcmp(result->results[i]->key, "tls_ja3") == 0) {
 
                 ja3_md5 = result->results[i]->value.data_string;
                 it = storage->md5_map->find(ja3_md5);
 
                 if (it != storage->md5_map->end()) {
-                    bd_result_set_insert_string(result, "ja3_user_agent",
+                    bd_result_set_insert_string(result, "tls_ja3_user_agent",
                         it->second.c_str());
                 } else {
-                    bd_result_set_insert_string(result, "ja3_user_agent",
+                    bd_result_set_insert_string(result, "tls_ja3_user_agent",
                         "unknown");
                 }
             }

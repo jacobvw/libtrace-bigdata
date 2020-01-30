@@ -101,27 +101,6 @@ int module_flow_statistics_foreach_flow(Flow *flow, void *data) {
             bd_result_set_insert_uint(res, "in_bytes_total", flow_rec->in_bytes);
             bd_result_set_insert_uint(res, "out_bytes_total", flow_rec->out_bytes);
 
-            /* include tls info if this is an encrypted flow and export_tls is enabled */
-            if (f->c->export_tls && bd_tls_flow(flow)) {
-
-                char *ja3 = bd_tls_get_ja3_md5(flow);
-                char *ja3s = bd_tls_get_ja3s_md5(flow);
-                char *hostname = bd_tls_get_request_hostname(flow);
-
-                if (ja3 != NULL) {
-                    bd_result_set_insert_string(res, "ja3", ja3);
-                }
-
-                if (ja3s != NULL) {
-                    bd_result_set_insert_string(res, "ja3s", ja3s);
-                }
-
-                if (hostname != NULL) {
-                    bd_result_set_insert_string(res, "request_hostname",
-                        hostname);
-                }
-            }
-
             bd_result_set_insert_timestamp(res, f->tick);
 
             bd_result_set_publish(f->bigdata, res, 0);
@@ -204,8 +183,10 @@ int module_flow_statistics_protocol_updated(bd_bigdata_t *bigdata, void *mls, lp
     bd_flow_record_t *flow_rec;
     char ip_tmp[INET6_ADDRSTRLEN];
     struct timeval tv;
+    Flow *flow;
 
-    flow_rec = bd_flow_get_record(bigdata->flow);
+    flow = bigdata->flow;
+    flow_rec = bd_flow_get_record(flow);
 
     // if the new protocol or category is set to output
     if (config->protocol[newproto] ||
@@ -240,24 +221,41 @@ int module_flow_statistics_protocol_updated(bd_bigdata_t *bigdata, void *mls, lp
         bd_result_set_insert_uint(res, "out_bytes_total", flow_rec->out_bytes);
 
         /* include tls info if this is an encrypted flow and export_tls is enabled */
-        if (config->export_tls && bd_tls_flow(bigdata->flow)) {
+        if (config->export_tls && bd_tls_flow(flow)) {
 
-            char *ja3 = bd_tls_get_ja3_md5(bigdata->flow);
-            char *ja3s = bd_tls_get_ja3s_md5(bigdata->flow);
-            char *hostname = bd_tls_get_request_hostname(bigdata->flow);
+            char *ja3 = bd_tls_get_ja3_md5(flow);
+            char *ja3s = bd_tls_get_ja3s_md5(flow);
+            char *hostname = bd_tls_get_client_extension_sni(flow);
+            uint16_t client_version =
+                bd_tls_get_client_hello_version(flow);
+            uint16_t server_version =
+                bd_tls_get_server_hello_version(flow);
+            uint16_t tls_cipher =
+                bd_tls_get_server_selected_cipher(flow);
+            uint16_t tls_compression =
+                bd_tls_get_server_selected_compression(flow);
 
             if (ja3 != NULL) {
-                bd_result_set_insert_string(res, "ja3", ja3);
+                bd_result_set_insert_string(res, "tls_ja3", ja3);
             }
 
             if (ja3s != NULL) {
-                bd_result_set_insert_string(res, "ja3s", ja3s);
+                bd_result_set_insert_string(res, "tls_ja3s", ja3s);
             }
 
             if (hostname != NULL) {
-                bd_result_set_insert_string(res, "request_hostname",
+                bd_result_set_insert_string(res, "tls_sni_hostname",
                     hostname);
             }
+
+            bd_result_set_insert_int(res, "tls_client_version",
+                client_version);
+            bd_result_set_insert_int(res, "tls_server_version",
+                server_version);
+            bd_result_set_insert_int(res, "tls_cipher",
+                tls_cipher);
+            bd_result_set_insert_int(res, "tls_compression",
+                tls_compression);
         }
 
         // set the timestamp for the result
@@ -323,27 +321,6 @@ int module_flow_statistics_flowend(bd_bigdata_t *bigdata, void *mls, bd_flow_rec
         bd_result_set_insert_uint(res, "out_bytes", stats.out_bytes);
         bd_result_set_insert_uint(res, "in_bytes_total", flow_record->in_bytes);
         bd_result_set_insert_uint(res, "out_bytes_total", flow_record->out_bytes);
-
-        /* include tls info if this is an encrypted flow and export_tls is enabled */
-        if (config->export_tls && bd_tls_flow(bigdata->flow)) {
-
-            char *ja3 = bd_tls_get_ja3_md5(bigdata->flow);
-            char *ja3s = bd_tls_get_ja3s_md5(bigdata->flow);
-            char *hostname = bd_tls_get_request_hostname(bigdata->flow);
-
-            if (ja3 != NULL) {
-                bd_result_set_insert_string(res, "ja3", ja3);
-            }
-
-            if (ja3s != NULL) {
-                bd_result_set_insert_string(res, "ja3s", ja3s);
-            }
-
-            if (hostname != NULL) {
-                bd_result_set_insert_string(res, "request_hostname",
-                    hostname);
-            }
-        }
 
         /* Makes most sense to insert the timestamp from when the flow ended here??
            Because the packet received in this function is not for the current flow */
