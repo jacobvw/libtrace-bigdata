@@ -39,13 +39,19 @@ typedef struct bigdata_tls_server {
 
 typedef struct bigdata_tls_handshake {
 
-    /* if the tls handshake is complete */
-    bool tls_completed;
     /* if this tls session has been resumed */
     bool tls_resumed;
 
+    /* has a client hello been completed */
+    bool client_hello_complete;
     bd_tls_client *client;
+
+    /* has a server hello been completed */
+    bool server_hello_complete;
     bd_tls_server *server;
+
+    /* have we seen a server done tls message */
+    bool server_done;
 
 } bd_tls_handshake;
 
@@ -128,5 +134,8 @@ std::list<uint16_t> *bd_tls_get_client_supported_ciphers(Flow *flow);
 
 std::list<uint8_t> *bd_tls_get_client_supported_compression(Flow *flow);
 
+const char *bd_tls_cipher_to_string(uint16_t cipher);
+
+const char *bd_tls_version_to_string(uint16_t version);
 
 #endif

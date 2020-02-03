@@ -81,14 +81,54 @@
 #define TLS_EXTENSION_SUPPORTED_VERSIONS 43
 
 /* Cipher Suite codes */
+#define TLS_RSA_WITH_CAMELLIA_256_CBC_SHA 0x0084
+#define TLS_DH_DSS_WITH_CAMELLIA_256_CBC_SHA 0x0085
+#define TLS_DH_RSA_WITH_CAMELLIA_256_CBC_SHA 0x0086
+#define TLS_DHE_DSS_WITH_CAMELLIA_256_CBC_SHA 0x0087
+#define TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA 0x0088
+#define TLS_DH_ANON_WITH_CAMELLIA_256_CBC_SHA 0x0089
+#define TLS_PSK_WITH_RC4_128_SHA 0x008a
+#define TLS_PSK_WITH_3DES_EDE_CBC_SHA 0x008b
+#define TLS_PSK_WITH_AES_128_CBC_SHA 0x008c
+#define TLS_PSK_WITH_AES_256_CBC_SHA 0x008d
+#define TLS_DHE_PSK_WITH_RC4_128_SHA 0x008e
+#define TLS_DHE_PSK_WITH_3DES_EDE_CBC_SHA 0x008f
+#define TLS_DHE_PSK_WITH_AES_128_CBC_SHA 0x0090
+#define TLS_DHE_PSK_WITH_AES_256_CBC_SHA 0x0091
+#define TLS_RSA_PSK_WITH_RC4_128_SHA 0x0092
+#define TLS_RSA_PSK_WITH_3DES_EDE_CBC_SHA 0x0093
+#define TLS_RSA_PSK_WITH_AES_128_CBC_SHA 0x0094
+#define TLS_RSA_PSK_WITH_AES_256_CBC_SHA 0x0095
+#define TLS_RSA_WITH_SEED_CBC_SHA 0x0096
+#define TLS_DH_DSS_WITH_SEED_CBC_SHA 0x0097
+#define TLS_DH_RSA_WITH_SEED_CBC_SHA 0x0098
+#define TLS_DHE_DSS_WITH_SEED_CBC_SHA 0x0099
+#define TLS_DHE_RSA_WITH_SEED_CBC_SHA 0x009a
+#define TLS_DH_ANON_WITH_SEED_CBC_SHA 0x009b
+#define TLS_RSA_WITH_AES_128_GCM_SHA256 0x009c
+#define TLS_RSA_WITH_AES_256_GCM_SHA384 0x009d
+#define TLS_DHE_RSA_WITH_AES_128_GCM_SHA256 0x009e
+#define TLS_DHE_RSA_WITH_AES_256_GCM_SHA384 0x009f
+#define TLS_DH_RSA_WITH_AES_256_GCM_SHA384 0x00a1
+#define TLS_DHE_DSS_WITH_AES_128_GCM_SHA256 0x00a2
+#define TLS_DHE_DSS_WITH_AES_256_GCM_SHA384 0x00a3
+#define TLS_DH_DSS_WITH_AES_128_GCM_SHA256 0x00a4
+#define TLS_DH_DSS_WITH_AES_256_GCM_SHA384 0x00a5
+#define TLS_DH_ANON_WITH_AES_128_GCM_SHA256 0x00a6
+#define TLS_DH_ANON_WITH_AES_256_GCM_SHA384 0x00a7
+#define TLS_PSK_WITH_AES_128_GCM_SHA256 0x00a8
+#define TLS_PSK_WITH_AES_256_GCM_SHA384 0x00a9
+#define TLS_DHE_PSK_WITH_AES_128_GCM_SHA256 0x00aa
+#define TLS_DHE_PSK_WITH_AES_256_GCM_SHA384 0x00ab
+#define TLS_RSA_PSK_WITH_AES_128_GCM_SHA256 0x00ac
+#define TLS_RSA_PSK_WITH_AES_256_GCM_SHA384 0x00ad
+#define TLS_PSK_WITH_AES_128_CBC_SHA256 0x00ae
+#define TLS_PSK_WITH_AES_256_CBC_SHA384 0x00af
+
 #define TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 0xc02f
 #define TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256 0xc02b
 #define TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384 0xc030
 #define TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384 0xc02c
-#define TLS_DHE_RSA_WITH_AES_128_GCM_SHA256 0x009e
-#define TLS_DHE_DSS_WITH_AES_128_GCM_SHA256 0x00a2
-#define TLS_DHE_DSS_WITH_AES_256_GCM_SHA384 0x00a3
-#define TLS_DHE_RSA_WITH_AES_256_GCM_SHA384 0x009f
 #define TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256 0xc027
 #define TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256 0xc023
 #define TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA 0xc013
@@ -97,35 +137,29 @@
 #define TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384 0xc024
 #define TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA 0xc014
 #define TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA 0xc00a
+
 #define TLS_DHE_RSA_WITH_AES_128_CBC_SHA256 0x0067
 #define TLS_DHE_RSA_WITH_AES_128_CBC_SHA 0x0033
 #define TLS_DHE_DSS_WITH_AES_128_CBC_SHA256 0x0040
 #define TLS_DHE_RSA_WITH_AES_256_CBC_SHA256 0x006b
 #define TLS_DHE_DSS_WITH_AES_256_CBC_SHA 0x0038
 #define TLS_DHE_RSA_WITH_AES_256_CBC_SHA 0x0039
-#define TLS_RSA_WITH_AES_128_GCM_SHA256 0x009c
-#define TLS_RSA_WITH_AES_256_GCM_SHA384 0x009d
 #define TLS_RSA_WITH_AES_128_CBC_SHA256 0x003c
 #define TLS_RSA_WITH_AES_256_CBC_SHA256 0x003d
 #define TLS_RSA_WITH_AES_128_CBC_SHA 0x002f
 #define TLS_RSA_WITH_AES_256_CBC_SHA 0x0035
-#define TLS_DH_DSS_WITH_AES_256_GCM_SHA384 0x00a5
-#define TLS_DH_RSA_WITH_AES_256_GCM_SHA384 0x00a1
 #define TLS_DHE_DSS_WITH_AES_256_CBC_SHA256 0x006a
 #define TLS_DH_RSA_WITH_AES_256_CBC_SHA256 0x0069
 #define TLS_DH_DSS_WITH_AES_256_CBC_SHA256 0x0068
 #define TLS_DH_RSA_WITH_AES_256_CBC_SHA 0x0037
 #define TLS_DH_DSS_WITH_AES_256_CBC_SHA 0x0036
-#define TLS_DH_DSS_WITH_AES_128_GCM_SHA256 0x00a4
 #define TLS_DH_RSA_WITH_AES_128_GCM_SHA256 0x00a0
 #define TLS_DH_RSA_WITH_AES_128_CBC_SHA256 0x003f
 #define TLS_DH_DSS_WITH_AES_128_CBC_SHA256 0x003e
 #define TLS_DHE_DSS_WITH_AES_128_CBC_SHA 0x0032
 #define TLS_DH_RSA_WITH_AES_128_CBC_SHA 0x0031
 #define TLS_DH_DSS_WITH_AES_128_CBC_SHA 0x0030
-#define TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA 0x0088
-#define TLS_DHE_DSS_WITH_CAMELLIA_256_CBC_SHA 0x0087
-#define TLS_DH_RSA_WITH_CAMELLIA_256_CBC_SHA 0x0086
+
 #define TLS_DH_DSS_WITH_CAMELLIA_256_CBC_SHA 0x0085
 #define TLS_RSA_WITH_CAMELLIA_256_CBC_SHA 0x0084
 #define TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA 0x0045
@@ -217,6 +251,8 @@ static void bd_tls_parse_support_versions_extension(char *payload,
 static int bd_tls_generate_server_ja3_md5(bd_tls_server *server);
 static int bd_tls_generate_client_ja3_md5(bd_tls_client *client);
 
+static bool bd_tls_is_handshake_encrypted(char *payload);
+
 /* API functions */
 bd_tls_handshake *bd_tls_handshake_create() {
 
@@ -231,10 +267,10 @@ bd_tls_handshake *bd_tls_handshake_create() {
         exit(BD_OUTOFMEMORY);
     }
 
-    handshake->tls_completed = 0;
     handshake->tls_resumed = 0;
     handshake->client = NULL;
     handshake->server = NULL;
+    handshake->server_done = 0;
 
     return handshake;
 }
@@ -437,8 +473,9 @@ int bd_tls_update(bd_bigdata_t *bigdata, bd_tls_handshake *tls_handshake) {
     char *payload = NULL;
     uint8_t proto;
     uint16_t ethertype;
-    uint32_t remaining;
+    uint32_t remaining = 0;
     bd_tls_hdr *hdr;
+    bool entered = 0;
 
     layer3 = trace_get_layer3(bigdata->packet, &ethertype, &remaining);
     /* make sure layer3 was found. */
@@ -454,7 +491,7 @@ int bd_tls_update(bd_bigdata_t *bigdata, bd_tls_handshake *tls_handshake) {
         payload = (char *)trace_get_payload_from_ip6((libtrace_ip6_t *)layer3, &proto,
             &remaining);
     }
-    if (payload == NULL) {
+    if (payload == NULL || remaining == 0) {
         return 0;
     }
 
@@ -473,8 +510,98 @@ int bd_tls_update(bd_bigdata_t *bigdata, bd_tls_handshake *tls_handshake) {
         return 0;
     }
 
+    /* make sure packet is a supported tls version */
+    if (*(uint16_t *)(payload+1) != SSL_30 &&
+        *(uint16_t *)(payload+1) != TLS_10 &&
+        *(uint16_t *)(payload+1) != TLS_11 &&
+        *(uint16_t *)(payload+1) != TLS_12 &&
+        *(uint16_t *)(payload+1) != TLS_13) {
+
+        return 0;
+    }
+
     /* loop over each tls protocol in the packet */
     while (remaining > 0) {
+
+    /*if (payload[0] == TLS_PACKET_HANDSHAKE) {
+
+        fprintf(stderr, "remaining %u \n", remaining);
+        fprintf(stderr, "source port %u\n", trace_get_source_port(bigdata->packet));
+        fprintf(stderr, "dest port %u\n", trace_get_destination_port(bigdata->packet));
+        fprintf(stderr, "%02x %02x %02x %02x %02x %02x "
+            "%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x "
+            "%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x "
+            "%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x "
+            "%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x "
+            "%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\n",
+            payload[0] & 0xff,
+            payload[1] & 0xff,
+            payload[2] & 0xff,
+            payload[3] & 0xff,
+            payload[4] & 0xff,
+            payload[5] & 0xff,
+            payload[6] & 0xff,
+            payload[7] & 0xff,
+            payload[8] & 0xff,
+            payload[9] & 0xff,
+            payload[10] & 0xff,
+            payload[11] & 0xff,
+            payload[12] & 0xff,
+            payload[13] & 0xff,
+            payload[14] & 0xff,
+            payload[15] & 0xff,
+            payload[16] & 0xff,
+            payload[17] & 0xff,
+            payload[18] & 0xff,
+            payload[19] & 0xff,
+            payload[20] & 0xff,
+            payload[21] & 0xff,
+            payload[22] & 0xff,
+            payload[23] & 0xff,
+            payload[24] & 0xff,
+            payload[25] & 0xff,
+            payload[26] & 0xff,
+            payload[27] & 0xff,
+            payload[28] & 0xff,
+            payload[29] & 0xff,
+            payload[30] & 0xff,
+            payload[31] & 0xff,
+            payload[32] & 0xff,
+            payload[33] & 0xff,
+            payload[34] & 0xff,
+            payload[35] & 0xff,
+            payload[36] & 0xff,
+            payload[37] & 0xff,
+            payload[38] & 0xff,
+            payload[39] & 0xff,
+            payload[40] & 0xff,
+            payload[41] & 0xff,
+            payload[42] & 0xff,
+            payload[43] & 0xff,
+            payload[44] & 0xff,
+            payload[45] & 0xff,
+            payload[46] & 0xff,
+            payload[47] & 0xff,
+            payload[48] & 0xff,
+            payload[49] & 0xff,
+            payload[50] & 0xff,
+            payload[51] & 0xff,
+            payload[52] & 0xff,
+            payload[53] & 0xff,
+            payload[54] & 0xff,
+            payload[55] & 0xff,
+            payload[56] & 0xff,
+            payload[57] & 0xff,
+            payload[58] & 0xff,
+            payload[59] & 0xff,
+            payload[60] & 0xff,
+            payload[61] & 0xff,
+            payload[62] & 0xff,
+            payload[63] & 0xff,
+            payload[64] & 0xff,
+            payload[65] & 0xff);
+        entered = 1;
+    }*/
 
         hdr = (bd_tls_hdr *)payload;
 
@@ -523,7 +650,7 @@ int bd_tls_update(bd_bigdata_t *bigdata, bd_tls_handshake *tls_handshake) {
                          //fprintf(stderr, "got certificate request\n");
                          break;
                      case TLS_HANDSHAKE_SERVER_DONE:
-                         //fprintf(stderr, "got server done\n");
+                         tls_handshake->server_done = 1;
                          break;
                      case TLS_HANDSHAKE_CERTIFICATE_VERIFY:
                          //fprintf(stderr, "got certificate verify\n");
@@ -545,9 +672,6 @@ int bd_tls_update(bd_bigdata_t *bigdata, bd_tls_handshake *tls_handshake) {
             }
 
             case TLS_PACKET_APPLICATION_DATA: {
-                /* the tls handshake must be complete if we have
-                 * received application data. */
-                tls_handshake->tls_completed = 1;
                 break;
             }
 
@@ -568,6 +692,10 @@ int bd_tls_update(bd_bigdata_t *bigdata, bd_tls_handshake *tls_handshake) {
             remaining -= (ntohs(hdr->length) + sizeof(bd_tls_hdr));
             payload += (ntohs(hdr->length) + sizeof(bd_tls_hdr));
         }
+    }
+
+    if (entered) {
+        fprintf(stderr, "packet end\n\n");
     }
 
     return 0;
@@ -618,6 +746,11 @@ static bd_tls_server *bd_tls_parse_server_hello(bd_bigdata_t *bigdata,
     uint16_t extension_len;
     uint16_t extension;
     int i;
+
+    /* ensure this packet is not encrypted */
+    if (bd_tls_is_handshake_encrypted(payload)) {
+        return NULL;
+    }
 
     /* create the server */
     server = bd_tls_server_create();
@@ -734,6 +867,11 @@ static bd_tls_client *bd_tls_parse_client_hello(bd_bigdata_t *bigdata,
     uint16_t extension_len;
     uint8_t compression_methods_len;
     int i = 0;
+
+    /* ensure this packet is not encrypted */
+    if (bd_tls_is_handshake_encrypted(payload)) {
+        return NULL;
+    }
 
     /* create the client */
     client = bd_tls_client_create();
@@ -1102,5 +1240,212 @@ static void bd_tls_parse_server_name_extension(char *payload,
 
         payload += (list_len + 2);
         len -= (list_len + 2);
+    }
+}
+
+static bool bd_tls_is_handshake_encrypted(char *payload) {
+
+    /* if the tls version is one we are expecting its highly
+     * unlikely this handshake is encrypted */
+    if (*(uint16_t *)(payload+3) != SSL_30 &&
+        *(uint16_t *)(payload+3) != TLS_10 &&
+        *(uint16_t *)(payload+3) != TLS_11 &&
+        *(uint16_t *)(payload+3) != TLS_12 &&
+        *(uint16_t *)(payload+3) != TLS_13) {
+
+        return 1;
+    }
+
+    return 0;
+}
+
+const char *bd_tls_cipher_to_string(uint16_t cipher) {
+    switch (cipher) {
+        case TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256:
+            return "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256";
+        case TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256:
+            return "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256";
+        case TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:
+            return "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384";
+        case TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384:
+            return "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384";
+        case TLS_DHE_RSA_WITH_AES_128_GCM_SHA256:
+            return "TLS_DHE_RSA_WITH_AES_128_GCM_SHA256";
+        case TLS_DHE_DSS_WITH_AES_128_GCM_SHA256:
+            return "TLS_DHE_DSS_WITH_AES_128_GCM_SHA256";
+        case TLS_DHE_DSS_WITH_AES_256_GCM_SHA384:
+            return "TLS_DHE_DSS_WITH_AES_256_GCM_SHA384";
+        case TLS_DHE_RSA_WITH_AES_256_GCM_SHA384:
+            return "TLS_DHE_RSA_WITH_AES_256_GCM_SHA384";
+        case TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256:
+            return "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256";
+        case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256:
+            return "TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256";
+        case TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA:
+            return "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA";
+        case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA:
+            return "TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA";
+        case TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384:
+            return "TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384";
+        case TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384:
+            return "TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384";
+        case TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA:
+            return "TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA";
+        case TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA:
+            return "TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA";
+        case TLS_DHE_RSA_WITH_AES_128_CBC_SHA256:
+            return "TLS_DHE_RSA_WITH_AES_128_CBC_SHA256";
+        case TLS_DHE_RSA_WITH_AES_128_CBC_SHA:
+            return "TLS_DHE_RSA_WITH_AES_128_CBC_SHA";
+        case TLS_DHE_DSS_WITH_AES_128_CBC_SHA256:
+            return "TLS_DHE_DSS_WITH_AES_128_CBC_SHA256";
+        case TLS_DHE_RSA_WITH_AES_256_CBC_SHA256:
+            return "TLS_DHE_RSA_WITH_AES_256_CBC_SHA256";
+        case TLS_DHE_DSS_WITH_AES_256_CBC_SHA:
+            return "TLS_DHE_DSS_WITH_AES_256_CBC_SHA";
+        case TLS_DHE_RSA_WITH_AES_256_CBC_SHA:
+            return "TLS_DHE_RSA_WITH_AES_256_CBC_SHA";
+        case TLS_RSA_WITH_AES_128_GCM_SHA256:
+            return "TLS_RSA_WITH_AES_128_GCM_SHA256";
+        case TLS_RSA_WITH_AES_256_GCM_SHA384:
+            return "TLS_RSA_WITH_AES_256_GCM_SHA384";
+        case TLS_RSA_WITH_AES_128_CBC_SHA256:
+            return "TLS_RSA_WITH_AES_128_CBC_SHA256";
+        case TLS_RSA_WITH_AES_256_CBC_SHA256:
+            return "TLS_RSA_WITH_AES_256_CBC_SHA256";
+        case TLS_RSA_WITH_AES_128_CBC_SHA:
+            return "TLS_RSA_WITH_AES_128_CBC_SHA";
+        case TLS_RSA_WITH_AES_256_CBC_SHA:
+            return "TLS_RSA_WITH_AES_256_CBC_SHA";
+        case TLS_DH_DSS_WITH_AES_256_GCM_SHA384:
+            return "TLS_DH_DSS_WITH_AES_256_GCM_SHA384";
+        case TLS_DH_RSA_WITH_AES_256_GCM_SHA384:
+            return "TLS_DH_RSA_WITH_AES_256_GCM_SHA384";
+        case TLS_DHE_DSS_WITH_AES_256_CBC_SHA256:
+            return "TLS_DHE_DSS_WITH_AES_256_CBC_SHA256";
+        case TLS_DH_RSA_WITH_AES_256_CBC_SHA256:
+            return "TLS_DH_RSA_WITH_AES_256_CBC_SHA256";
+        case TLS_DH_DSS_WITH_AES_256_CBC_SHA256:
+            return "TLS_DH_DSS_WITH_AES_256_CBC_SHA256";
+        case TLS_DH_RSA_WITH_AES_256_CBC_SHA:
+            return "TLS_DH_RSA_WITH_AES_256_CBC_SHA";
+        case TLS_DH_DSS_WITH_AES_256_CBC_SHA:
+            return "TLS_DH_DSS_WITH_AES_256_CBC_SHA";
+        case TLS_DH_DSS_WITH_AES_128_GCM_SHA256:
+            return "TLS_DH_DSS_WITH_AES_128_GCM_SHA256";
+        case TLS_DH_RSA_WITH_AES_128_GCM_SHA256:
+            return "TLS_DH_RSA_WITH_AES_128_GCM_SHA256";
+        case TLS_DH_RSA_WITH_AES_128_CBC_SHA256:
+            return "TLS_DH_RSA_WITH_AES_128_CBC_SHA256";
+        case TLS_DH_DSS_WITH_AES_128_CBC_SHA256:
+            return "TLS_DH_DSS_WITH_AES_128_CBC_SHA256";
+        case TLS_DHE_DSS_WITH_AES_128_CBC_SHA:
+            return "TLS_DHE_DSS_WITH_AES_128_CBC_SHA";
+        case TLS_DH_RSA_WITH_AES_128_CBC_SHA:
+            return "TLS_DH_RSA_WITH_AES_128_CBC_SHA";
+        case TLS_DH_DSS_WITH_AES_128_CBC_SHA:
+            return "TLS_DH_DSS_WITH_AES_128_CBC_SHA";
+        case TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA:
+            return "TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA";
+        case TLS_DHE_DSS_WITH_CAMELLIA_256_CBC_SHA:
+            return "TLS_DHE_DSS_WITH_CAMELLIA_256_CBC_SHA";
+        case TLS_DH_RSA_WITH_CAMELLIA_256_CBC_SHA:
+            return "TLS_DH_RSA_WITH_CAMELLIA_256_CBC_SHA";
+        case TLS_DH_DSS_WITH_CAMELLIA_256_CBC_SHA:
+            return "TLS_DH_DSS_WITH_CAMELLIA_256_CBC_SHA";
+        case TLS_RSA_WITH_CAMELLIA_256_CBC_SHA:
+            return "TLS_RSA_WITH_CAMELLIA_256_CBC_SHA";
+        case TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA:
+            return "TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA";
+        case TLS_DHE_DSS_WITH_CAMELLIA_128_CBC_SHA:
+            return "TLS_DHE_DSS_WITH_CAMELLIA_128_CBC_SHA";
+        case TLS_DH_RSA_WITH_CAMELLIA_128_CBC_SHA:
+            return "TLS_DH_RSA_WITH_CAMELLIA_128_CBC_SHA";
+        case TLS_DH_DSS_WITH_CAMELLIA_128_CBC_SHA:
+            return "TLS_DH_DSS_WITH_CAMELLIA_128_CBC_SHA";
+        case TLS_RSA_WITH_CAMELLIA_128_CBC_SHA:
+            return "TLS_RSA_WITH_CAMELLIA_128_CBC_SHA";
+        case TLS_RSA_WITH_3DES_EDE_CBC_SHA:
+            return "TLS_RSA_WITH_3DES_EDE_CBC_SHA";
+        case TLS_EMPTY_RENEGOTIATION_INFO_SCSV:
+            return "TLS_EMPTY_RENEGOTIATION_INFO_SCSV";
+        case TLS_DH_ANON_WITH_CAMELLIA_256_CBC_SHA:
+            return "TLS_DH_ANON_WITH_CAMELLIA_256_CBC_SHA";
+        case TLS_PSK_WITH_RC4_128_SHA:
+            return "TLS_PSK_WITH_RC4_128_SHA";
+        case TLS_PSK_WITH_3DES_EDE_CBC_SHA:
+            return "TLS_PSK_WITH_3DES_EDE_CBC_SHA";
+        case TLS_PSK_WITH_AES_128_CBC_SHA:
+            return "TLS_PSK_WITH_AES_128_CBC_SHA";
+        case TLS_PSK_WITH_AES_256_CBC_SHA:
+            return "TLS_PSK_WITH_AES_256_CBC_SHA";
+        case TLS_DHE_PSK_WITH_RC4_128_SHA:
+            return "TLS_DHE_PSK_WITH_RC4_128_SHA";
+        case TLS_DHE_PSK_WITH_3DES_EDE_CBC_SHA:
+            return "TLS_DHE_PSK_WITH_3DES_EDE_CBC_SHA";
+        case TLS_DHE_PSK_WITH_AES_128_CBC_SHA:
+            return "TLS_DHE_PSK_WITH_AES_128_CBC_SHA";
+        case TLS_DHE_PSK_WITH_AES_256_CBC_SHA:
+            return "TLS_DHE_PSK_WITH_AES_256_CBC_SHA";
+        case TLS_RSA_PSK_WITH_RC4_128_SHA:
+            return "TLS_RSA_PSK_WITH_RC4_128_SHA";
+        case TLS_RSA_PSK_WITH_3DES_EDE_CBC_SHA:
+            return "TLS_RSA_PSK_WITH_3DES_EDE_CBC_SHA";
+        case TLS_RSA_PSK_WITH_AES_128_CBC_SHA:
+            return "TLS_RSA_PSK_WITH_AES_128_CBC_SHA";
+        case TLS_RSA_PSK_WITH_AES_256_CBC_SHA:
+            return "TLS_RSA_PSK_WITH_AES_256_CBC_SHA";
+        case TLS_RSA_WITH_SEED_CBC_SHA:
+            return "TLS_RSA_WITH_SEED_CBC_SHA";
+        case TLS_DH_DSS_WITH_SEED_CBC_SHA:
+            return "TLS_DH_DSS_WITH_SEED_CBC_SHA";
+        case TLS_DH_RSA_WITH_SEED_CBC_SHA:
+            return "TLS_DH_RSA_WITH_SEED_CBC_SHA";
+        case TLS_DHE_DSS_WITH_SEED_CBC_SHA:
+            return "TLS_DHE_DSS_WITH_SEED_CBC_SHA";
+        case TLS_DHE_RSA_WITH_SEED_CBC_SHA:
+            return "TLS_DHE_RSA_WITH_SEED_CBC_SHA";
+        case TLS_DH_ANON_WITH_SEED_CBC_SHA:
+            return "TLS_DH_ANON_WITH_SEED_CBC_SHA";
+        case TLS_DH_ANON_WITH_AES_128_GCM_SHA256:
+            return "TLS_DH_ANON_WITH_AES_128_GCM_SHA256";
+        case TLS_DH_ANON_WITH_AES_256_GCM_SHA384:
+            return "TLS_DH_ANON_WITH_AES_256_GCM_SHA384";
+        case TLS_PSK_WITH_AES_128_GCM_SHA256:
+            return "TLS_PSK_WITH_AES_128_GCM_SHA256";
+        case TLS_PSK_WITH_AES_256_GCM_SHA384:
+            return "TLS_PSK_WITH_AES_256_GCM_SHA384";
+        case TLS_DHE_PSK_WITH_AES_128_GCM_SHA256:
+            return "TLS_DHE_PSK_WITH_AES_128_GCM_SHA256";
+        case TLS_DHE_PSK_WITH_AES_256_GCM_SHA384:
+            return "TLS_DHE_PSK_WITH_AES_256_GCM_SHA384";
+        case TLS_RSA_PSK_WITH_AES_128_GCM_SHA256:
+            return "TLS_RSA_PSK_WITH_AES_128_GCM_SHA256";
+        case TLS_RSA_PSK_WITH_AES_256_GCM_SHA384:
+            return "TLS_RSA_PSK_WITH_AES_256_GCM_SHA384";
+        case TLS_PSK_WITH_AES_128_CBC_SHA256:
+            return "TLS_PSK_WITH_AES_128_CBC_SHA256";
+        case TLS_PSK_WITH_AES_256_CBC_SHA384:
+            return "TLS_PSK_WITH_AES_256_CBC_SHA384";
+        default:
+            return "UNKNOWN";
+    }
+}
+
+const char *bd_tls_version_to_string(uint16_t version) {
+
+    switch (version) {
+        case SSL_30:
+            return "SSL 3.0";
+        case TLS_10:
+            return "TLS 1.0";
+        case TLS_11:
+            return "TLS 1.1";
+        case TLS_12:
+            return "TLS 1.2";
+        case TLS_13:
+            return "TLS 1.3";
+        default:
+            return "unknown";
     }
 }
