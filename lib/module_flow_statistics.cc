@@ -234,6 +234,7 @@ int module_flow_statistics_protocol_updated(bd_bigdata_t *bigdata, void *mls, lp
                 bd_tls_get_server_selected_cipher(flow);
             uint16_t tls_compression =
                 bd_tls_get_server_selected_compression(flow);
+            uint16_t tls_version = bd_tls_get_version(flow);
 
             if (ja3 != NULL) {
                 bd_result_set_insert_string(res, "tls_ja3", ja3);
@@ -256,6 +257,12 @@ int module_flow_statistics_protocol_updated(bd_bigdata_t *bigdata, void *mls, lp
                 tls_cipher);
             bd_result_set_insert_int(res, "tls_compression",
                 tls_compression);
+            bd_result_set_insert_string(res, "tls_cipher_text",
+                bd_tls_cipher_to_string(tls_cipher));
+
+            bd_result_set_insert_int(res, "tls_version", tls_version);
+            bd_result_set_insert_string(res, "tls_version_text",
+                bd_tls_version_to_string(tls_version));
         }
 
         // set the timestamp for the result
