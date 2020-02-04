@@ -246,13 +246,13 @@ typedef struct bigdata_tls_header {
 } PACKED bd_tls_hdr;
 
 /* TLS handshake header */
-typedef struct bigdata_tls_handshake_header {
+typedef struct bigdata_tls_handshake_hello_header {
     uint8_t type;
     uint8_t length[3];
     uint16_t version;
     char random[32];
     uint8_t session_id_len;
-} PACKED bd_tls_handshake_hdr;
+} PACKED bd_tls_hndske_hlo_hdr;
 
 /* TLS extension header */
 typedef struct bigdata_tls_extension_header {
@@ -282,7 +282,8 @@ static void bd_tls_parse_session_ticket_extension(char *payload,
     bd_tls_client *client);
 static void bd_tls_parse_support_versions_extension(char *payload,
     std::list<uint16_t> *supported_versions);
-static void bd_tls_parse_x509_certificate(char *payload);
+static void bd_tls_parse_x509_certificate(char *payload, std::list<X509 *>
+    *certificates, uint32_t remaining);
 
 static int bd_tls_generate_server_ja3_md5(bd_tls_server *server);
 static int bd_tls_generate_client_ja3_md5(bd_tls_client *client);
@@ -508,7 +509,6 @@ uint16_t bd_tls_get_version(Flow *flow) {
     return handshake->server->version;
 }
 
-
 int bd_tls_update(bd_bigdata_t *bigdata, bd_tls_handshake *tls_handshake) {
 
     void *layer3;
@@ -585,11 +585,6 @@ int bd_tls_update(bd_bigdata_t *bigdata, bd_tls_handshake *tls_handshake) {
 
             case TLS_PACKET_HANDSHAKE: {
 
-                /* ensure this handshake message is not encrypted */
-                if (bd_tls_is_handshake_encrypted(payload+5)) {
-                    break;
-                }
-
                 /* what type of handshake is this message. */
                 switch ((payload+5)[0]) {
 
@@ -614,7 +609,13 @@ int bd_tls_update(bd_bigdata_t *bigdata, bd_tls_handshake *tls_handshake) {
                          break;
                      }
                      case TLS_HANDSHAKE_CERTIFICATE: {
-                         //bd_tls_parse_x509_certificate(payload+5);
+                         /* tls certificates in tls 1.3 are encrypted
+                          * so ignore them. */
+                         if (bd_tls_get_version(bigdata->flow) != TLS_13) {
+                             bd_tls_parse_x509_certificate(payload+5,
+                                 tls_handshake->server->certificates,
+                                 remaining-5);
+                         }
                          //fprintf(stderr, "got certificate\n");
                          break;
                      }
@@ -679,6 +680,8 @@ static bd_tls_server *bd_tls_server_create() {
     server->extensions = new std::list<uint16_t>;
     server->extension_version = 0;
 
+    server->certificates = new std::list<X509 *>;
+
     server->ja3_md5 = NULL;
 
     return server;
@@ -692,6 +695,14 @@ static void bd_tls_server_destroy(bd_tls_server *server) {
 
     delete(server->extensions);
 
+    std::list<X509 *>::iterator it;
+    for (it = server->certificates->begin();
+        it != server->certificates->end(); it++) {
+
+        X509_free(*it);
+    }
+    delete(server->certificates);
+
     if (server->ja3_md5 != NULL) {
         free(server->ja3_md5);
         server->ja3_md5 = NULL;
@@ -704,7 +715,7 @@ static bd_tls_server *bd_tls_parse_server_hello(bd_bigdata_t *bigdata,
     uint16_t remaining, char *payload) {
 
     bd_tls_server *server;
-    bd_tls_handshake_hdr *hdr;
+    bd_tls_hndske_hlo_hdr *hdr;
     bd_tls_ext_hdr *ext;
     uint16_t length;
     uint16_t extensions_len;
@@ -712,7 +723,12 @@ static bd_tls_server *bd_tls_parse_server_hello(bd_bigdata_t *bigdata,
     uint16_t extension;
     int i;
 
-    hdr = (bd_tls_handshake_hdr *)payload;
+    /* ensure this handshake message is not encrypted */
+    if (bd_tls_is_handshake_encrypted(payload)) {
+        return 0;
+    }
+
+    hdr = (bd_tls_hndske_hlo_hdr *)payload;
 
     /* calculate length of the hello message */
     length = hdr->length[0] << 16 | hdr->length[1] << 8 |
@@ -724,7 +740,7 @@ static bd_tls_server *bd_tls_parse_server_hello(bd_bigdata_t *bigdata,
     server->version = ntohs(hdr->version);
 
     /* move to the cipher */
-    payload += sizeof(bd_tls_handshake_hdr) +
+    payload += sizeof(bd_tls_hndske_hlo_hdr) +
         hdr->session_id_len;
 
     server->cipher = ntohs(*(uint16_t *)payload);
@@ -757,7 +773,7 @@ static bd_tls_server *bd_tls_parse_server_hello(bd_bigdata_t *bigdata,
         switch (extension) {
             case TLS_EXTENSION_SUPPORTED_VERSIONS:
                 server->extension_version =
-                    *(uint16_t *)(payload+4);
+                    ntohs(*(uint16_t *)(payload+4));
                 break;
         }
 
@@ -789,6 +805,8 @@ static bd_tls_client *bd_tls_client_create() {
 
     client->extension_versions = new std::list<uint16_t>;
 
+    client->certificates = new std::list<X509 *>;
+
     client->extension_sni = NULL;
     client->ja3_md5 = NULL;
 
@@ -809,6 +827,14 @@ static void bd_tls_client_destroy(bd_tls_client *client) {
 
     delete(client->extension_versions);
 
+    std::list<X509 *>::iterator it;
+    for (it = client->certificates->begin();
+        it != client->certificates->end(); it++) {
+
+        X509_free(*it);
+    }
+    delete(client->certificates);
+
     if (client->extension_sni != NULL) {
         free(client->extension_sni);
         client->extension_sni = NULL;
@@ -826,7 +852,7 @@ static bd_tls_client *bd_tls_parse_client_hello(bd_bigdata_t *bigdata,
     uint16_t remaining, char *payload) {
 
     bd_tls_client *client;
-    bd_tls_handshake_hdr *hdr;
+    bd_tls_hndske_hlo_hdr *hdr;
     uint32_t length;
     uint16_t num_ciphers;
     uint16_t cipher_len;
@@ -836,7 +862,12 @@ static bd_tls_client *bd_tls_parse_client_hello(bd_bigdata_t *bigdata,
     uint8_t compression_methods_len;
     int i = 0;
 
-    hdr = (bd_tls_handshake_hdr *)payload;
+    /* ensure this handshake message is not encrypted */
+    if (bd_tls_is_handshake_encrypted(payload)) {
+        return 0;
+    }
+
+    hdr = (bd_tls_hndske_hlo_hdr *)payload;
 
     /* calculate length of the hello message */
     length = hdr->length[0] << 16 | hdr->length[1] << 8 |
@@ -849,7 +880,7 @@ static bd_tls_client *bd_tls_parse_client_hello(bd_bigdata_t *bigdata,
     client->version = ntohs(hdr->version);
 
     /* advance the payload pointer to the ciphers length */
-    payload += sizeof(bd_tls_handshake_hdr) +
+    payload += sizeof(bd_tls_hndske_hlo_hdr) +
         hdr->session_id_len;
 
     /* get number of cipher suites listed. Listed in bytes
@@ -1167,57 +1198,64 @@ static void bd_tls_parse_support_versions_extension(char *payload,
     }
 }
 
-static void bd_tls_parse_x509_certificate(char *payload) {
+static void bd_tls_parse_x509_certificate(char *payload, std::list<X509 *>
+    *certificates, uint32_t remaining) {
 
     uint32_t len;
     uint32_t cert_len;
     uint32_t certs_len;
-    bd_tls_handshake_hdr *hdr;
     X509 *cert;
 
-    fprintf(stderr, "enter cert\n");
+    /* move to the length field */
+    payload += 1;
+    /* calculate length of the certificate message */
+    len = *(uint8_t *)(payload) << 16 | *(uint8_t *)(payload+1) << 8 |
+        *(uint8_t *)(payload+2);
 
-    fprintf(stderr, "got cert %02x %02x %02x %02x %02x %02x %02x %02x %02x\n",
-            payload[0] & 0xff, payload[1] & 0xff, payload[2] & 0xff,
-            payload[3] & 0xff, payload[4] & 0xff, payload[5] & 0xff,
-            payload[6] & 0xff, payload[6] & 0xff, payload[8] & 0xff);
-
-    hdr = (bd_tls_handshake_hdr *)payload;
-
-    /* calculate length of the hello message */
-    len = hdr->length[0] << 16 | hdr->length[1] << 8 |
-        hdr->length[2];
-
-    fprintf(stderr, "len %u \n", len);
+    /* sometimes we are getting large incorrect lengths. ignore these */
+    if (len > remaining) { return; }
 
     /* move to the certificates length */
-    payload += 4;
+    payload += 3;
+    /* get the total certificates length */
+    certs_len = *(uint8_t *)payload << 16 | *(uint8_t *)(payload+1) << 8 |
+        *(uint8_t *)(payload+2);
 
-    certs_len = payload[0] << 16 | payload[1] << 8 |
-        payload[2];
-
-    fprintf(stderr, "certs len %u\n", certs_len);
+    /* sometimes we are getting large incorrect lengths. ignore these */
+    if (certs_len > remaining) { return; }
 
     /* move to the first certificate */
     payload += 3;
 
     while (certs_len > 0) {
+        /* get the length of this certificate */
+        cert_len = *(uint8_t *)payload << 16 | *(uint8_t *)(payload+1) << 8 |
+            *(uint8_t *)(payload+2);
 
-        cert_len = payload[0] << 16 | payload[1] << 8 |
-            payload[2];
-
-       fprintf(stderr, "cert len %u\n", cert_len);
+        /* sometimes we are getting large incorrect lengths. ignore these */
+        if (cert_len > remaining) { return; }
 
         /* move to the certificate */
         payload += 3;
 
-//        cert = d2i_X509(NULL, (const unsigned char **)payload, cert_len);
+        /* if the certificate is successfully parsed insert it into the list.
+         * NOTE:/ d21_X509 advances payload past the certificate. */
+        if ((cert = d2i_X509(NULL, (const unsigned char **)&payload, cert_len))) {
 
-//        X509_free(cert);
+            char *subj = X509_NAME_oneline(X509_get_subject_name(cert), NULL, 0);
+            char *issuer = X509_NAME_oneline(X509_get_issuer_name(cert), NULL, 0);
+            int version = ((int) X509_get_version(cert)) + 1;
 
-        certs_len -= (cert_len - 3);
-        payload += (cert_len + 3);
+            fprintf(stderr, "subject %s\n issuer %s\n", subj, issuer);
 
+            OPENSSL_free(subj);
+            OPENSSL_free(issuer);
+
+            certificates->push_back(cert);
+        }
+
+        /* reduce size of remaining certificates */
+        certs_len -= (cert_len + 3);
     }
 
 }

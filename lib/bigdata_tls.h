@@ -3,6 +3,9 @@
 
 #include "bigdata.h"
 #include <list>
+#include <openssl/x509.h>
+#include <openssl/x509v3.h>
+#include <openssl/bio.h>
 
 /* structures used to describe a tls session */
 typedef struct bigdata_tls_client {
@@ -15,6 +18,8 @@ typedef struct bigdata_tls_client {
     std::list<uint16_t> *ciphers;
     std::list<uint16_t> *ec_curves;
     std::list<uint16_t> *ec_points;
+
+    std::list<X509 *> *certificates;
 
     /* extension data */
     std::list<uint16_t> *extension_versions;
@@ -32,6 +37,8 @@ typedef struct bigdata_tls_server {
     uint8_t compression_method;
 
     std::list<uint16_t> *extensions;
+    std::list<X509 *> *certificates;
+
     uint16_t extension_version;
 
     char *ja3_md5;
