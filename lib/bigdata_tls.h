@@ -32,6 +32,7 @@ typedef struct bigdata_tls_server {
     uint8_t compression_method;
 
     std::list<uint16_t> *extensions;
+    uint16_t extension_version;
 
     char *ja3_md5;
 

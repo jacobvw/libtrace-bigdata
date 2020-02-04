@@ -24,7 +24,7 @@ typedef struct bigdata_flow_record {
     lpi_module_t *lpi_module;
 
     /* SSL/TLS information for the flow */
-    bigdata_tls_handshake *tls_handshake;
+    bd_tls_handshake *tls_handshake;
 
 } bd_flow_record_t;
 
