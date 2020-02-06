@@ -128,22 +128,146 @@ bd_tls_handshake *bd_tls_get_handshake(Flow *flow);
  */
 char *bd_tls_get_client_extension_sni(Flow *flow);
 
+/* Get the server tls hello version for the flow.
+ *
+ * @params	flow - the flow to get the tls server hello version from.
+ * @returns	the server hello version on success.
+ *		0 on error or unknown.
+ */
 uint16_t bd_tls_get_server_hello_version(Flow *flow);
 
+/* Get the client tls hello version for the flow.
+ *
+ * @params	flow - the flow to get the the tls client hello version from.
+ * @returns	the client hello version on success.
+ *		0 on error or unknown.
+ */
 uint16_t bd_tls_get_client_hello_version(Flow *flow);
 
+/* Get the server selected tls cipher for the flow.
+ *
+ * @params	flow - the flow to get the server selected tls
+ *		tls cipher for.
+ * @returns	the server selected cipher on success.
+ *		0 on error or unknown.
+ */
 uint16_t bd_tls_get_server_selected_cipher(Flow *flow);
 
+/* Get the server selected tls version for the flow.
+ *
+ * @params	flow - the flow to get the server selected tls
+ *		version for.
+ * @returns	the server selected tls version on success.
+ *		0 on error or unknown.
+ */
 uint8_t bd_tls_get_server_selected_compression(Flow *flow);
 
+/* Get the decided tls version for the flow.
+ *
+ * @params	flow - the flow to get the tls version for.
+ * @returns	the tls version for the flow on success.
+ *		0 on error or unknown.
+ */
 uint16_t bd_tls_get_version(Flow *flow);
 
-std::list<uint16_t> *bd_tls_get_client_supported_ciphers(Flow *flow);
+/* Get the list of client supported ciphers for the flow.
+ *
+ * @params	flow - the flow to get the supported client ciphers
+ *		from.
+ * @returns	list of support client ciphers.
+ */
+const std::list<uint16_t> *bd_tls_get_client_supported_ciphers(Flow *flow);
 
-std::list<uint8_t> *bd_tls_get_client_supported_compression(Flow *flow);
+/* Get the list of client supported compress methods for the flow.
+ *
+ * @params	flow - the flow to get the supported client compression
+ *		algorithms from.
+ * @returns	list of supported client compression
+ *		algorithms.
+ */
+const std::list<uint8_t> *bd_tls_get_client_supported_compression(Flow *flow);
 
+/* Convert the tls cipher number to its string representation.
+ *
+ * @params	cipher - the tls cipher version.
+ * @returns	pointer to the ciphers string
+ *		representaition.
+ */
 const char *bd_tls_cipher_to_string(uint16_t cipher);
 
+/* Convert the tls version number to its string representation.
+ *
+ * @params	version - the tls version number.
+ * @returns	const char *pointer to the versions string
+ *		representation.
+ */
 const char *bd_tls_version_to_string(uint16_t version);
+
+/* Get the list of all the server certificates seen for this flow.
+ *
+ * @params      flow - the flow to get server certificates for.
+ * @returns     std::list<X509 *> list of pointers to each certificate.
+ */
+const std::list<X509 *> *bd_tls_get_x509_server_certificates(Flow *flow);
+
+/* Get the list of all the client certificates seen for this flow.
+ *
+ * @params	flow - the flow to get client certificates for.
+ * @returns	std::list<X509 *> list of pointers to each certificate.
+ */
+const std::list<X509 *> *bd_tls_get_x509_client_certificates(Flow *flow);
+
+/* Get the subject for the X509 certificate.
+ * Note: The subject must be free'd with bd_tls_free_x509_subject().
+ *
+ * @params	cert - the X509 certificate.
+ * @returns	char * containing the certificate subject.
+ */
+char *bd_tls_get_x509_subject(X509 *cert);
+
+/* Free the memory allocated by bd_tls_free_x509_subject.
+ *
+ * @params	subject - char *pointer to the subject.
+ */
+void bd_tls_free_x509_subject(char *subject);
+
+/* Get the issuer for the X509 certificate.
+ * Note: The issuer must be free'd with bd_tls_free_x509_issuer().
+ *
+ * @params	cert - the X509 certificate.
+ * @returns	char * containing the issuer.
+ */
+char *bd_tls_get_x509_issuer(X509 *cert);
+
+/* Free the memory allocated by bs_tls_get_x509_issuer.
+ *
+ * @params	issuer - char *pointer to the issuer.
+ */
+void bd_tls_free_x509_issuer(char *issuer);
+
+/* Get the version of the X509 certificate.
+ *
+ * @params	cert - the X509 certificate.
+ * @returns	version number on success.
+ *		-1 on error.
+ */
+int bd_tls_get_x509_version(X509 *cert);
+
+/* Get the serial number for the X509 certificate.
+ * Note: If NULL is supplied for space dynamic memory will be
+ * allocated and must be free'd with bd_tls_free_x509_serial().
+ *
+ * @params	cert - the X509 certificate.
+ *		space - allocated space for the result.
+ *		spacelen - the size of the allocated space.
+ * @returns	char * containing the certificates serial number.
+ */
+char *bd_tls_get_x509_serial(X509 *cert, char *space, int spacelen);
+
+/* Free the memory allocated by bd_tls_get_x509_serial().
+ *
+ * @params	serial - char *pointer to the serial number.
+ */
+void bd_tls_free_x509_serial(char *serial);
 
 #endif

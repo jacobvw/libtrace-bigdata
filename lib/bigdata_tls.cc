@@ -1,10 +1,15 @@
 #include "bigdata.h"
 #include "bigdata_tls.h"
 #include <list>
+
 #include <openssl/md5.h>
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
 #include <openssl/bio.h>
+#include <openssl/bn.h>
+#include <openssl/asn1.h>
+#include <openssl/x509_vfy.h>
+#include <openssl/pem.h>
 
 /* buffer sizes used to generate ja3 md5 */
 #define BD_TLS_JA3_LEN 10000
@@ -13,6 +18,8 @@
 #define BD_TLS_ECC_LEN 5000
 #define BD_TLS_ECP_LEN 5000
 #define BD_TLS_BUF_LEN 40
+
+#define X509_SERIAL_NUM_LEN 1000;
 
 /* TLS packet types */
 #define TLS_PACKET_CHANGE_CIPHER_SPEC 20
@@ -466,7 +473,7 @@ uint8_t bd_tls_get_server_selected_compression(Flow *flow) {
     }
     return handshake->server->compression_method;
 }
-std::list<uint16_t> *bd_tls_get_client_supported_ciphers(Flow *flow) {
+const std::list<uint16_t> *bd_tls_get_client_supported_ciphers(Flow *flow) {
 
     bd_tls_handshake *handshake = bd_tls_get_handshake(flow);
     if (handshake == NULL) {
@@ -477,7 +484,7 @@ std::list<uint16_t> *bd_tls_get_client_supported_ciphers(Flow *flow) {
     }
     return handshake->client->ciphers;
 }
-std::list<uint8_t> *bd_tls_get_client_supported_compression(Flow *flow) {
+const std::list<uint8_t> *bd_tls_get_client_supported_compression(Flow *flow) {
 
     bd_tls_handshake *handshake = bd_tls_get_handshake(flow);
     if (handshake == NULL) {
@@ -508,6 +515,114 @@ uint16_t bd_tls_get_version(Flow *flow) {
 
     return handshake->server->version;
 }
+
+/* X509 certificate API functions */
+const std::list<X509 *> *bd_tls_get_x509_server_certificates(Flow *flow) {
+    bd_tls_handshake *handshake = bd_tls_get_handshake(flow);
+    if (handshake == NULL) {
+        return NULL;
+    }
+    if (handshake->server == NULL) {
+        return NULL;
+    }
+    return handshake->server->certificates;
+}
+const std::list<X509 *> *bd_tls_get_x509_client_certificates(Flow *flow) {
+    bd_tls_handshake *handshake = bd_tls_get_handshake(flow);
+    if (handshake == NULL) {
+        return NULL;
+    }
+    if (handshake->client == NULL) {
+        return NULL;
+    }
+    return handshake->client->certificates;
+}
+char *bd_tls_get_x509_subject(X509 *cert) {
+    char *subject = X509_NAME_oneline(
+        X509_get_subject_name(cert), NULL, 0);
+
+    return subject;
+}
+void bd_tls_free_x509_subject(char *subject) {
+    OPENSSL_free(subject);
+}
+char *bd_tls_get_x509_issuer(X509 *cert) {
+    char *issuer = X509_NAME_oneline(
+        X509_get_issuer_name(cert), NULL, 0);
+
+    return issuer;
+}
+void bd_tls_free_x509_issuer(char *issuer) {
+    OPENSSL_free(issuer);
+}
+int bd_tls_get_x509_version(X509 *cert) {
+    if (cert == NULL) {
+        return -1;
+    }
+    /* the version is zero-indexed. hence + 1 */
+    return ((int) X509_get_version(cert)) + 1;
+}
+char *bd_tls_get_x509_serial(X509 *cert, char *space, int spacelen) {
+    ASN1_INTEGER *serial = X509_get_serialNumber(cert);
+
+    BIGNUM *bn = ASN1_INTEGER_to_BN(serial, NULL);
+    if (bn == NULL) {
+        return NULL;
+    }
+
+    char *tmp = BN_bn2dec(bn);
+    if (tmp == NULL) {
+        BN_free(bn);
+        return NULL;
+    }
+
+    if (space == NULL) {
+        spacelen = strlen(tmp);
+        space = (char *)malloc(spacelen);
+        if (space == NULL) {
+            logger(LOG_CRIT, "Unable to allocate memory. func. "
+                "bd_tls_get_x509_serial()");
+            exit(BD_OUTOFMEMORY);
+        }
+    }
+
+    strncpy(space, tmp, spacelen);
+
+    BN_free(bn);
+    OPENSSL_free(tmp);
+
+    return space;
+}
+void bd_tls_free_x509_serial(char *serial) {
+    free(serial);
+}
+/*char *bd_tls_get_x509_signature_algorithm(X509 *cert, char *space,
+    int spacelen) {
+
+    int pkey_nid = OBJ_obj2nid(cert->cert_info->key->algor->algorithm);
+    if (pkey_nid == NID_undef) {
+        return NULL;
+    }
+
+    const char *sslbuf = OBJ_nid2ln(pkey_nid);
+
+    if (space == NULL) {
+        spacelen = strlen(sslbuf);
+        space = (char *)malloc(spacelen);
+        if (space == NULL) {
+            logger(LOG_CRIT, "Unable to allocate memory. func. "
+                "bd_tls_get_x509_signature_algorithm()");
+            exit(BD_OUTOFMEMORY);
+        }
+    }
+
+    strncpy(space, sslbuf, spacelen);
+
+    return space;
+}
+void bd_tls_free_x509_signature_algorithm(char *sig_algor) {
+    free(sig_algor);
+}*/
 
 int bd_tls_update(bd_bigdata_t *bigdata, bd_tls_handshake *tls_handshake) {
 
@@ -616,7 +731,6 @@ int bd_tls_update(bd_bigdata_t *bigdata, bd_tls_handshake *tls_handshake) {
                                  tls_handshake->server->certificates,
                                  remaining-5);
                          }
-                         //fprintf(stderr, "got certificate\n");
                          break;
                      }
                      case TLS_HANDSHAKE_SERVER_KEY_EXCHANGE:
@@ -1242,14 +1356,14 @@ static void bd_tls_parse_x509_certificate(char *payload, std::list<X509 *>
          * NOTE:/ d21_X509 advances payload past the certificate. */
         if ((cert = d2i_X509(NULL, (const unsigned char **)&payload, cert_len))) {
 
-            char *subj = X509_NAME_oneline(X509_get_subject_name(cert), NULL, 0);
+            /*char *subj = X509_NAME_oneline(X509_get_subject_name(cert), NULL, 0);
             char *issuer = X509_NAME_oneline(X509_get_issuer_name(cert), NULL, 0);
             int version = ((int) X509_get_version(cert)) + 1;
 
             fprintf(stderr, "subject %s\n issuer %s\n", subj, issuer);
 
             OPENSSL_free(subj);
-            OPENSSL_free(issuer);
+            OPENSSL_free(issuer);*/
 
             certificates->push_back(cert);
         }
