@@ -588,12 +588,7 @@ std::list<const unsigned char *> *bd_tls_get_x509_common_names(X509 *cert) {
 
     }
 
-    if (cnames->size() == 0) {
-        delete(cnames);
-        return NULL;
-    } else {
-        return cnames;
-    }
+    return cnames;
 }
 void bd_tls_free_x509_common_names(std::list<const unsigned char *> *cnames) {
     if (cnames != NULL) {
