@@ -274,6 +274,8 @@ static void bd_tls_client_destroy(bd_tls_client *client);
 static bd_tls_server *bd_tls_server_create();
 static void bd_tls_server_destroy(bd_tls_server *server);
 
+static const unsigned char *bd_tls_get_subject_NID(X509 *cert, int nid);
+
 static bd_tls_client *bd_tls_parse_client_hello(bd_bigdata_t *bigdata,
     uint16_t remaining, char *payload);
 static bd_tls_server *bd_tls_parse_server_hello(bd_bigdata_t *bigdata,
@@ -546,12 +548,27 @@ char *bd_tls_get_x509_subject(X509 *cert) {
 void bd_tls_free_x509_subject(char *subject) {
     OPENSSL_free(subject);
 }
-const unsigned char *bd_tls_get_x509_country(X509 *cert) {
+const unsigned char *bd_tls_get_x509_country_name(X509 *cert) {
+    return bd_tls_get_subject_NID(cert, NID_countryName);
+}
+const unsigned char *bd_tls_get_x509_locality_name(X509 *cert) {
+    return bd_tls_get_subject_NID(cert, NID_localityName);
+}
+const unsigned char *bd_tls_get_x509_state_or_province_name(X509 *cert) {
+    return bd_tls_get_subject_NID(cert, NID_stateOrProvinceName);
+}
+const unsigned char *bd_tls_get_x509_organization_name(X509 *cert) {
+    return bd_tls_get_subject_NID(cert, NID_organizationName);
+}
+const unsigned char *bd_tls_get_x509_organization_unit_name(X509 *cert) {
+    return bd_tls_get_subject_NID(cert, NID_organizationalUnitName);
+}
+static const unsigned char *bd_tls_get_subject_NID(X509 *cert, int nid) {
     X509_NAME *nme = X509_get_subject_name(cert);
     int lastpos = -1;
     X509_NAME_ENTRY *e;
     for (;;) {
-        lastpos = X509_NAME_get_index_by_NID(nme, NID_countryName,
+        lastpos = X509_NAME_get_index_by_NID(nme, nid,
             lastpos);
         if (lastpos == -1) {
             break;
@@ -585,40 +602,6 @@ void bd_tls_free_x509_common_names(std::list<const unsigned char *> *cnames) {
     if (cnames != NULL) {
         delete(cnames);
     }
-}
-const unsigned char *bd_tls_get_x509_organization_name(X509 *cert) {
-    X509_NAME *nme = X509_get_subject_name(cert);
-    int lastpos = -1;
-    X509_NAME_ENTRY *e;
-    for (;;) {
-        lastpos = X509_NAME_get_index_by_NID(nme, NID_organizationName,
-            lastpos);
-        if (lastpos == -1) {
-            break;
-        }
-        e = X509_NAME_get_entry(nme, lastpos);
-
-        ASN1_STRING *d = X509_NAME_ENTRY_get_data(e);
-        return ASN1_STRING_get0_data(d);
-    }
-    return NULL;
-}
-const unsigned char *bd_tls_get_x509_organization_unit_name(X509 *cert) {
-    X509_NAME *nme = X509_get_subject_name(cert);
-
-    int lastpos = -1;
-    X509_NAME_ENTRY *e;
-    for (;;) {
-        lastpos = X509_NAME_get_index_by_NID(nme, NID_organizationalUnitName,
-            lastpos);
-        if (lastpos == -1) {
-            break;
-        }
-        e = X509_NAME_get_entry(nme, lastpos);
-        ASN1_STRING *d = X509_NAME_ENTRY_get_data(e);
-        return ASN1_STRING_get0_data(d);
-    }
-    return NULL;
 }
 char *bd_tls_get_x509_issuer(X509 *cert) {
     char *issuer = X509_NAME_oneline(
@@ -1429,15 +1412,6 @@ static void bd_tls_parse_x509_certificate(char *payload, std::list<X509 *>
         /* if the certificate is successfully parsed insert it into the list.
          * NOTE:/ d21_X509 advances payload past the certificate. */
         if ((cert = d2i_X509(NULL, (const unsigned char **)&payload, cert_len))) {
-
-            /*char *subj = X509_NAME_oneline(X509_get_subject_name(cert), NULL, 0);
-            char *issuer = X509_NAME_oneline(X509_get_issuer_name(cert), NULL, 0);
-            int version = ((int) X509_get_version(cert)) + 1;
-
-            fprintf(stderr, "subject %s\n issuer %s\n", subj, issuer);
-
-            OPENSSL_free(subj);
-            OPENSSL_free(issuer);*/
 
             certificates->push_back(cert);
         }

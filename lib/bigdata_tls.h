@@ -278,7 +278,7 @@ void bd_tls_free_x509_serial(char *serial);
  * @returns	country from the certificate on success.
  *		NULL on error.
  */
-const unsigned char *bd_tls_get_x509_country(X509 *cert);
+const unsigned char *bd_tls_get_x509_country_name(X509 *cert);
 
 /* Get the organization name within the subject for the X509 certificate.
  * Note: This is an internal structure and should NOT be free'd or
