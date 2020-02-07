@@ -548,7 +548,6 @@ void bd_tls_free_x509_subject(char *subject) {
 }
 const unsigned char *bd_tls_get_x509_country(X509 *cert) {
     X509_NAME *nme = X509_get_subject_name(cert);
-
     int lastpos = -1;
     X509_NAME_ENTRY *e;
     for (;;) {
@@ -558,19 +557,15 @@ const unsigned char *bd_tls_get_x509_country(X509 *cert) {
             break;
         }
         e = X509_NAME_get_entry(nme, lastpos);
-
         ASN1_STRING *d = X509_NAME_ENTRY_get_data(e);
-
         return ASN1_STRING_get0_data(d);
     }
-
     return NULL;
 }
 std::list<const unsigned char *> *bd_tls_get_x509_common_names(X509 *cert) {
     /* create list to store common names */
     std::list<const unsigned char *> *cnames =
         new std::list<const unsigned char *>;
-
     X509_NAME *nme = X509_get_subject_name(cert);
     int lastpos = -1;
     X509_NAME_ENTRY *e;
@@ -581,13 +576,9 @@ std::list<const unsigned char *> *bd_tls_get_x509_common_names(X509 *cert) {
             break;
         }
         e = X509_NAME_get_entry(nme, lastpos);
-
         ASN1_STRING *cname = X509_NAME_ENTRY_get_data(e);
-
         cnames->push_back(ASN1_STRING_get0_data(cname));
-
     }
-
     return cnames;
 }
 void bd_tls_free_x509_common_names(std::list<const unsigned char *> *cnames) {
@@ -597,7 +588,6 @@ void bd_tls_free_x509_common_names(std::list<const unsigned char *> *cnames) {
 }
 const unsigned char *bd_tls_get_x509_organization_name(X509 *cert) {
     X509_NAME *nme = X509_get_subject_name(cert);
-
     int lastpos = -1;
     X509_NAME_ENTRY *e;
     for (;;) {
@@ -609,10 +599,25 @@ const unsigned char *bd_tls_get_x509_organization_name(X509 *cert) {
         e = X509_NAME_get_entry(nme, lastpos);
 
         ASN1_STRING *d = X509_NAME_ENTRY_get_data(e);
-
         return ASN1_STRING_get0_data(d);
     }
+    return NULL;
+}
+const unsigned char *bd_tls_get_x509_organization_unit_name(X509 *cert) {
+    X509_NAME *nme = X509_get_subject_name(cert);
 
+    int lastpos = -1;
+    X509_NAME_ENTRY *e;
+    for (;;) {
+        lastpos = X509_NAME_get_index_by_NID(nme, NID_organizationalUnitName,
+            lastpos);
+        if (lastpos == -1) {
+            break;
+        }
+        e = X509_NAME_get_entry(nme, lastpos);
+        ASN1_STRING *d = X509_NAME_ENTRY_get_data(e);
+        return ASN1_STRING_get0_data(d);
+    }
     return NULL;
 }
 char *bd_tls_get_x509_issuer(X509 *cert) {

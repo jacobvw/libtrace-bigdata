@@ -290,6 +290,16 @@ const unsigned char *bd_tls_get_x509_country(X509 *cert);
  */
 const unsigned char *bd_tls_get_x509_organization_name(X509 *cert);
 
+/* Get the organization unit name within the subject for the X509 certificate.
+ * Note: This is a internal structure and should NOT be free'd or
+ * modified in any way.
+ *
+ * @params	cert - the x509 certificate.
+ * @returns	organization unit from the certificate on success.
+ *		NULL on error.
+ */
+const unsigned char *bd_tls_get_x509_organization_unit_name(X509 *cert);
+
 /* Get a list of common names within the subject for the X509 certificate.
  * Note: This is an internal structure and should NOT be free'd or
  * modified in any way. When finished pass the structure into
