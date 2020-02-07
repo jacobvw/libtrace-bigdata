@@ -546,6 +546,80 @@ char *bd_tls_get_x509_subject(X509 *cert) {
 void bd_tls_free_x509_subject(char *subject) {
     OPENSSL_free(subject);
 }
+const unsigned char *bd_tls_get_x509_country(X509 *cert) {
+    X509_NAME *nme = X509_get_subject_name(cert);
+
+    int lastpos = -1;
+    X509_NAME_ENTRY *e;
+    for (;;) {
+        lastpos = X509_NAME_get_index_by_NID(nme, NID_countryName,
+            lastpos);
+        if (lastpos == -1) {
+            break;
+        }
+        e = X509_NAME_get_entry(nme, lastpos);
+
+        ASN1_STRING *d = X509_NAME_ENTRY_get_data(e);
+
+        return ASN1_STRING_get0_data(d);
+    }
+
+    return NULL;
+}
+std::list<const unsigned char *> *bd_tls_get_x509_common_names(X509 *cert) {
+    /* create list to store common names */
+    std::list<const unsigned char *> *cnames =
+        new std::list<const unsigned char *>;
+
+    X509_NAME *nme = X509_get_subject_name(cert);
+    int lastpos = -1;
+    X509_NAME_ENTRY *e;
+    for (;;) {
+        lastpos = X509_NAME_get_index_by_NID(nme, NID_commonName,
+            lastpos);
+        if (lastpos == -1) {
+            break;
+        }
+        e = X509_NAME_get_entry(nme, lastpos);
+
+        ASN1_STRING *cname = X509_NAME_ENTRY_get_data(e);
+
+        cnames->push_back(ASN1_STRING_get0_data(cname));
+
+    }
+
+    if (cnames->size() == 0) {
+        delete(cnames);
+        return NULL;
+    } else {
+        return cnames;
+    }
+}
+void bd_tls_free_x509_common_names(std::list<const unsigned char *> *cnames) {
+    if (cnames != NULL) {
+        delete(cnames);
+    }
+}
+const unsigned char *bd_tls_get_x509_organization_name(X509 *cert) {
+    X509_NAME *nme = X509_get_subject_name(cert);
+
+    int lastpos = -1;
+    X509_NAME_ENTRY *e;
+    for (;;) {
+        lastpos = X509_NAME_get_index_by_NID(nme, NID_organizationName,
+            lastpos);
+        if (lastpos == -1) {
+            break;
+        }
+        e = X509_NAME_get_entry(nme, lastpos);
+
+        ASN1_STRING *d = X509_NAME_ENTRY_get_data(e);
+
+        return ASN1_STRING_get0_data(d);
+    }
+
+    return NULL;
+}
 char *bd_tls_get_x509_issuer(X509 *cert) {
     char *issuer = X509_NAME_oneline(
         X509_get_issuer_name(cert), NULL, 0);

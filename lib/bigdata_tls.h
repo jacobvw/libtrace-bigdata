@@ -270,4 +270,41 @@ char *bd_tls_get_x509_serial(X509 *cert, char *space, int spacelen);
  */
 void bd_tls_free_x509_serial(char *serial);
 
+/* Get the country within the subject for the X509 certificate.
+ * Note: This is an internal structure and should NOT be free'd or
+ * modified in any way.
+ *
+ * @params	cert - the x509 certificate.
+ * @returns	country from the certificate on success.
+ *		NULL on error.
+ */
+const unsigned char *bd_tls_get_x509_country(X509 *cert);
+
+/* Get the organization name within the subject for the X509 certificate.
+ * Note: This is an internal structure and should NOT be free'd or
+ * modified in any way.
+ *
+ * @params	cert - the x509 certificate.
+ * @returns	organization from the certificate on success.
+ *		NULL on error.
+ */
+const unsigned char *bd_tls_get_x509_organization_name(X509 *cert);
+
+/* Get a list of common names within the subject for the X509 certificate.
+ * Note: This is an internal structure and should NOT be free'd or
+ * modified in any way. When finished pass the structure into
+ * bd_tls_free_x509_common_names() for proper cleanup.
+ *
+ * @params	cert - the x509 certificate
+ * @returns	list of common names on success.
+ *		NULL on error.
+ */
+std::list<const unsigned char *> *bd_tls_get_x509_common_names(X509 *cert);
+
+/* Free the memory allocated by bd_tls_get_x509_common_names().
+ *
+ * @params	list of common names allocated by bd_tls_get_x509_common_names().
+ */
+void bd_tls_free_x509_common_names(std::list<const unsigned char *> *cnames);
+
 #endif
