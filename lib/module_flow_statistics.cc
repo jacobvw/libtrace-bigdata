@@ -1,5 +1,6 @@
 #include "module_flow_statistics.h"
 #include <map>
+#include <list>
 
 /* configuration structure for the plugin */
 struct module_flow_statistics_config {
@@ -263,6 +264,46 @@ int module_flow_statistics_protocol_updated(bd_bigdata_t *bigdata, void *mls, lp
             bd_result_set_insert_int(res, "tls_version", tls_version);
             bd_result_set_insert_string(res, "tls_version_text",
                 bd_tls_version_to_string(tls_version));
+
+            /* iterate over any server certificates */
+            int i = 0;
+            const std::list<X509 *> *server_certs =
+                bd_tls_get_x509_server_certificates(flow);
+            if (server_certs != NULL) {
+                std::list<X509 *>::const_iterator it;
+                for (it = server_certs->begin(); it !=
+                    server_certs->end(); it++) {
+
+                    /* pull the common names from the certificate */
+                    std::list<const unsigned char *> *cnames =
+                        bd_tls_get_x509_common_names(*it);
+                    if (cnames != NULL) {
+                        std::list<const unsigned char *>::iterator it_cnames;
+                        for (it_cnames = cnames->begin(); it_cnames !=
+                            cnames->end(); it_cnames++) {
+
+                            fprintf(stderr, "common names: %s\n", *it_cnames);
+                            bd_result_set_insert_string(res, "tls_common_name",
+                                (char *)*it_cnames);
+                        }
+                    }
+                    bd_tls_free_x509_common_names(cnames);
+
+                    /* pull the organization name from the certificate */
+                    const unsigned char *org = bd_tls_get_x509_organization_name(*it);
+                    if (org != NULL) {
+                        fprintf(stderr, "organization: %s\n", org);
+                        bd_result_set_insert_string(res, "tls_organization", (char *)org);
+                    }
+
+                    /* pull the country from the certificate */
+                    const unsigned char *cc = bd_tls_get_x509_country_name(*it);
+                    if (cc != NULL) {
+                        fprintf(stderr, "country: %s\n", cc);
+                        bd_result_set_insert_string(res, "tls_country", (char *)cc);
+                    }
+                }
+            }
         }
 
         // set the timestamp for the result

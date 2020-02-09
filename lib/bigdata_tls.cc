@@ -784,10 +784,27 @@ int bd_tls_update(bd_bigdata_t *bigdata, bd_tls_handshake *tls_handshake) {
                          /* tls certificates in tls 1.3 are encrypted
                           * so ignore them. */
                          if (bd_tls_get_version(bigdata->flow) != TLS_13) {
-                             bd_tls_parse_x509_certificate(payload+5,
-                                 tls_handshake->server->certificates,
-                                 remaining-5);
+
+                             /* if we have not received the hello from
+                              * the server this certificate must be a client
+                              * certificate? */
+                             if (tls_handshake->server == NULL &&
+                                 tls_handshake->client != NULL) {
+
+                                 bd_tls_parse_x509_certificate(payload+5,
+                                     tls_handshake->client->certificates,
+                                     remaining-5);
+                                 break;
+                             }
+
+                             if (tls_handshake->server != NULL) {
+                                 bd_tls_parse_x509_certificate(payload+5,
+                                     tls_handshake->server->certificates,
+                                     remaining-5);
+                                 break;
+                             }
                          }
+
                          break;
                      }
                      case TLS_HANDSHAKE_SERVER_KEY_EXCHANGE:
