@@ -800,6 +800,7 @@ std::string bd_result_set_to_json_string(bd_result_set_t *result) {
             case BD_TYPE_RESULT_SET:
                 json_string += bd_result_set_to_json_string(
                     result->results[i]->value.data_result_set);
+                break;
             case BD_TYPE_RESULT_SET_ARRAY:
                 json_string += "[";
                 for (int j = 0; j < result->results[i]->num_values; j++) {
@@ -810,6 +811,7 @@ std::string bd_result_set_to_json_string(bd_result_set_t *result) {
                     }
                 }
                 json_string += "]";
+                break;
             default:
                 break;
         }
