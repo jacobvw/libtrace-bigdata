@@ -525,13 +525,14 @@ static std::string module_influxdb_result_to_query_fields(bd_result_set *result,
                         prefix.c_str(), result->results[i]->key, j);
                     influx_line += buf;
                     influx_line += "=\"";
-                    if (strstr(result->results[i]->value.data_string, "\"")) {
-                        char *w = bd_replaceWord(result->results[i]->value.data_string,
+                    if (strstr(result->results[i]->value.data_string_array[j], "\"")) {
+                        char *w = bd_replaceWord(
+                            result->results[i]->value.data_string_array[j],
                             "\"", "\\\"");
                         influx_line += w;
                         free(w);
                     } else {
-                        influx_line += result->results[i]->value.data_string;
+                        influx_line += result->results[i]->value.data_string_array[j];
                     }
                     influx_line += "\"";
                     if (j+1 != result->results[i]->num_values) {
