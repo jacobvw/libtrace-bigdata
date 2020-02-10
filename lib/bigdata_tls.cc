@@ -1463,12 +1463,15 @@ static void bd_tls_parse_server_name_extension(char *payload,
         switch (*(uint8_t *)(payload+2)) {
             /* hostname */
             case 0x00: {
-                client->extension_sni = strndup((payload+5),
-                    name_len);
-                if (client->extension_sni == NULL) {
-                    logger(LOG_CRIT, "Unable to allocate memory. func. "
-                        "bd_tls_parse_server_name_extension()");
-                    exit(BD_OUTOFMEMORY);
+                if (client->extension_sni != NULL) {
+                    client->extension_sni = strndup((payload+5),
+                        name_len);
+
+                    if (client->extension_sni == NULL) {
+                        logger(LOG_CRIT, "Unable to allocate memory. func. "
+                            "bd_tls_parse_server_name_extension()");
+                        exit(BD_OUTOFMEMORY);
+                    }
                 }
                 break;
             }
