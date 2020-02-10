@@ -288,6 +288,14 @@ int bd_result_set_insert_ip_string(bd_result_set_t *result_set, char const *key,
 int bd_result_set_insert_ip_string_array(bd_result_set_t *result_set, char const *key,
     int num_args, ...);
 
+/* Inserts a result set into a parent result set.
+ *
+ * @params	result_set - the parent result set.
+ *		key - the key for the nested result set.
+ *		value - the result set to nest within the parent result set.
+ * @returns	0 on success.
+ *		-1 on error.
+ */
 int bd_result_set_insert_result_set(bd_result_set_t *result_set, char const *key,
     bd_result_set_t *value);
 
