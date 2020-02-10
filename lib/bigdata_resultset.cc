@@ -23,13 +23,10 @@ bd_result_set_t *bd_result_set_create(bd_bigdata_t *bigdata, const char *mod) {
     res->timestamp = 0;
     res->free_lock = 0;
 
-    // insert the capture host into the result set
-    bd_result_set_insert_tag(res, "capture_host", bigdata->global->config->hostname);
-
     return res;
 }
-int bd_result_set_insert(bd_result_set_t *result_set, char const *key, bd_record_type dtype,
-    bd_record_value value) {
+static int bd_result_set_insert(bd_result_set_t *result_set, char const *key, bd_record_type dtype,
+    bd_record_value value, int num_values) {
 
     bd_result_t *newresult;
 
@@ -59,11 +56,13 @@ int bd_result_set_insert(bd_result_set_t *result_set, char const *key, bd_record
     /* populate the new result */
     newresult->key = strdup(key);
     if (newresult->key == NULL) {
-        logger(LOG_CRIT, "Unable to allocate memory. func. bd_result_set_insert()\n");
+        logger(LOG_CRIT, "Unable to allocate memory. func. bd_result_set_insert()");
         exit(BD_OUTOFMEMORY);
     }
     newresult->type = dtype;
     newresult->value = value;
+    /* insert the number of values. only applies to array types */
+    newresult->num_values = num_values;
 
     /* link the new result to the array of results */
     result_set->results[result_set->num_results] = newresult;
@@ -84,11 +83,42 @@ int bd_result_set_insert_string(bd_result_set_t *result_set, char const *key,
     union bd_record_value val;
     val.data_string = strdup(value);
     if (val.data_string == NULL) {
-        logger(LOG_CRIT, "Unable to allocate memory. func. bd_result_set_insert_string()\n");
+        logger(LOG_CRIT, "Unable to allocate memory. func. bd_result_set_insert_string()");
         exit(BD_OUTOFMEMORY);
     }
 
-    bd_result_set_insert(result_set, key, BD_TYPE_STRING, val);
+    bd_result_set_insert(result_set, key, BD_TYPE_STRING, val, 0);
+
+    return 0;
+}
+int bd_result_set_insert_string_array(bd_result_set_t *result_set, char const *key,
+    int num_args, ...) {
+
+    va_list ap;
+    int i;
+
+    /* create array of pointers for each string */
+    char **strings = (char **)malloc(sizeof(char *)*num_args);
+    if (strings == NULL) {
+        logger(LOG_CRIT, "Unable to allocate memory. func. bd_result_set_insert_string"
+            "array()");
+        exit(BD_OUTOFMEMORY);
+    }
+
+    va_start(ap, num_args);
+    for (i = 0; i < num_args; i++) {
+        strings[i] = strdup(va_arg(ap, const char *));
+        if (strings[i] == NULL) {
+            logger(LOG_CRIT, "Unable to allocate memory. func. bd_result_set"
+                "insert_string_arraty()");
+            exit(BD_OUTOFMEMORY);
+        }
+    }
+
+    union bd_record_value val;
+    val.data_string_array = strings;
+
+    bd_result_set_insert(result_set, key, BD_TYPE_STRING_ARRAY, val, num_args);
 
     return 0;
 }
@@ -97,7 +127,34 @@ int bd_result_set_insert_float(bd_result_set_t *result_set, char const *key,
 
     union bd_record_value val;
     val.data_float = value;
-    bd_result_set_insert(result_set, key, BD_TYPE_FLOAT, val);
+    bd_result_set_insert(result_set, key, BD_TYPE_FLOAT, val, 0);
+
+    return 0;
+}
+int bd_result_set_insert_float_array(bd_result_set_t *result_set, char const *key,
+    int num_args, ...) {
+
+    va_list ap;
+    int i;
+
+    /* create array of floats */
+    float *floats = (float *)malloc(sizeof(float)*num_args);
+    if (floats == NULL) {
+        logger(LOG_CRIT, "Unable to allocate memory. func. bd_result_set"
+            "insert_float_array()");
+        exit(BD_OUTOFMEMORY);
+    }
+
+    va_start(ap, num_args);
+    for (i = 0; i < num_args; i++) {
+        /* note: floats are promoted to doubles for va_arg. */
+        floats[i] = va_arg(ap, double);
+    }
+
+    union bd_record_value val;
+    val.data_float_array = floats;
+
+    bd_result_set_insert(result_set, key, BD_TYPE_FLOAT_ARRAY, val, num_args);
 
     return 0;
 }
@@ -106,7 +163,33 @@ int bd_result_set_insert_double(bd_result_set_t *result_set, char const *key,
 
     union bd_record_value val;
     val.data_double = value;
-    bd_result_set_insert(result_set, key, BD_TYPE_DOUBLE, val);
+    bd_result_set_insert(result_set, key, BD_TYPE_DOUBLE, val, 0);
+
+    return 0;
+}
+int bd_result_set_insert_double_array(bd_result_set_t *result_set, char const *key,
+    int num_args, ...) {
+
+    va_list ap;
+    int i;
+
+    /* create space to hold double array */
+    double *doubles = (double *)malloc(sizeof(double)*num_args);
+    if (doubles == NULL) {
+        logger(LOG_CRIT, "Unable to allocate memory. func. bd_result_set"
+            "insert_double_array()");
+        exit(BD_OUTOFMEMORY);
+    }
+
+    va_start(ap, num_args);
+    for (i = 0; i < num_args; i++) {
+        doubles[i] = va_arg(ap, double);
+    }
+
+    union bd_record_value val;
+    val.data_double_array = doubles;
+
+    bd_result_set_insert(result_set, key, BD_TYPE_DOUBLE_ARRAY, val, num_args);
 
     return 0;
 }
@@ -115,7 +198,32 @@ int bd_result_set_insert_int(bd_result_set_t *result_set, char const *key,
 
     union bd_record_value val;
     val.data_int = value;
-    bd_result_set_insert(result_set, key, BD_TYPE_INT, val);
+    bd_result_set_insert(result_set, key, BD_TYPE_INT, val, 0);
+
+    return 0;
+}
+int bd_result_set_insert_int_array(bd_result_set_t *result_set, char const *key,
+    int num_args, ...) {
+
+    va_list ap;
+    int i;
+
+    int64_t *ints = (int64_t *)malloc(sizeof(int64_t)*num_args);
+    if (ints == NULL) {
+        logger(LOG_CRIT, "Unable to allocate memory. func. bd_result_set_insert"
+            "int_array()");
+        exit(BD_OUTOFMEMORY);
+    }
+
+    va_start(ap, num_args);
+    for (i = 0; i < num_args; i++) {
+        ints[i] = va_arg(ap, int64_t);
+    }
+
+    union bd_record_value val;
+    val.data_int_array = ints;
+
+    bd_result_set_insert(result_set, key, BD_TYPE_INT_ARRAY, val, num_args);
 
     return 0;
 }
@@ -124,7 +232,32 @@ int bd_result_set_insert_uint(bd_result_set_t *result_set, char const *key,
 
     union bd_record_value val;
     val.data_uint = value;
-    bd_result_set_insert(result_set, key, BD_TYPE_UINT, val);
+    bd_result_set_insert(result_set, key, BD_TYPE_UINT, val, 0);
+
+    return 0;
+}
+int bd_result_set_insert_uint_array(bd_result_set_t *result_set, char const *key,
+    int num_args, ...) {
+
+    va_list ap;
+    int i;
+
+    uint64_t *uints = (uint64_t *)malloc(sizeof(uint64_t)*num_args);
+    if (uints == NULL) {
+        logger(LOG_CRIT, "Unable to allocate memory. func. bd_result_set_insert"
+            "uint_array()");
+        exit(BD_OUTOFMEMORY);
+    }
+
+    va_start(ap, num_args);
+    for (i = 0; i < num_args; i++) {
+        uints[i] = va_arg(ap, uint64_t);
+    }
+
+    union bd_record_value val;
+    val.data_uint_array = uints;
+
+    bd_result_set_insert(result_set, key, BD_TYPE_UINT_ARRAY, val, num_args);
 
     return 0;
 }
@@ -133,7 +266,7 @@ int bd_result_set_insert_bool(bd_result_set_t *result_set, char const *key,
 
     union bd_record_value val;
     val.data_bool = value;
-    bd_result_set_insert(result_set, key, BD_TYPE_BOOL, val);
+    bd_result_set_insert(result_set, key, BD_TYPE_BOOL, val, 0);
 
     return 0;
 }
@@ -150,7 +283,7 @@ int bd_result_set_insert_tag(bd_result_set_t *result_set, char const *tag,
         logger(LOG_CRIT, "Unable to allocate memory. func. bd_result_set_insert_string()\n");
         exit(BD_OUTOFMEMORY);
     }
-    bd_result_set_insert(result_set, tag, BD_TYPE_TAG, val);
+    bd_result_set_insert(result_set, tag, BD_TYPE_TAG, val, 0);
 
     return 0;
 }
@@ -163,10 +296,56 @@ int bd_result_set_insert_ip_string(bd_result_set_t *result_set, char const *key,
         logger(LOG_CRIT, "Unable to allocate memory. func. bd_result_set_insert_ip_string()\n");
         exit(BD_OUTOFMEMORY);
     }
-    bd_result_set_insert(result_set, key, BD_TYPE_IP_STRING, val);
+    bd_result_set_insert(result_set, key, BD_TYPE_IP_STRING, val, 0);
 
     return 0;
 }
+int bd_result_set_insert_ip_string_array(bd_result_set_t *result_set, char const *key,
+    int num_args, ...) {
+
+    va_list ap;
+    int i;
+
+    /* create array of pointers for each string */
+    char **strings = (char **)malloc(sizeof(char *)*num_args);
+    if (strings == NULL) {
+        logger(LOG_CRIT, "Unable to allocate memory. func. bd_result_set_insert_string"
+            "array()");
+        exit(BD_OUTOFMEMORY);
+    }
+
+    va_start(ap, num_args);
+    for (i = 0; i < num_args; i++) {
+        strings[i] = strdup(va_arg(ap, const char *));
+        if (strings[i] == NULL) {
+            logger(LOG_CRIT, "Unable to allocate memory. func. bd_result_set"
+                "insert_string_arraty()");
+            exit(BD_OUTOFMEMORY);
+        }
+    }
+
+    union bd_record_value val;
+    val.data_string_array = strings;
+
+    bd_result_set_insert(result_set, key, BD_TYPE_IP_STRING_ARRAY, val, num_args);
+
+    return 0;
+}
+int bd_result_set_insert_result_set(bd_result_set_t *result_set, char const *key,
+    bd_result_set_t *value) {
+
+    if (result_set == NULL || value == NULL) {
+        return -1;
+    }
+
+    union bd_record_value val;
+    val.data_result_set = value;
+
+    bd_result_set_insert(result_set, key, BD_TYPE_RESULT_SET, val, 0);
+
+    return 0;
+}
+
 int bd_result_set_lock(bd_result_set_t *result_set) {
     result_set->free_lock += 1;
 
@@ -266,7 +445,7 @@ int bd_result_combine(bd_bigdata_t *bigdata, void *result, uint64_t key, int mod
 
 int bd_result_set_free(bd_result_set_t *result_set) {
 
-    int i;
+    int i, j;
 
     /* result set already cleared */
     if (result_set == NULL) {
@@ -282,17 +461,46 @@ int bd_result_set_free(bd_result_set_t *result_set) {
         // iterate over each clearing any strings
         for (i = 0; i < result_set->num_results; i++) {
 
-            /* free the value */
+            /* if this is a nested result set recursively call this
+             * function. */
+            if (result_set->results[i]->type == BD_TYPE_RESULT_SET) {
+                bd_result_set_free(result_set->results[i]->value.data_result_set);
+            }
+
+            /* if a string type array we first need to free each element
+             * within the array. */
+            if (result_set->results[i]->type == BD_TYPE_STRING_ARRAY ||
+                result_set->results[i]->type == BD_TYPE_IP_STRING_ARRAY) {
+
+                /* loop over each element */
+                for (j = 0; j < result_set->results[i]->num_values; j++) {
+                    /* free each element */
+                    if (result_set->results[i]->value.data_string_array[j] != NULL) {
+                        free(result_set->results[i]->value.data_string_array[j]);
+                        result_set->results[i]->value.data_string_array[j] == NULL;
+                    }
+                }
+            }
+
+            /* for string type arrays the array of pointers now needs to be free'd.
+             * for other array types the array of values needs to be free'd
+             * for normal string/tag types the single item needs be to free'd */
             if (result_set->results[i]->type == BD_TYPE_STRING ||
+                result_set->results[i]->type == BD_TYPE_STRING_ARRAY ||
                 result_set->results[i]->type == BD_TYPE_TAG ||
-                result_set->results[i]->type == BD_TYPE_IP_STRING) {
+                result_set->results[i]->type == BD_TYPE_IP_STRING ||
+                result_set->results[i]->type == BD_TYPE_IP_STRING_ARRAY ||
+                result_set->results[i]->type == BD_TYPE_FLOAT_ARRAY ||
+                result_set->results[i]->type == BD_TYPE_DOUBLE_ARRAY ||
+                result_set->results[i]->type == BD_TYPE_INT_ARRAY ||
+                result_set->results[i]->type == BD_TYPE_UINT_ARRAY) {
 
                 if (result_set->results[i]->value.data_string != NULL) {
                     free(result_set->results[i]->value.data_string);
                     result_set->results[i]->value.data_string = NULL;
                 }
-
             }
+
 
             /* free the key */
             if (result_set->results[i]->key != NULL) {
@@ -406,13 +614,14 @@ std::string bd_result_set_to_json_string(bd_result_set_t *result) {
     // start the json string
     json_string += "{";
 
-    // insert capture application and hostname
-    json_string += "\"capture_application\":\"libtrace-bigdata\"";
-
-    // convert all tag fields
+    // convert all fields
     for (int i = 0; i < result->num_results; i++) {
 
-        json_string += ",\"";
+        if(i != 0) {
+            json_string += ",";
+        }
+
+        json_string += "\"";
         json_string += result->results[i]->key;
         json_string += "\":";
 
@@ -451,6 +660,71 @@ std::string bd_result_set_to_json_string(bd_result_set_t *result) {
                     json_string += "false";
                 }
                 break;
+            case BD_TYPE_STRING_ARRAY:
+            case BD_TYPE_IP_STRING_ARRAY:
+                json_string += "[";
+                for (int j = 0; j < result->results[i]->num_values; j++) {
+                    json_string += "\"";
+                    json_string += result->results[i]->value.data_string_array[j];
+                    json_string += "\"";
+
+                    if (j+1 != result->results[i]->num_values) {
+                        json_string += ", ";
+                    }
+                }
+                json_string += "]";
+                break;
+            case BD_TYPE_FLOAT_ARRAY:
+                json_string += "[";
+                for (int j = 0; j < result->results[i]->num_values; j++) {
+                    snprintf(buf, sizeof(buf), "%f",
+                        result->results[i]->value.data_float_array[j]);
+                    json_string += buf;
+                    if (j+1 != result->results[i]->num_values) {
+                        json_string += ", ";
+                    }
+                }
+                json_string += "]";
+                break;
+            case BD_TYPE_DOUBLE_ARRAY:
+                json_string += "[";
+                for (int j = 0; j < result->results[i]->num_values; j++) {
+                    snprintf(buf, sizeof(buf), "%lf",
+                        result->results[i]->value.data_double_array[j]);
+                    json_string += buf;
+                    if (j+1 != result->results[i]->num_values) {
+                        json_string += ", ";
+                    }
+                }
+                json_string += "]";
+                break;
+            case BD_TYPE_INT_ARRAY:
+                json_string += "[";
+                for (int j = 0; j < result->results[i]->num_values; j++) {
+                    snprintf(buf, sizeof(buf), "%ld",
+                        result->results[i]->value.data_int_array[j]);
+                    json_string += buf;
+                    if (j+1 != result->results[i]->num_values) {
+                        json_string += ", ";
+                    }
+                }
+                json_string += "]";
+                break;
+            case BD_TYPE_UINT_ARRAY:
+                json_string += "[";
+                for (int j = 0; j < result->results[i]->num_values; j++) {
+                    snprintf(buf, sizeof(buf), "%lu",
+                        result->results[i]->value.data_uint_array[j]);
+                    json_string += buf;
+                    if (j+1 != result->results[i]->num_values) {
+                        json_string += ", ";
+                    }
+                }
+                json_string += "]";
+                break;
+            case BD_TYPE_RESULT_SET:
+                json_string += bd_result_set_to_json_string(
+                    result->results[i]->value.data_result_set);
             default:
                 break;
         }
