@@ -99,7 +99,7 @@ void *module_ja3_starting(void *tls) {
 
 int module_ja3_result(bd_bigdata_t *bigdata, void *mls, bd_result_set *result) {
 
-    int i;
+    int i, j;
     char *ja3_md5;
     mod_ja3_stor *storage;
     std::map<std::string, std::string>::iterator it;
@@ -108,31 +108,44 @@ int module_ja3_result(bd_bigdata_t *bigdata, void *mls, bd_result_set *result) {
 
     for (i = 0; i < result->num_results; i++) {
 
-        if (result->results[i]->type == BD_TYPE_STRING) {
+        switch (result->results[i]->type) {
+            case BD_TYPE_STRING: {
 
-            if (strcmp(result->results[i]->key, "ja3") == 0 ||
-                strcmp(result->results[i]->key, "ja3s") == 0) {
+                if (strcmp(result->results[i]->key, "ja3") == 0 ||
+                    strcmp(result->results[i]->key, "ja3s") == 0) {
 
-                ja3_md5 = result->results[i]->value.data_string;
-                it = storage->md5_map->find(ja3_md5);
+                    ja3_md5 = result->results[i]->value.data_string;
+                    it = storage->md5_map->find(ja3_md5);
 
-                if (it != storage->md5_map->end()) {
-                    bd_result_set_insert_string(result, "ja3_user_agent",
-                        it->second.c_str());
-                } else {
-                    bd_result_set_insert_string(result, "ja3_user_agent",
-                        "unknown");
+                    if (it != storage->md5_map->end()) {
+                        bd_result_set_insert_string(result,
+                            "ja3_user_agent", it->second.c_str());
+                    } else {
+                        bd_result_set_insert_string(result,
+                            "ja3_user_agent", "unknown");
+                    }
                 }
+                break;
             }
+            case BD_TYPE_RESULT_SET: {
+                module_ja3_result(
+                    bigdata,
+                    mls,
+                    result->results[i]->value.data_result_set);
+                break;
+            }
+            case BD_TYPE_RESULT_SET_ARRAY: {
+                for (j = 0; j < result->results[i]->num_values; j++) {
+                    module_ja3_result(
+                        bigdata,
+                        mls,
+                        result->results[i]->value.data_result_set_array[j]);
+                }
+                break;
+            }
+            default:
+                break;
         }
-
-        if (result->results[i]->type == BD_TYPE_RESULT_SET) {
-            module_ja3_result(
-                bigdata,
-                mls,
-                result->results[i]->value.data_result_set);
-        }
-
     }
 
 

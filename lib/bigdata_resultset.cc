@@ -122,6 +122,36 @@ int bd_result_set_insert_string_array(bd_result_set_t *result_set, char const *k
 
     return 0;
 }
+int bd_result_set_insert_string_array(bd_result_set_t *result_set, char const *key,
+    std::list<char *> *items) {
+
+    std::list<char *>::iterator it = items->begin();
+
+    /* create array of pointers for each string */
+    char **strings = (char **)malloc(sizeof(char *)*items->size());
+    if (strings == NULL) {
+        logger(LOG_CRIT, "Unable to allocate memory. func. bd_result_set_insert_string"
+            "array()");
+        exit(BD_OUTOFMEMORY);
+    }
+
+    for (int i = 0; i < items->size(); i++) {
+        strings[i] = strdup(*it);
+        if (strings[i] == NULL) {
+            logger(LOG_CRIT, "Unable to allocate memory. func. bd_result_set"
+                "insert_string_arraty()");
+            exit(BD_OUTOFMEMORY);
+        }
+        it++;
+    }
+
+    union bd_record_value val;
+    val.data_string_array = strings;
+
+    bd_result_set_insert(result_set, key, BD_TYPE_STRING_ARRAY, val, items->size());
+
+    return 0;
+}
 int bd_result_set_insert_float(bd_result_set_t *result_set, char const *key,
     float value) {
 
@@ -345,6 +375,36 @@ int bd_result_set_insert_result_set(bd_result_set_t *result_set, char const *key
 
     return 0;
 }
+int bd_result_set_insert_result_set_array(bd_result_set_t *result_set,
+    char const *key, std::list<bd_result_set_t *> *items) {
+
+    if (result_set == NULL || items == NULL) {
+        return -1;
+    }
+
+    std::list<bd_result_set_t *>::iterator it = items->begin();
+
+    bd_result_set_t **results = (bd_result_set_t **)
+        malloc(sizeof(bd_result_set_t *)*items->size());
+    if (results == NULL) {
+        logger(LOG_CRIT, "Unable to allocate memory. func. bd_result_set_insert"
+            "result_set_array()");
+        exit(BD_OUTOFMEMORY);
+    }
+
+    for (int i = 0; i < items->size(); i++) {
+        results[i] = *it;
+        it++;
+    }
+
+    union bd_record_value val;
+    val.data_result_set_array = results;
+
+    bd_result_set_insert(result_set, key, BD_TYPE_RESULT_SET_ARRAY,
+        val, items->size());
+
+    return 0;
+}
 
 int bd_result_set_lock(bd_result_set_t *result_set) {
     result_set->free_lock += 1;
@@ -461,48 +521,63 @@ int bd_result_set_free(bd_result_set_t *result_set) {
         // iterate over each clearing any strings
         for (i = 0; i < result_set->num_results; i++) {
 
-            /* if this is a nested result set recursively call this
-             * function. */
-            if (result_set->results[i]->type == BD_TYPE_RESULT_SET) {
-                bd_result_set_free(result_set->results[i]->value.data_result_set);
-            }
-
-            /* if a string type array we first need to free each element
-             * within the array. */
-            if (result_set->results[i]->type == BD_TYPE_STRING_ARRAY ||
-                result_set->results[i]->type == BD_TYPE_IP_STRING_ARRAY) {
-
-                /* loop over each element */
-                for (j = 0; j < result_set->results[i]->num_values; j++) {
-                    /* free each element */
-                    if (result_set->results[i]->value.data_string_array[j] != NULL) {
-                        free(result_set->results[i]->value.data_string_array[j]);
-                        result_set->results[i]->value.data_string_array[j] == NULL;
+            /* free the data within the result set */
+            switch (result_set->results[i]->type) {
+                case BD_TYPE_RESULT_SET_ARRAY: {
+                    /* loop over each result set and recursivly call this
+                     * function */
+                    for (j = 0; j < result_set->results[i]->num_values; j++) {
+                        bd_result_set_free(result_set->results[i]->
+                            value.data_result_set_array[j]);
                     }
+                    /* now free the array of pointers */
+                    free(result_set->results[i]->value.data_result_set_array);
+                    break;
                 }
-            }
-
-            /* for string type arrays the array of pointers now needs to be free'd.
-             * for other array types the array of values needs to be free'd
-             * for normal string/tag types the single item needs be to free'd */
-            if (result_set->results[i]->type == BD_TYPE_STRING ||
-                result_set->results[i]->type == BD_TYPE_STRING_ARRAY ||
-                result_set->results[i]->type == BD_TYPE_TAG ||
-                result_set->results[i]->type == BD_TYPE_IP_STRING ||
-                result_set->results[i]->type == BD_TYPE_IP_STRING_ARRAY ||
-                result_set->results[i]->type == BD_TYPE_FLOAT_ARRAY ||
-                result_set->results[i]->type == BD_TYPE_DOUBLE_ARRAY ||
-                result_set->results[i]->type == BD_TYPE_INT_ARRAY ||
-                result_set->results[i]->type == BD_TYPE_UINT_ARRAY) {
-
-                if (result_set->results[i]->value.data_string != NULL) {
+                case BD_TYPE_RESULT_SET: {
+                    /* recursively call this function to clear the result set */
+                    bd_result_set_free(
+                        result_set->results[i]->value.data_result_set);
+                    break;
+                }
+                case BD_TYPE_STRING_ARRAY:
+                case BD_TYPE_IP_STRING_ARRAY: {
+                    /* loop over each element */
+                    for (j = 0; j < result_set->results[i]->num_values; j++) {
+                        /* free each element */
+                        if (result_set->results[i]->value.data_string_array[j] != NULL) {
+                            free(result_set->results[i]->value.data_string_array[j]);
+                            result_set->results[i]->value.data_string_array[j] == NULL;
+                        }
+                    }
+                    /* now free the array of pointers */
+                    free(result_set->results[i]->value.data_string_array);
+                    break;
+                }
+                case BD_TYPE_STRING:
+                case BD_TYPE_IP_STRING:
+                case BD_TYPE_TAG: {
                     free(result_set->results[i]->value.data_string);
-                    result_set->results[i]->value.data_string = NULL;
+                    break;
                 }
+                case BD_TYPE_FLOAT_ARRAY:
+                    free(result_set->results[i]->value.data_float_array);
+                    break;
+                case BD_TYPE_DOUBLE_ARRAY:
+                    free(result_set->results[i]->value.data_double_array);
+                    break;
+                case BD_TYPE_INT_ARRAY:
+                    free(result_set->results[i]->value.data_int_array);
+                    break;
+                case BD_TYPE_UINT_ARRAY:
+                    free(result_set->results[i]->value.data_uint_array);
+                    break;
+                default:
+                    break;
+
             }
 
-
-            /* free the key */
+            /* free the result set key */
             if (result_set->results[i]->key != NULL) {
                 free(result_set->results[i]->key);
                 result_set->results[i]->key = NULL;
@@ -725,6 +800,16 @@ std::string bd_result_set_to_json_string(bd_result_set_t *result) {
             case BD_TYPE_RESULT_SET:
                 json_string += bd_result_set_to_json_string(
                     result->results[i]->value.data_result_set);
+            case BD_TYPE_RESULT_SET_ARRAY:
+                json_string += "[";
+                for (int j = 0; j < result->results[i]->num_values; j++) {
+                    json_string += bd_result_set_to_json_string(
+                        result->results[i]->value.data_result_set_array[j]);
+                    if (j+1 != result->results[i]->num_values) {
+                        json_string += ", ";
+                    }
+                }
+                json_string += "]";
             default:
                 break;
         }

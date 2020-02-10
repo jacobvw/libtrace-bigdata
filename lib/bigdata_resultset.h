@@ -37,6 +37,7 @@ enum bd_record_type {
     BD_TYPE_INT_ARRAY,
     BD_TYPE_UINT_ARRAY,
     BD_TYPE_IP_STRING_ARRAY,
+    BD_TYPE_RESULT_SET_ARRAY,
 
     /* object types */
     BD_TYPE_RESULT_SET,
@@ -56,6 +57,7 @@ union bd_record_value {
     double *data_double_array;
     int64_t *data_int_array;
     uint64_t *data_uint_array;
+    bd_result_set_t **data_result_set_array;
 
     bd_result_set_t *data_result_set;
 };
@@ -116,6 +118,19 @@ bd_result_set_t *bd_result_set_create(bd_bigdata_t *bigdata, const char *mod);
  */
 int bd_result_set_insert_string(bd_result_set_t *result_set, char const *key,
     const char *value);
+
+/* Inserts the supplied list of strings into the result set as an array.
+ * Usage example:
+ * bd_result_set_insert_string_array(result, "names", string_list);
+ *
+ * @params      result_set - the result set.
+ *              key - the key for the result.
+ *              items - the list of strings to insert.
+ * @returns     0 on success.
+ *              -1 on error.
+ */
+int bd_result_set_insert_string_array(bd_result_set_t *result_set, char const *key,
+    std::list<char *> *items);
 
 /* Inserts the supplied strings into the result set as an array.
  * Usage example:
@@ -298,6 +313,17 @@ int bd_result_set_insert_ip_string_array(bd_result_set_t *result_set, char const
  */
 int bd_result_set_insert_result_set(bd_result_set_t *result_set, char const *key,
     bd_result_set_t *value);
+
+/* Inserts a list of result set pointers into the parent result as an array of results.
+ *
+ * @params	result_set - the parent result set.
+ *		key - the key for the nested result set.
+ *		items - the list of result sets to insert as an array.
+ * @returns	0 on success.
+ *		-1 on error.
+ */
+int bd_result_set_insert_result_set_array(bd_result_set_t *result_set,
+    char const *key, std::list<bd_result_set_t *> *items);
 
 /* Locks the result set to prevent the application core from free'ing it. This
  * then must be unlocked when finished with the result.

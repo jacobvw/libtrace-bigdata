@@ -622,6 +622,16 @@ static std::string module_influxdb_result_to_query_fields(bd_result_set *result,
                     new_prefix,
                     1);
                 break;
+            case BD_TYPE_RESULT_SET_ARRAY:
+                for (int j = 0; j < result->results[i]->num_values; j++) {
+                    snprintf(buf, sizeof(new_prefix), "%s%s.%d.",
+                        prefix.c_str(), result->results[i]->key, j);
+                    influx_line += module_influxdb_result_to_query_fields(
+                        result->results[i]->value.data_result_set_array[j],
+                        buf,
+                        1);
+                }
+                break;
             default:
                 break;
         }
