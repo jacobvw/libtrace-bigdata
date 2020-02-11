@@ -237,13 +237,13 @@ void bd_tls_free_x509_subject(char *subject);
  * @params	cert - the X509 certificate.
  * @returns	char * containing the issuer.
  */
-char *bd_tls_get_x509_issuer(X509 *cert);
+char *bd_tls_get_x509_issuer_name(X509 *cert);
 
 /* Free the memory allocated by bs_tls_get_x509_issuer.
  *
  * @params	issuer - char *pointer to the issuer.
  */
-void bd_tls_free_x509_issuer(char *issuer);
+void bd_tls_free_x509_issuer_name(char *issuer);
 
 /* Get the version of the X509 certificate.
  *
@@ -254,7 +254,7 @@ void bd_tls_free_x509_issuer(char *issuer);
 int bd_tls_get_x509_version(X509 *cert);
 
 /* Get the serial number for the X509 certificate.
- * Note: If NULL is supplied for space dynamic memory will be
+ * Note: If NULL is supplied for space heap memory will be
  * allocated and must be free'd with bd_tls_free_x509_serial().
  *
  * @params	cert - the X509 certificate.
@@ -333,8 +333,68 @@ std::list<const unsigned char *> *bd_tls_get_x509_common_names(X509 *cert);
 
 /* Free the memory allocated by bd_tls_get_x509_common_names().
  *
- * @params	list of common names allocated by bd_tls_get_x509_common_names().
+ * @params      list of common names allocated by bd_tls_get_x509_common_names().
  */
 void bd_tls_free_x509_common_names(std::list<const unsigned char *> *cnames);
+
+/* Get a list of alternative names (SAN) from the X509 certificate.
+ * Note: This result should be free'd with bd_tls_free_x509_alt_names().
+ *
+ * @params	cert - the x509 certificate.
+ * @returns	list of alternative names on success.
+ *		NULL on error.
+ */
+std::list<char *> *bd_tls_get_x509_alt_names(X509 *cert);
+
+/* Free the memory allocated by bd_tls_get_x509_alt_names().
+ *
+ * @params	cert - the x509 certificate.
+ */
+void bd_tls_free_x509_alt_names(std::list<char *> *altnames);
+
+/* Get the sha1 fingerprint within the X509 certificate.
+ * Note: If NULL is supplied for space heap memory will be
+ * allocated and must be free'd with bd_tls_free_x509_sha1_fingerprint().
+ *
+ * @params	cert - the x509 certificate.
+ *		space - allocated space for the result. must be
+ *			greater than 41 bytes.
+ *              spacelen - the size of the allocated space.
+ * @returns	char * pointer to sha1 fingerprint. If no space was pass in.
+ *		       this must be free'd with free()
+ */
+char *bd_tls_get_x509_sha1_fingerprint(X509 *cert, char *space,
+    int spacelen);
+
+/* Get the not before ISO-8601 timestamp witin the X509 certificate.
+ *
+ * @params	cert - the x509 certificate.
+ *		space - allocated space for the timestamp. must be
+ *			greater than 128 bytes.
+ *		spacelen - the size of allocated space.
+ * @returns	char * pointer to the timeatamp. If no space was passed in.
+ *		       this must be free'd with free()
+ */
+char *bd_tls_get_x509_not_before(X509 *cert, char *space, int spacelen);
+
+/* Get the not after ISO-8601 timestamp witin the X509 certificate.
+ *
+ * @params      cert - the x509 certificate.
+ *              space - allocated space for the timestamp. must be
+ *                      greater than 128 bytes.
+ *              spacelen - the size of allocated space.
+ * @returns     char * pointer to the timeatamp. If no space was passed in.
+ *                     this must be free'd with free()
+ */
+char *bd_tls_get_x509_not_after(X509 *cert, char *space, int spacelen);
+
+/* Checks whether the certificate is a valid CA certificate.
+ *
+ * @params	cert - the x509 certificate.
+ * @returns	<= 1 if the certificate is a CA certificate.
+ *		0 if the certificate is not a CA certificate.
+ *		-1 on error.
+ */
+int bd_tls_get_x509_ca_status(X509 *cert);
 
 #endif

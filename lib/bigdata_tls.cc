@@ -19,7 +19,10 @@
 #define BD_TLS_ECP_LEN 5000
 #define BD_TLS_BUF_LEN 40
 
-#define X509_SERIAL_NUM_LEN 1000;
+#define X509_SERIAL_NUM_LEN 1000
+
+#define X509_SHA1LEN 20
+#define X509_ISO_DATELEN 128
 
 /* TLS packet types */
 #define TLS_PACKET_CHANGE_CIPHER_SPEC 20
@@ -275,6 +278,8 @@ static bd_tls_server *bd_tls_server_create();
 static void bd_tls_server_destroy(bd_tls_server *server);
 
 static const unsigned char *bd_tls_get_subject_NID(X509 *cert, int nid);
+static int bd_tls_convert_x509_asn1time(ASN1_TIME *t, char *buf,
+    size_t len);
 
 static bd_tls_client *bd_tls_parse_client_hello(bd_bigdata_t *bigdata,
     uint16_t remaining, char *payload);
@@ -603,13 +608,51 @@ void bd_tls_free_x509_common_names(std::list<const unsigned char *> *cnames) {
         delete(cnames);
     }
 }
-char *bd_tls_get_x509_issuer(X509 *cert) {
+std::list<char *> *bd_tls_get_x509_alt_names(X509 *cert) {
+    std::list<char *> *altnames =
+        new std::list<char *>;
+    STACK_OF(GENERAL_NAME) *san_names;
+    san_names = (stack_st_GENERAL_NAME *)X509_get_ext_d2i(
+        cert, NID_subject_alt_name, NULL, NULL);
+    if (!san_names) {
+        delete(altnames);
+        return NULL;
+    }
+    int numalts = sk_GENERAL_NAME_num(san_names);
+    for (int i = 0; i < numalts; i++) {
+        const GENERAL_NAME *current_name = sk_GENERAL_NAME_value(san_names, i);
+
+        if (current_name->type == GEN_DNS) {
+
+            char *dns_name = (char *)ASN1_STRING_get0_data(current_name->d.dNSName);
+
+            // Make sure there isn't an embedded NUL character in the DNS name
+            if ((size_t)ASN1_STRING_length(current_name->d.dNSName) != strlen(dns_name)) {
+                break;
+            } else {
+                altnames->push_back(strdup(dns_name));
+            }
+        }
+    }
+    sk_GENERAL_NAME_pop_free(san_names, GENERAL_NAME_free);
+    return altnames;
+}
+void bd_tls_free_x509_alt_names(std::list<char *> *altnames) {
+    if (altnames != NULL) {
+        std::list<char *>::const_iterator it;
+        for (it = altnames->begin(); it != altnames->end(); it++) {
+            free(*it);
+        }
+        delete(altnames);
+    }
+}
+char *bd_tls_get_x509_issuer_name(X509 *cert) {
     char *issuer = X509_NAME_oneline(
         X509_get_issuer_name(cert), NULL, 0);
 
     return issuer;
 }
-void bd_tls_free_x509_issuer(char *issuer) {
+void bd_tls_free_x509_issuer_name(char *issuer) {
     OPENSSL_free(issuer);
 }
 int bd_tls_get_x509_version(X509 *cert) {
@@ -652,6 +695,151 @@ char *bd_tls_get_x509_serial(X509 *cert, char *space, int spacelen) {
 }
 void bd_tls_free_x509_serial(char *serial) {
     free(serial);
+}
+char *bd_tls_get_x509_sha1_fingerprint(X509 *cert, char *space,
+    int spacelen) {
+
+    char buf[20];
+    bool alloc_space = 0;
+
+    if (space == NULL) {
+        spacelen = (2*X509_SHA1LEN+1);
+        space = (char *)malloc(spacelen);
+        if (space == NULL) {
+            logger(LOG_CRIT, "Unable to allocate memory. func. "
+                "bd_tls_get_x509_sha1_fingerprint()");
+            exit(BD_OUTOFMEMORY);
+        }
+        alloc_space = 1;
+    }
+
+    /* supplied space to small */
+    if (spacelen < (2*X509_SHA1LEN+1)) {
+        return NULL;
+    }
+
+    const EVP_MD *digest = EVP_sha1();
+    unsigned len;
+
+    int rc = X509_digest(cert, digest, (unsigned char *)buf, &len);
+    if (rc == 0 || len != 20) {
+        if (alloc_space) {
+            free(space);
+        }
+        return NULL;
+    }
+
+    /* convert to human readable hex */
+    for (size_t i = 0; i < X509_SHA1LEN; i++) {
+        sprintf((char *)space+(i*2), "%02x", buf[i] & 0xff);
+    }
+
+    /* add the null terminator to the end of the string */
+    space[40] = '\0';
+
+    return space;
+}
+void bd_tls_free_x509_sha1_fingerprint(char *sha1) {
+    free(sha1);
+}
+char *bd_tls_get_x509_not_before(X509 *cert, char *space, int spacelen) {
+
+    bool alloc_space = 0;
+
+    if (cert == NULL) {
+        logger(LOG_WARNING, "NULL X509 certificate. func. "
+            "bd_tls_get_x509_not_before()");
+        return NULL;
+    }
+
+    if (space == NULL) {
+        spacelen = X509_ISO_DATELEN;
+        space = (char *)malloc(X509_ISO_DATELEN);
+        if (space == NULL) {
+            logger(LOG_CRIT, "Unable to allocate memory. func. "
+                "bd_tls_get_x509_not_before()");
+            exit(BD_OUTOFMEMORY);
+        }
+        alloc_space = 1;
+    }
+
+    if (spacelen > X509_ISO_DATELEN) {
+        return NULL;
+    }
+
+    ASN1_TIME *not_before = X509_get_notBefore(cert);
+
+    if (bd_tls_convert_x509_asn1time(not_before, space, spacelen)) {
+        if (alloc_space) {
+            free(space);
+        }
+        return NULL;
+    }
+
+    return space;
+}
+char *bd_tls_get_x509_not_after(X509 *cert, char *space, int spacelen) {
+
+    bool alloc_space = 0;
+
+    if (cert == NULL) {
+        logger(LOG_WARNING, "NULL X509 certificate. func. "
+            "bd_tls_get_x509_not_after()");
+        return NULL;
+    }
+
+    if (space == NULL) {
+        spacelen = X509_ISO_DATELEN;
+        space = (char *)malloc(X509_ISO_DATELEN);
+        if (space == NULL) {
+            logger(LOG_CRIT, "Unable to allocate memory. func. "
+                "bd_tls_get_x509_not_after()");
+            exit(BD_OUTOFMEMORY);
+        }
+        alloc_space = 1;
+    }
+
+    if (spacelen < X509_ISO_DATELEN) {
+        return NULL;
+    }
+
+    ASN1_TIME *not_after = X509_get_notAfter(cert);
+
+    if (bd_tls_convert_x509_asn1time(not_after, space, spacelen)) {
+        if (alloc_space) {
+            free(space);
+        }
+        return NULL;
+    }
+
+    return space;
+}
+static int bd_tls_convert_x509_asn1time(ASN1_TIME *t, char *buf,
+    size_t len) {
+
+    int rc;
+    BIO *b = BIO_new(BIO_s_mem());
+    rc = ASN1_TIME_print(b, t);
+    if (rc <= 0) {
+        BIO_free(b);
+        return 1;
+    }
+    rc = BIO_gets(b, buf, len);
+    if (rc <= 0) {
+        BIO_free(b);
+        return 1;
+    }
+    BIO_free(b);
+
+    return 0;
+}
+int bd_tls_get_x509_ca_status(X509 *cert) {
+
+    if (cert == NULL) {
+        return -1;
+    }
+
+    return X509_check_ca(cert);
 }
 /*char *bd_tls_get_x509_signature_algorithm(X509 *cert, char *space,
     int spacelen) {
