@@ -320,22 +320,15 @@ const unsigned char *bd_tls_get_x509_organization_name(X509 *cert);
  */
 const unsigned char *bd_tls_get_x509_organization_unit_name(X509 *cert);
 
-/* Get a list of common names within the subject for the X509 certificate.
+/* Get the common name within the subject for the X509 certificate.
  * Note: This is an internal structure and should NOT be free'd or
- * modified in any way. When finished pass the structure into
- * bd_tls_free_x509_common_names() for proper cleanup.
+ * modified in any way.
  *
  * @params	cert - the x509 certificate
- * @returns	list of common names on success.
+ * @returns	common name from the certificate on success.
  *		NULL on error.
  */
-std::list<const unsigned char *> *bd_tls_get_x509_common_names(X509 *cert);
-
-/* Free the memory allocated by bd_tls_get_x509_common_names().
- *
- * @params      list of common names allocated by bd_tls_get_x509_common_names().
- */
-void bd_tls_free_x509_common_names(std::list<const unsigned char *> *cnames);
+const unsigned char *bd_tls_get_x509_common_name(X509 *cert);
 
 /* Get a list of alternative names (SAN) from the X509 certificate.
  * Note: This result should be free'd with bd_tls_free_x509_alt_names().
@@ -396,5 +389,29 @@ char *bd_tls_get_x509_not_after(X509 *cert, char *space, int spacelen);
  *		-1 on error.
  */
 int bd_tls_get_x509_ca_status(X509 *cert);
+
+/* Get the size of the public key for the x509 certificate.
+ *
+ * @params	cert - the x509 certificate.
+ * @returns	keysize > 0 on success.
+ *		keysize <= 0 on error.
+ */
+int bd_tls_get_x509_public_key_size(X509 *cert);
+
+/* Get the signature algorithm from the x509 certificate.
+ *
+ * @params	cert - the x509 certificate.
+ * @returns	the signature algorithm on success.
+ *		NULL on error.
+ */
+const char *bd_tls_get_x509_signature_algorithm(X509 *cert);
+
+/* Get the public key algorithm from the x509 certificate.
+ *
+ * @params	cert - the x509 certificate.
+ * @returns	the public key algorithm on success.
+ *		NULL on error.
+ */
+const char *bd_tls_get_x509_public_key_algorithm(X509 *cert);
 
 #endif

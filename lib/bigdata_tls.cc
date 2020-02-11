@@ -568,6 +568,9 @@ const unsigned char *bd_tls_get_x509_organization_name(X509 *cert) {
 const unsigned char *bd_tls_get_x509_organization_unit_name(X509 *cert) {
     return bd_tls_get_subject_NID(cert, NID_organizationalUnitName);
 }
+const unsigned char *bd_tls_get_x509_common_name(X509 *cert) {
+    return bd_tls_get_subject_NID(cert, NID_commonName);
+}
 static const unsigned char *bd_tls_get_subject_NID(X509 *cert, int nid) {
     X509_NAME *nme = X509_get_subject_name(cert);
     int lastpos = -1;
@@ -583,30 +586,6 @@ static const unsigned char *bd_tls_get_subject_NID(X509 *cert, int nid) {
         return ASN1_STRING_get0_data(d);
     }
     return NULL;
-}
-std::list<const unsigned char *> *bd_tls_get_x509_common_names(X509 *cert) {
-    /* create list to store common names */
-    std::list<const unsigned char *> *cnames =
-        new std::list<const unsigned char *>;
-    X509_NAME *nme = X509_get_subject_name(cert);
-    int lastpos = -1;
-    X509_NAME_ENTRY *e;
-    for (;;) {
-        lastpos = X509_NAME_get_index_by_NID(nme, NID_commonName,
-            lastpos);
-        if (lastpos == -1) {
-            break;
-        }
-        e = X509_NAME_get_entry(nme, lastpos);
-        ASN1_STRING *cname = X509_NAME_ENTRY_get_data(e);
-        cnames->push_back(ASN1_STRING_get0_data(cname));
-    }
-    return cnames;
-}
-void bd_tls_free_x509_common_names(std::list<const unsigned char *> *cnames) {
-    if (cnames != NULL) {
-        delete(cnames);
-    }
 }
 std::list<char *> *bd_tls_get_x509_alt_names(X509 *cert) {
     std::list<char *> *altnames =
@@ -678,7 +657,7 @@ char *bd_tls_get_x509_serial(X509 *cert, char *space, int spacelen) {
 
     if (space == NULL) {
         spacelen = strlen(tmp);
-        space = (char *)malloc(spacelen);
+        space = (char *)malloc(spacelen+1);
         if (space == NULL) {
             logger(LOG_CRIT, "Unable to allocate memory. func. "
                 "bd_tls_get_x509_serial()");
@@ -687,6 +666,7 @@ char *bd_tls_get_x509_serial(X509 *cert, char *space, int spacelen) {
     }
 
     strncpy(space, tmp, spacelen);
+    space[spacelen] = '\0';
 
     BN_free(bn);
     OPENSSL_free(tmp);
@@ -841,33 +821,84 @@ int bd_tls_get_x509_ca_status(X509 *cert) {
 
     return X509_check_ca(cert);
 }
-/*char *bd_tls_get_x509_signature_algorithm(X509 *cert, char *space,
-    int spacelen) {
+int bd_tls_get_x509_public_key_size(X509 *cert) {
+    EVP_PKEY *pkey = X509_get_pubkey(cert);
 
-    int pkey_nid = OBJ_obj2nid(cert->cert_info->key->algor->algorithm);
+    int key_type = EVP_PKEY_base_id(pkey);
+    int keysize = -1;
+
+    switch (key_type) {
+        case EVP_PKEY_RSA: {
+            RSA *r = EVP_PKEY_get0_RSA(pkey);
+            const BIGNUM *n, *e, *d;
+            RSA_get0_key(r, &n, &e, &d);
+            keysize = BN_num_bits(n);
+            break;
+        }
+        case EVP_PKEY_DSA: {
+            DSA *d = EVP_PKEY_get0_DSA(pkey);
+            const BIGNUM *p, *q, *g;
+            DSA_get0_pqg(d, &p, &q, &g);
+            keysize =BN_num_bits(p);
+            break;
+        }
+        case EVP_PKEY_DH: {
+            DH *h = EVP_PKEY_get0_DH(pkey);
+            const BIGNUM *p, *q, *g;
+            DH_get0_pqg(h, &p, &q, &g);
+            keysize = BN_num_bits(p);
+            break;
+        }
+        case EVP_PKEY_EC: {
+            EC_KEY *e = EVP_PKEY_get0_EC_KEY(pkey);
+            const EC_GROUP *ecg = EC_KEY_get0_group(e);
+            keysize = EC_GROUP_get_degree(ecg);
+            break;
+        }
+        default:
+            break;
+    }
+
+    EVP_PKEY_free(pkey);
+
+    return keysize;
+}
+const char *bd_tls_get_x509_signature_algorithm(X509 *cert) {
+
+    if (cert == NULL) {
+        return NULL;
+    }
+
+    int pkey_nid = X509_get_signature_nid(cert);
     if (pkey_nid == NID_undef) {
         return NULL;
     }
 
-    const char *sslbuf = OBJ_nid2ln(pkey_nid);
+    return OBJ_nid2ln(pkey_nid);
+}
+const char *bd_tls_get_x509_public_key_algorithm(X509 *cert) {
 
-    if (space == NULL) {
-        spacelen = strlen(sslbuf);
-        space = (char *)malloc(spacelen);
-        if (space == NULL) {
-            logger(LOG_CRIT, "Unable to allocate memory. func. "
-                "bd_tls_get_x509_signature_algorithm()");
-            exit(BD_OUTOFMEMORY);
-        }
+    if (cert == NULL) {
+        return NULL;
     }
 
-    strncpy(space, sslbuf, spacelen);
+    EVP_PKEY *pkey = X509_get_pubkey(cert);
+    int key_type = EVP_PKEY_base_id(pkey);
+    EVP_PKEY_free(pkey);
 
-    return space;
+    switch (key_type) {
+        case EVP_PKEY_RSA:
+            return "RSA";
+        case EVP_PKEY_DSA:
+            return "DSA";
+        case EVP_PKEY_DH:
+            return "DH";
+        case EVP_PKEY_EC:
+            return "ECC";
+        default:
+            return NULL;
+    }
 }
-void bd_tls_free_x509_signature_algorithm(char *sig_algor) {
-    free(sig_algor);
-}*/
 
 int bd_tls_update(bd_bigdata_t *bigdata, bd_tls_handshake *tls_handshake) {
 
