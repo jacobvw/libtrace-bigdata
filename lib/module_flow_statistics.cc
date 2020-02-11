@@ -26,10 +26,12 @@ struct module_flow_statistics_flow {
     uint64_t tick;
     std::map<uint64_t, mod_flow_stats> *flow_stats;
 };
-
 typedef struct module_flow_statistics_storage {
     std::map<uint64_t, mod_flow_stats> *flow_stats;
 } mod_flow_stats_stor;
+
+bd_result_set_t *module_flow_statistics_generate_certificate_result(
+    bd_bigdata_t *bigdata, X509 *cert);
 
 void *module_flow_statistics_starting(void *tls) {
 
@@ -103,8 +105,8 @@ int module_flow_statistics_foreach_flow(Flow *flow, void *data) {
             bd_result_set_insert_uint(res, "out_bytes_total", flow_rec->out_bytes);
 
             bd_result_set_insert_timestamp(res, f->tick);
-
-            bd_result_set_publish(f->bigdata, res, 0);
+            bd_result_set_free(res);
+            //bd_result_set_publish(f->bigdata, res, 0);
         }
     }
 
@@ -185,6 +187,7 @@ int module_flow_statistics_protocol_updated(bd_bigdata_t *bigdata, void *mls, lp
     char ip_tmp[INET6_ADDRSTRLEN];
     struct timeval tv;
     Flow *flow;
+    bool gotcert = 0;
 
     flow = bigdata->flow;
     flow_rec = bd_flow_get_record(flow);
@@ -224,93 +227,147 @@ int module_flow_statistics_protocol_updated(bd_bigdata_t *bigdata, void *mls, lp
         /* include tls info if this is an encrypted flow and export_tls is enabled */
         if (config->export_tls && bd_tls_flow(flow)) {
 
+
+
+            /* get client tls information. */
             char *ja3 = bd_tls_get_ja3_md5(flow);
+            char *sni = bd_tls_get_client_extension_sni(flow);
+            const std::list<uint16_t> *client_ciphers =
+                bd_tls_get_client_supported_ciphers(flow);
+
+            /* generate result set for client tls information */
+            bd_result_set_t *tls_client = bd_result_set_create(bigdata,
+                "flow_statistics");
+            if (ja3 != NULL) {
+                bd_result_set_insert_string(tls_client, "ja3", ja3);
+            }
+            if (sni != NULL) {
+                bd_result_set_insert_string(tls_client, "sni", sni);
+            }
+            /* supported ciphers */
+            if (client_ciphers != NULL) {
+                /* create a list for the string representation of the ciphers */
+                std::list<char *> client_ciphers_text;
+                std::list<uint16_t>::const_iterator it_ciphers;
+                /* convert each cipher code to it string representation */
+                for (it_ciphers = client_ciphers->begin(); it_ciphers !=
+                    client_ciphers->end(); it_ciphers++) {
+
+                    client_ciphers_text.push_back(
+                        (char *)bd_tls_cipher_to_string(*it_ciphers));
+                }
+                /* insert the result into the result set */
+                bd_result_set_insert_string_array(tls_client, "supported_ciphers",
+                    &client_ciphers_text);
+            }
+
+
+            /* get server tls information. */
             char *ja3s = bd_tls_get_ja3s_md5(flow);
-            char *hostname = bd_tls_get_client_extension_sni(flow);
-            uint16_t client_version =
-                bd_tls_get_client_hello_version(flow);
-            uint16_t server_version =
-                bd_tls_get_server_hello_version(flow);
+
+            /* generate result set for the server tls information */
+            bd_result_set_t *tls_server = bd_result_set_create(bigdata,
+                "flow_statistics");
+            if (ja3s != NULL) {
+                bd_result_set_insert_string(tls_server, "ja3s", ja3s);
+            }
+
+            /* get general tls information. */
             uint16_t tls_cipher =
                 bd_tls_get_server_selected_cipher(flow);
             uint16_t tls_compression =
                 bd_tls_get_server_selected_compression(flow);
             uint16_t tls_version = bd_tls_get_version(flow);
 
-            if (ja3 != NULL) {
-                bd_result_set_insert_string(res, "tls_ja3", ja3);
+            /* generate result set for tls information */
+            bd_result_set_t *tls = bd_result_set_create(bigdata,
+                "flow_statistics");
+            if (tls_version != 0) {
+                bd_result_set_insert_uint(tls, "version", tls_version);
+                bd_result_set_insert_string(tls, "version_text",
+                    bd_tls_version_to_string(tls_version));
+            }
+            if (tls_cipher != 0) {
+                bd_result_set_insert_uint(tls, "cipher", tls_cipher);
+                bd_result_set_insert_string(tls, "cipher_text",
+                    bd_tls_cipher_to_string(tls_cipher));
+            }
+            if (tls_compression != 0) {
+                bd_result_set_insert_uint(res, "tls_compression",
+                    tls_compression);
             }
 
-            if (ja3s != NULL) {
-                bd_result_set_insert_string(res, "tls_ja3s", ja3s);
+            /* get tls client certificates */
+            const std::list<X509 *> *client_certs =
+                bd_tls_get_x509_client_certificates(flow);
+            if (client_certs != NULL) {
+
+                /* create a list for the client cert results */
+                std::list<bd_result_set_t *> client_cert_list;
+                std::list<X509 *>::const_iterator it;
+
+                /* iterate over each client certificate */
+                for (it = client_certs->begin(); it !=
+                    client_certs->end(); it++) {
+
+                    /* generate a result for this certificate */
+                    bd_result_set_t *cert =
+                        module_flow_statistics_generate_certificate_result(
+                            bigdata, *it);
+                    if (cert != NULL) {
+                        client_cert_list.push_back(cert);
+                    }
+
+                    gotcert = 1;
+                }
+
+                /* insert the client certificates into the tls client result */
+                bd_result_set_insert_result_set_array(tls_client, "certificates",
+                    &client_cert_list);
             }
 
-            if (hostname != NULL) {
-                bd_result_set_insert_string(res, "tls_sni_hostname",
-                    hostname);
-            }
-
-            bd_result_set_insert_int(res, "tls_client_version",
-                client_version);
-            bd_result_set_insert_int(res, "tls_server_version",
-                server_version);
-            bd_result_set_insert_int(res, "tls_cipher",
-                tls_cipher);
-            bd_result_set_insert_int(res, "tls_compression",
-                tls_compression);
-            bd_result_set_insert_string(res, "tls_cipher_text",
-                bd_tls_cipher_to_string(tls_cipher));
-
-            bd_result_set_insert_int(res, "tls_version", tls_version);
-            bd_result_set_insert_string(res, "tls_version_text",
-                bd_tls_version_to_string(tls_version));
-
-            /* iterate over any server certificates */
-            int i = 0;
+            /* get tls server certificates */
             const std::list<X509 *> *server_certs =
                 bd_tls_get_x509_server_certificates(flow);
             if (server_certs != NULL) {
+
+                std::list<bd_result_set_t *> server_cert_list;
                 std::list<X509 *>::const_iterator it;
+
+                /* iterate over each certificate */
                 for (it = server_certs->begin(); it !=
                     server_certs->end(); it++) {
 
-                    /* pull the common names from the certificate */
-                    std::list<const unsigned char *> *cnames =
-                        bd_tls_get_x509_common_names(*it);
-                    if (cnames != NULL) {
-                        std::list<const unsigned char *>::iterator it_cnames;
-                        for (it_cnames = cnames->begin(); it_cnames !=
-                            cnames->end(); it_cnames++) {
-
-                            fprintf(stderr, "common names: %s\n", *it_cnames);
-                            bd_result_set_insert_string(res, "tls_common_name",
-                                (char *)*it_cnames);
-                        }
-                    }
-                    bd_tls_free_x509_common_names(cnames);
-
-                    /* pull the organization name from the certificate */
-                    const unsigned char *org = bd_tls_get_x509_organization_name(*it);
-                    if (org != NULL) {
-                        fprintf(stderr, "organization: %s\n", org);
-                        bd_result_set_insert_string(res, "tls_organization", (char *)org);
+                    /* generate a result for this certificate */
+                    bd_result_set_t *cert =
+                        module_flow_statistics_generate_certificate_result(
+                            bigdata, *it);
+                    if (cert != NULL) {
+                        server_cert_list.push_back(cert);
                     }
 
-                    /* pull the country from the certificate */
-                    const unsigned char *cc = bd_tls_get_x509_country_name(*it);
-                    if (cc != NULL) {
-                        fprintf(stderr, "country: %s\n", cc);
-                        bd_result_set_insert_string(res, "tls_country", (char *)cc);
-                    }
+                    gotcert = 1;
                 }
+
+                /* push the list of certificates for the server into the server
+                 * tls result set */
+                bd_result_set_insert_result_set_array(tls_server, "certificates",
+                    &server_cert_list);
             }
+
+            /* insert client and server results into the tls result */
+            bd_result_set_insert_result_set(tls, "client", tls_client);
+            bd_result_set_insert_result_set(tls, "server", tls_server);
+            bd_result_set_insert_result_set(res, "tls", tls);
         }
 
         // set the timestamp for the result
         tv = trace_get_timeval(bigdata->packet);
         bd_result_set_insert_timestamp(res, tv.tv_sec);
 
-        bd_result_set_publish(bigdata, res, 0);
+        if (gotcert) {
+             bd_result_set_publish(bigdata, res, 0);
+        } else { bd_result_set_free(res); }
     }
 
     return 0;
@@ -374,7 +431,8 @@ int module_flow_statistics_flowend(bd_bigdata_t *bigdata, void *mls, bd_flow_rec
            Because the packet received in this function is not for the current flow */
         bd_result_set_insert_timestamp(res, flow_record->end_ts);
 
-        bd_result_set_publish(bigdata, res, 0);
+        //bd_result_set_publish(bigdata, res, 0);
+        bd_result_set_free(res);
     }
 
     return 0;
@@ -623,3 +681,119 @@ int module_flow_statistics_init(bd_bigdata_t *bigdata) {
 
     return 0;
 }
+
+bd_result_set_t *module_flow_statistics_generate_certificate_result(
+    bd_bigdata_t *bigdata, X509 *cert) {
+
+    bd_result_set_t *tmp = bd_result_set_create(bigdata,
+        "flow_statistics");
+
+    /* pull the SAN names from the certificate */
+    std::list<char *> *altnames =
+        bd_tls_get_x509_alt_names(cert);
+    if (altnames != NULL) {
+        bd_result_set_insert_string_array(tmp, "alt_names",
+            (std::list<char *> *)altnames);
+    }
+    bd_tls_free_x509_alt_names(altnames);
+    /* get the SHA1 fingerprint */
+    char *sha1 = bd_tls_get_x509_sha1_fingerprint(cert, NULL, 0);
+    if (sha1 != NULL) {
+        bd_result_set_insert_string(tmp, "SHA1", sha1);
+        free(sha1);
+    }
+    /* get the not before timestamp */
+    char *not_before = bd_tls_get_x509_not_before(cert, NULL, 0);
+    if (not_before != NULL) {
+        bd_result_set_insert_string(tmp, "not_before", not_before);
+        free(not_before);
+    }
+    /* get the not after timestamp */
+    char *not_after = bd_tls_get_x509_not_after(cert, NULL, 0);
+    if (not_after != NULL) {
+        bd_result_set_insert_string(tmp, "not_after", not_after);
+        free(not_after);
+    }
+    /* get the certificate version */
+    int x509_version = bd_tls_get_x509_version(cert);
+    if (x509_version > 0) {
+        bd_result_set_insert_int(tmp, "version", x509_version);
+    }
+    /* get the public key size */
+    int x509_keysize = bd_tls_get_x509_public_key_size(cert);
+    if (x509_keysize > 0) {
+        bd_result_set_insert_int(tmp, "public_key_size", x509_keysize);
+    }
+    /* get the signature algorithm */
+    const char *algor = bd_tls_get_x509_signature_algorithm(cert);
+    if (algor != NULL) {
+        bd_result_set_insert_string(tmp, "signature_algorithm", (char *)algor);
+    }
+    /* get the public key algorithm */
+    const char *pub_alg = bd_tls_get_x509_public_key_algorithm(cert);
+    if (pub_alg != NULL) {
+        bd_result_set_insert_string(tmp, "public_key_algorithm", pub_alg);
+    }
+    /* get the serial */
+    char *serial = bd_tls_get_x509_serial(cert, NULL, 0);
+    if (serial != NULL) {
+        bd_result_set_insert_string(tmp, "serial", serial);
+        bd_tls_free_x509_serial(serial);
+    }
+
+
+    /* create a result set to hold subject information */
+    bd_result_set_t *tmp_subj =
+        bd_result_set_create(bigdata, "flow_statistics");
+    /* get the common name from the certificate */
+    const unsigned char *common_name = bd_tls_get_x509_common_name(cert);
+    if (common_name != NULL) {
+        bd_result_set_insert_string(tmp_subj, "common_name",
+            (char *)common_name);
+    }
+    /* get the organization name */
+    const unsigned char *org = bd_tls_get_x509_organization_name(cert);
+    if (org != NULL) {
+        bd_result_set_insert_string(tmp_subj, "organization", (char *)org);
+    }
+    /* pull the country from the certificate */
+    const unsigned char *cc = bd_tls_get_x509_country_name(cert);
+    if (cc != NULL) {
+        bd_result_set_insert_string(tmp_subj, "country", (char *)cc);
+    }
+    /* get the organization unit */
+    const unsigned char *ou = bd_tls_get_x509_organization_unit_name(cert);
+    if (ou != NULL) {
+        bd_result_set_insert_string(tmp_subj, "organization_unit", (char *)ou);
+    }
+    /* get the locality */
+    const unsigned char *loc = bd_tls_get_x509_locality_name(cert);
+    if (loc != NULL) {
+        bd_result_set_insert_string(tmp_subj, "locality", (char *)loc);
+    }
+    /* get the province */
+    const unsigned char *prov = bd_tls_get_x509_state_or_province_name(
+        cert);
+    if (prov != NULL) {
+        bd_result_set_insert_string(tmp_subj, "province", (char *)prov);
+    }
+    /* insert subject information */
+    bd_result_set_insert_result_set(tmp, "subject", tmp_subj);
+
+
+    /* create result to hold issuer */
+    bd_result_set_t *tmp_iss = bd_result_set_create(bigdata,
+        "flow_statistics");
+    /* get certificate issuer details */
+    char *issuer = bd_tls_get_x509_issuer_name(cert);
+    if (issuer != NULL) {
+        bd_result_set_insert_string(tmp_iss, "name", (char *)issuer);
+        bd_tls_free_x509_issuer_name(issuer);
+    }
+    /* insert issuer information */
+    bd_result_set_insert_result_set(tmp, "issuer", tmp_iss);
+
+
+    return tmp;
+}
+
