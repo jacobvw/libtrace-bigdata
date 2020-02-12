@@ -1399,9 +1399,18 @@ static bd_tls_client *bd_tls_parse_client_hello(bd_bigdata_t *bigdata,
             case TLS_EXTENSION_SUPPORTED_VERSIONS: {
                 bd_tls_parse_support_versions_extension(payload,
                     client->extension_versions);
+                break;
             }
             case TLS_EXTENSION_ENCRYPTED_SERVER_NAME: {
-                client->extension_sni = strdup("encrypted sni");
+                if (client->extension_sni == NULL) {
+                    client->extension_sni = strdup("encrypted sni");
+                    if (client->extension_sni == NULL) {
+                        logger(LOG_CRIT, "Unable to allocate memory. func."
+                            "bd_tls_parse_client_hello()");
+                        exit(BD_OUTOFMEMORY);
+                    }
+                }
+                break;
             }
             default: {
                 /* dont know this extension move to next */
