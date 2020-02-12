@@ -778,15 +778,40 @@ bd_result_set_t *module_flow_statistics_generate_certificate_result(
     /* insert subject information */
     bd_result_set_insert_result_set(tmp, "subject", tmp_subj);
 
-
     /* create result to hold issuer */
     bd_result_set_t *tmp_iss = bd_result_set_create(bigdata,
         "flow_statistics");
-    /* get certificate issuer details */
-    char *issuer = bd_tls_get_x509_issuer_name(cert);
-    if (issuer != NULL) {
-        bd_result_set_insert_string(tmp_iss, "name", (char *)issuer);
-        bd_tls_free_x509_issuer_name(issuer);
+    /* get the issuer common name from the certificate */
+    const unsigned char *common_name_iss = bd_tls_get_x509_issuer_common_name(cert);
+    if (common_name_iss != NULL) {
+        bd_result_set_insert_string(tmp_iss, "common_name",
+            (char *)common_name_iss);
+    }
+    /* get the issuer organization name */
+    const unsigned char *org_iss = bd_tls_get_x509_issuer_organization_name(cert);
+    if (org_iss != NULL) {
+        bd_result_set_insert_string(tmp_iss, "organization", (char *)org_iss);
+    }
+    /* pull the issuer country from the certificate */
+    const unsigned char *cc_iss = bd_tls_get_x509_issuer_country_name(cert);
+    if (cc_iss != NULL) {
+        bd_result_set_insert_string(tmp_iss, "country", (char *)cc_iss);
+    }
+    /* get the issuer organization unit */
+    const unsigned char *ou_iss = bd_tls_get_x509_issuer_organization_unit_name(cert);
+    if (ou_iss != NULL) {
+        bd_result_set_insert_string(tmp_iss, "organization_unit", (char *)ou_iss);
+    }
+    /* get the issuer locality */
+    const unsigned char *loc_iss = bd_tls_get_x509_issuer_locality_name(cert);
+    if (loc_iss != NULL) {
+        bd_result_set_insert_string(tmp_iss, "locality", (char *)loc_iss);
+    }
+    /* get the issuer province */
+    const unsigned char *prov_iss = bd_tls_get_x509_issuer_state_or_province_name(
+        cert);
+    if (prov_iss != NULL) {
+        bd_result_set_insert_string(tmp_iss, "province", (char *)prov_iss);
     }
     /* insert issuer information */
     bd_result_set_insert_result_set(tmp, "issuer", tmp_iss);

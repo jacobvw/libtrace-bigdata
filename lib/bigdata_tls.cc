@@ -277,7 +277,7 @@ static void bd_tls_client_destroy(bd_tls_client *client);
 static bd_tls_server *bd_tls_server_create();
 static void bd_tls_server_destroy(bd_tls_server *server);
 
-static const unsigned char *bd_tls_get_subject_NID(X509 *cert, int nid);
+static const unsigned char *bd_tls_get_subject_NID(X509 *cert, int issuer, int nid);
 static int bd_tls_convert_x509_asn1time(ASN1_TIME *t, char *buf,
     size_t len);
 
@@ -589,26 +589,61 @@ char *bd_tls_get_x509_subject(X509 *cert) {
 void bd_tls_free_x509_subject(char *subject) {
     OPENSSL_free(subject);
 }
+const unsigned char *bd_tls_get_x509_common_name(X509 *cert) {
+    return bd_tls_get_subject_NID(cert, 0, NID_commonName);
+}
 const unsigned char *bd_tls_get_x509_country_name(X509 *cert) {
-    return bd_tls_get_subject_NID(cert, NID_countryName);
+    return bd_tls_get_subject_NID(cert, 0, NID_countryName);
 }
 const unsigned char *bd_tls_get_x509_locality_name(X509 *cert) {
-    return bd_tls_get_subject_NID(cert, NID_localityName);
+    return bd_tls_get_subject_NID(cert, 0, NID_localityName);
 }
 const unsigned char *bd_tls_get_x509_state_or_province_name(X509 *cert) {
-    return bd_tls_get_subject_NID(cert, NID_stateOrProvinceName);
+    return bd_tls_get_subject_NID(cert, 0, NID_stateOrProvinceName);
 }
 const unsigned char *bd_tls_get_x509_organization_name(X509 *cert) {
-    return bd_tls_get_subject_NID(cert, NID_organizationName);
+    return bd_tls_get_subject_NID(cert, 0, NID_organizationName);
 }
 const unsigned char *bd_tls_get_x509_organization_unit_name(X509 *cert) {
-    return bd_tls_get_subject_NID(cert, NID_organizationalUnitName);
+    return bd_tls_get_subject_NID(cert, 0, NID_organizationalUnitName);
 }
-const unsigned char *bd_tls_get_x509_common_name(X509 *cert) {
-    return bd_tls_get_subject_NID(cert, NID_commonName);
+char *bd_tls_get_x509_issuer(X509 *cert) {
+    char *issuer = X509_NAME_oneline(
+        X509_get_issuer_name(cert), NULL, 0);
+
+    return issuer;
 }
-static const unsigned char *bd_tls_get_subject_NID(X509 *cert, int nid) {
-    X509_NAME *nme = X509_get_subject_name(cert);
+void bd_tls_free_x509_issuer(char *issuer) {
+    OPENSSL_free(issuer);
+}
+const unsigned char *bd_tls_get_x509_issuer_common_name(X509 *cert) {
+    return bd_tls_get_subject_NID(cert, 1, NID_commonName);
+}
+const unsigned char *bd_tls_get_x509_issuer_country_name(X509 *cert) {
+    return bd_tls_get_subject_NID(cert, 1, NID_countryName);
+}
+const unsigned char *bd_tls_get_x509_issuer_locality_name(X509 *cert) {
+    return bd_tls_get_subject_NID(cert, 1, NID_localityName);
+}
+const unsigned char *bd_tls_get_x509_issuer_state_or_province_name(X509 *cert) {
+    return bd_tls_get_subject_NID(cert, 1, NID_stateOrProvinceName);
+}
+const unsigned char *bd_tls_get_x509_issuer_organization_name(X509 *cert) {
+    return bd_tls_get_subject_NID(cert, 1, NID_organizationName);
+}
+const unsigned char *bd_tls_get_x509_issuer_organization_unit_name(X509 *cert) {
+    return bd_tls_get_subject_NID(cert, 1, NID_organizationalUnitName);
+}
+static const unsigned char *bd_tls_get_subject_NID(X509 *cert, int issuer,
+    int nid) {
+
+    X509_NAME *nme;
+    if (issuer) {
+        nme = X509_get_issuer_name(cert);
+    } else {
+        nme = X509_get_subject_name(cert);
+    }
+
     int lastpos = -1;
     X509_NAME_ENTRY *e;
     for (;;) {
@@ -660,15 +695,6 @@ void bd_tls_free_x509_alt_names(std::list<char *> *altnames) {
         }
         delete(altnames);
     }
-}
-char *bd_tls_get_x509_issuer_name(X509 *cert) {
-    char *issuer = X509_NAME_oneline(
-        X509_get_issuer_name(cert), NULL, 0);
-
-    return issuer;
-}
-void bd_tls_free_x509_issuer_name(char *issuer) {
-    OPENSSL_free(issuer);
 }
 int bd_tls_get_x509_version(X509 *cert) {
     if (cert == NULL) {

@@ -273,13 +273,13 @@ void bd_tls_free_x509_subject(char *subject);
  * @params	cert - the X509 certificate.
  * @returns	char * containing the issuer.
  */
-char *bd_tls_get_x509_issuer_name(X509 *cert);
+char *bd_tls_get_x509_issuer(X509 *cert);
 
 /* Free the memory allocated by bs_tls_get_x509_issuer.
  *
  * @params	issuer - char *pointer to the issuer.
  */
-void bd_tls_free_x509_issuer_name(char *issuer);
+void bd_tls_free_x509_issuer(char *issuer);
 
 /* Get the version of the X509 certificate.
  *
@@ -305,6 +305,16 @@ char *bd_tls_get_x509_serial(X509 *cert, char *space, int spacelen);
  * @params	serial - char *pointer to the serial number.
  */
 void bd_tls_free_x509_serial(char *serial);
+
+/* Get the common name within the subject for the X509 certificate.
+ * Note: This is an internal structure and should NOT be free'd or
+ * modified in any way.
+ *
+ * @params      cert - the x509 certificate
+ * @returns     common name from the certificate on success.
+ *              NULL on error.
+ */
+const unsigned char *bd_tls_get_x509_common_name(X509 *cert);
 
 /* Get the country within the subject for the X509 certificate.
  * Note: This is an internal structure and should NOT be free'd or
@@ -356,15 +366,65 @@ const unsigned char *bd_tls_get_x509_organization_name(X509 *cert);
  */
 const unsigned char *bd_tls_get_x509_organization_unit_name(X509 *cert);
 
-/* Get the common name within the subject for the X509 certificate.
+/* Get the common name for the isser of the X509 certificate.
  * Note: This is an internal structure and should NOT be free'd or
  * modified in any way.
  *
- * @params	cert - the x509 certificate
- * @returns	common name from the certificate on success.
- *		NULL on error.
+ * @params      cert - the x509 certificate
+ * @returns     issuer common name from the certificate on success.
+ *              NULL on error.
  */
-const unsigned char *bd_tls_get_x509_common_name(X509 *cert);
+const unsigned char *bd_tls_get_x509_issuer_common_name(X509 *cert);
+
+/* Get the country name for the issuer of the X509 certificate.
+ * Note: This is an internal structure and should NOT be free'd or
+ * modified in any way.
+ *
+ * @params      cert - the x509 certificate.
+ * @returns     issuer country from the certificate on success.
+ *              NULL on error.
+ */
+const unsigned char *bd_tls_get_x509_issuer_country_name(X509 *cert);
+
+/* Get the locality name for the issuer of the X509 certificate.
+ * Note: This is an internal structure and should NOT be free'd or
+ * modified in any way.
+ *
+ * @params      cert - the x509 certificate.
+ * @returns     issuer locality name from the certificate on success.
+ *              NULL on error.
+ */
+const unsigned char *bd_tls_get_x509_issuer_locality_name(X509 *cert);
+
+/* Get the state or province name for the issuer of the X509 certificate.
+ * Note: This is an internal structure and should NOT be free'd or
+ * modified in any way.
+ *
+ * @params      cert - the x509 certificate.
+ * @returns     issuer state or province name from the certificate on success.
+ *              NULL on error.
+ */
+const unsigned char *bd_tls_get_x509_issuer_state_or_province_name(X509 *cert);
+
+/* Get the organization name for issuer of the X509 certificate.
+ * Note: This is an internal structure and should NOT be free'd or
+ * modified in any way.
+ *
+ * @params      cert - the x509 certificate.
+ * @returns     issuer organization from the certificate on success.
+ *              NULL on error.
+ */
+const unsigned char *bd_tls_get_x509_issuer_organization_name(X509 *cert);
+
+/* Get the organization unit name for the issuer of the X509 certificate.
+ * Note: This is a internal structure and should NOT be free'd or
+ * modified in any way.
+ *
+ * @params      cert - the x509 certificate.
+ * @returns     issuer organization unit from the certificate on success.
+ *              NULL on error.
+ */
+const unsigned char *bd_tls_get_x509_issuer_organization_unit_name(X509 *cert);
 
 /* Get a list of alternative names (SAN) from the X509 certificate.
  * Note: This result should be free'd with bd_tls_free_x509_alt_names().
