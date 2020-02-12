@@ -233,6 +233,38 @@ int bd_flow_get_direction(Flow *flow) {
     return flow_record->init_dir;
 }
 
+uint16_t bd_flow_get_source_port(Flow *flow) {
+    bd_flow_record_t *flow_record = (bd_flow_record_t *)flow->extension;
+    return flow_record->src_port;
+}
+
+uint16_t bd_flow_get_destination_port(Flow *flow) {
+    bd_flow_record_t *flow_record = (bd_flow_record_t *)flow->extension;
+    return flow_record->dst_port;
+}
+
+int bd_flow_is_server_packet(bd_bigdata_t *bigdata) {
+
+    if (bigdata->flow == NULL || bigdata->packet == NULL) {
+        return -1;
+    }
+
+    bd_flow_record_t *flow_rec = bd_flow_get_record(bigdata->flow);
+    if (flow_rec == NULL) {
+        return -1;
+    }
+
+    /* if the source port of the packet matches the initial destination
+     * port for the flow. Then this must be a packet from the server. */
+    if (trace_get_source_port(bigdata->packet) ==
+        flow_rec->dst_port) {
+
+        return 1;
+    }
+
+    return 0;
+}
+
 struct sockaddr_storage *bd_flow_get_source_ip(Flow *flow,
     struct sockaddr_storage *src) {
 

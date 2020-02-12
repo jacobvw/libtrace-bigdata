@@ -70,6 +70,22 @@ uint64_t bd_flow_get_out_bytes(Flow *flow);
  */
 int bd_flow_get_direction(Flow *flow);
 
+/* Get the initial source port for the flow. E.g. the source port for the
+ * first SYN packet.
+ *
+ * @params	flow - Libflowmamanger flow.
+ * @returns	the source port.
+ */
+uint16_t bd_flow_get_source_port(Flow *flow);
+
+/* Get the initial destination port for the flow. E.g. the source port for the
+ * first SYN packet.
+ *
+ * @params      flow - Libflowmamanger flow.
+ * @returns     the source port.
+ */
+uint16_t bd_flow_get_destination_port(Flow *flow);
+
 /* Get the initial source IP address for the current packets flow.
  *
  * @params	flow - Libflowmanager flow.
@@ -216,5 +232,14 @@ uint64_t bd_flow_get_end_time_milliseconds(Flow *flow);
  *		0 on error.
  */
 double bd_flow_get_time_to_first_byte(Flow *flow);
+
+/* Checks if the current packet was sent from the server or client.
+ *
+ * @params	bigdata - bigdata structure.
+ * @returns	1 if the packet is from the server.
+ *		0 if the packet is from the client.
+ *		-1 on error.
+ */
+int bd_flow_is_server_packet(bd_bigdata_t *bigdata);
 
 #endif
