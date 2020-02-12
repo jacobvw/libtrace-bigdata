@@ -322,6 +322,8 @@ bd_tls_handshake *bd_tls_handshake_create() {
     handshake->client = NULL;
     handshake->server = NULL;
     handshake->server_done = 0;
+    handshake->client_certificate_requested = 0;
+    handshake->finished_messages = 0;
 
     return handshake;
 }
@@ -521,6 +523,43 @@ uint16_t bd_tls_get_version(Flow *flow) {
     }
 
     return handshake->server->version;
+}
+int bd_tls_server_done(Flow *flow) {
+
+    bd_tls_handshake *handshake;
+
+    handshake = bd_tls_get_handshake(flow);
+    if (handshake == NULL) {
+        return -1;
+    }
+
+    return handshake->server_done;
+}
+int bd_tls_client_certificate_requested(Flow *flow) {
+
+    bd_tls_handshake *handshake;
+
+    handshake = bd_tls_get_handshake(flow);
+    if (handshake == NULL) {
+        return -1;
+    }
+
+    return handshake->client_certificate_requested;
+}
+int bd_tls_handshake_finished(Flow *flow) {
+
+    bd_tls_handshake *handshake;
+
+    handshake = bd_tls_get_handshake(flow);
+    if (handshake == NULL) {
+        return -1;
+    }
+
+    if (handshake->finished_messages >= 2) {
+        return 1;
+    }
+
+    return 0;
 }
 
 /* X509 certificate API functions */
@@ -1030,7 +1069,7 @@ int bd_tls_update(bd_bigdata_t *bigdata, bd_tls_handshake *tls_handshake) {
                          //fprintf(stderr, "got server key exchange\n");
                          break;
                      case TLS_HANDSHAKE_CERTIFICATE_REQUEST:
-                         //fprintf(stderr, "got certificate request\n");
+                         tls_handshake->client_certificate_requested = 1;
                          break;
                      case TLS_HANDSHAKE_SERVER_DONE:
                          tls_handshake->server_done = 1;
@@ -1042,7 +1081,7 @@ int bd_tls_update(bd_bigdata_t *bigdata, bd_tls_handshake *tls_handshake) {
                          //fprintf(stderr, "got client key exchange\n");
                          break;
                      case TLS_HANDSHAKE_FINISHED:
-                         //fprintf(stderr, "got handshake finished\n");
+                         tls_handshake->finished_messages += 1;
                          break;
                      default: {
                          /* unknown handshake type */
@@ -1682,7 +1721,7 @@ static void bd_tls_parse_server_name_extension(char *payload,
         switch (*(uint8_t *)(payload+2)) {
             /* hostname */
             case 0x00: {
-                if (client->extension_sni != NULL) {
+                if (client->extension_sni == NULL) {
                     client->extension_sni = strndup((payload+5),
                         name_len);
 

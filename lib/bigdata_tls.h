@@ -61,6 +61,11 @@ typedef struct bigdata_tls_handshake {
     /* have we seen a server done tls message */
     bool server_done;
 
+    /* a client certificate has been requested */
+    bool client_certificate_requested;
+
+    /* number of time the finished message has been seen */
+    int finished_messages;
 } bd_tls_handshake;
 
 /* Create a tls structure to hold tls handshake information.
@@ -202,6 +207,34 @@ const char *bd_tls_cipher_to_string(uint16_t cipher);
  *		representation.
  */
 const char *bd_tls_version_to_string(uint16_t version);
+
+/* Has the server done tls handshake message been seen.
+ *
+ * @params	flow - the flow to check for the server done handshake.
+ * @returns	1 if it has been seen.
+ *		0 if it has NOT been seen.
+ *		-1 on error.
+ */
+int bd_tls_server_done(Flow *flow);
+
+/* Has a client certificate been requested.
+ *
+ * @params	flow - the flow to check for a client certificate request.
+ * @returns	1 if it has been seen.
+ *		0 if it has NOT been seen.
+ *		-1 on error.
+ */
+int bd_tls_client_certificate_requested(Flow *flow);
+
+/* Is the TLS handshake complete. I.E. have both parties sent a
+ * handshake finished message.
+ *
+ * @params	flow - the flow to check for a completed handshake.
+ * @returns	1 if the handshake is complete.
+ *		0 if the handshake is NOT complete.
+ *		-1 on error.
+ */
+int bd_tls_handshake_finished(Flow *flow);
 
 /* Get the list of all the server certificates seen for this flow.
  *

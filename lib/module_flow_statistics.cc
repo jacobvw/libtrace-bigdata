@@ -226,24 +226,21 @@ int module_flow_statistics_protocol_updated(bd_bigdata_t *bigdata, void *mls, lp
         /* include tls info if this is an encrypted flow and export_tls is enabled */
         if (config->export_tls && bd_tls_flow(flow)) {
 
-
-
             /* get client tls information. */
-            char *ja3 = bd_tls_get_ja3_md5(flow);
-            char *sni = bd_tls_get_client_extension_sni(flow);
-            const std::list<uint16_t> *client_ciphers =
-                bd_tls_get_client_supported_ciphers(flow);
-
             /* generate result set for client tls information */
             bd_result_set_t *tls_client = bd_result_set_create(bigdata,
                 "flow_statistics");
+            char *ja3 = bd_tls_get_ja3_md5(flow);
             if (ja3 != NULL) {
                 bd_result_set_insert_string(tls_client, "ja3", ja3);
             }
+            char *sni = bd_tls_get_client_extension_sni(flow);
             if (sni != NULL) {
                 bd_result_set_insert_string(tls_client, "sni", sni);
             }
             /* supported ciphers */
+            const std::list<uint16_t> *client_ciphers =
+                bd_tls_get_client_supported_ciphers(flow);
             if (client_ciphers != NULL) {
                 /* create a list for the string representation of the ciphers */
                 std::list<char *> client_ciphers_text;
@@ -259,43 +256,6 @@ int module_flow_statistics_protocol_updated(bd_bigdata_t *bigdata, void *mls, lp
                 bd_result_set_insert_string_array(tls_client, "supported_ciphers",
                     &client_ciphers_text);
             }
-
-
-            /* get server tls information. */
-            char *ja3s = bd_tls_get_ja3s_md5(flow);
-
-            /* generate result set for the server tls information */
-            bd_result_set_t *tls_server = bd_result_set_create(bigdata,
-                "flow_statistics");
-            if (ja3s != NULL) {
-                bd_result_set_insert_string(tls_server, "ja3s", ja3s);
-            }
-
-            /* get general tls information. */
-            uint16_t tls_cipher =
-                bd_tls_get_server_selected_cipher(flow);
-            uint16_t tls_compression =
-                bd_tls_get_server_selected_compression(flow);
-            uint16_t tls_version = bd_tls_get_version(flow);
-
-            /* generate result set for tls information */
-            bd_result_set_t *tls = bd_result_set_create(bigdata,
-                "flow_statistics");
-            if (tls_version != 0) {
-                bd_result_set_insert_uint(tls, "version", tls_version);
-                bd_result_set_insert_string(tls, "version_text",
-                    bd_tls_version_to_string(tls_version));
-            }
-            if (tls_cipher != 0) {
-                bd_result_set_insert_uint(tls, "cipher", tls_cipher);
-                bd_result_set_insert_string(tls, "cipher_text",
-                    bd_tls_cipher_to_string(tls_cipher));
-            }
-            if (tls_compression != 0) {
-                bd_result_set_insert_uint(res, "tls_compression",
-                    tls_compression);
-            }
-
             /* get tls client certificates */
             const std::list<X509 *> *client_certs =
                 bd_tls_get_x509_client_certificates(flow);
@@ -323,6 +283,15 @@ int module_flow_statistics_protocol_updated(bd_bigdata_t *bigdata, void *mls, lp
                     &client_cert_list);
             }
 
+
+            /* generate result set for the server tls information */
+            bd_result_set_t *tls_server = bd_result_set_create(bigdata,
+                "flow_statistics");
+            /* get the server ja3s */
+            char *ja3s = bd_tls_get_ja3s_md5(flow);
+            if (ja3s != NULL) {
+                bd_result_set_insert_string(tls_server, "ja3s", ja3s);
+            }
             /* get tls server certificates */
             const std::list<X509 *> *server_certs =
                 bd_tls_get_x509_server_certificates(flow);
@@ -349,6 +318,32 @@ int module_flow_statistics_protocol_updated(bd_bigdata_t *bigdata, void *mls, lp
                 bd_result_set_insert_result_set_array(tls_server, "certificates",
                     &server_cert_list);
             }
+
+
+            /* get general tls information. */
+            /* generate result set for tls information */
+            bd_result_set_t *tls = bd_result_set_create(bigdata,
+                "flow_statistics");
+            uint16_t tls_version = bd_tls_get_version(flow);
+            if (tls_version != 0) {
+                bd_result_set_insert_uint(tls, "version", tls_version);
+                bd_result_set_insert_string(tls, "version_text",
+                    bd_tls_version_to_string(tls_version));
+            }
+            uint16_t tls_cipher =
+                bd_tls_get_server_selected_cipher(flow);
+            if (tls_cipher != 0) {
+                bd_result_set_insert_uint(tls, "cipher", tls_cipher);
+                bd_result_set_insert_string(tls, "cipher_text",
+                    bd_tls_cipher_to_string(tls_cipher));
+            }
+            uint16_t tls_compression =
+                bd_tls_get_server_selected_compression(flow);
+            if (tls_compression != 0) {
+                bd_result_set_insert_uint(res, "tls_compression",
+                    tls_compression);
+            }
+
 
             /* insert client and server results into the tls result */
             bd_result_set_insert_result_set(tls, "client", tls_client);
@@ -732,6 +727,10 @@ bd_result_set_t *module_flow_statistics_generate_certificate_result(
         bd_result_set_insert_string(tmp, "serial", serial);
         bd_tls_free_x509_serial(serial);
     }
+    /* is this a certificate authority certificate */
+    bd_tls_get_x509_ca_status(cert) ?
+        bd_result_set_insert_bool(tmp, "certificate_authority", 1) :
+        bd_result_set_insert_bool(tmp, "certificate_authority", 0);
 
 
     /* create a result set to hold subject information */
