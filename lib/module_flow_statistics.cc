@@ -340,14 +340,21 @@ int module_flow_statistics_protocol_updated(bd_bigdata_t *bigdata, void *mls, lp
             uint16_t tls_compression =
                 bd_tls_get_server_selected_compression(flow);
             if (tls_compression != 0) {
-                bd_result_set_insert_uint(res, "tls_compression",
+                bd_result_set_insert_uint(tls, "compression",
                     tls_compression);
             }
+            /* is the tls handshake complete */
+            bool handshake_complete = bd_tls_handshake_complete(flow);
+            handshake_complete ?
+                bd_result_set_insert_bool(tls, "handshake_complete", 1) :
+                bd_result_set_insert_bool(tls, "handshake_complete", 0);
 
 
             /* insert client and server results into the tls result */
             bd_result_set_insert_result_set(tls, "client", tls_client);
             bd_result_set_insert_result_set(tls, "server", tls_server);
+
+            /* insert the tls information into the main result */
             bd_result_set_insert_result_set(res, "tls", tls);
         }
 
