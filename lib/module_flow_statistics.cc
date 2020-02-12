@@ -105,8 +105,8 @@ int module_flow_statistics_foreach_flow(Flow *flow, void *data) {
             bd_result_set_insert_uint(res, "out_bytes_total", flow_rec->out_bytes);
 
             bd_result_set_insert_timestamp(res, f->tick);
-            bd_result_set_free(res);
-            //bd_result_set_publish(f->bigdata, res, 0);
+
+            bd_result_set_publish(f->bigdata, res, 0);
         }
     }
 
@@ -187,7 +187,6 @@ int module_flow_statistics_protocol_updated(bd_bigdata_t *bigdata, void *mls, lp
     char ip_tmp[INET6_ADDRSTRLEN];
     struct timeval tv;
     Flow *flow;
-    bool gotcert = 0;
 
     flow = bigdata->flow;
     flow_rec = bd_flow_get_record(flow);
@@ -317,8 +316,6 @@ int module_flow_statistics_protocol_updated(bd_bigdata_t *bigdata, void *mls, lp
                     if (cert != NULL) {
                         client_cert_list.push_back(cert);
                     }
-
-                    gotcert = 1;
                 }
 
                 /* insert the client certificates into the tls client result */
@@ -345,8 +342,6 @@ int module_flow_statistics_protocol_updated(bd_bigdata_t *bigdata, void *mls, lp
                     if (cert != NULL) {
                         server_cert_list.push_back(cert);
                     }
-
-                    gotcert = 1;
                 }
 
                 /* push the list of certificates for the server into the server
@@ -365,9 +360,7 @@ int module_flow_statistics_protocol_updated(bd_bigdata_t *bigdata, void *mls, lp
         tv = trace_get_timeval(bigdata->packet);
         bd_result_set_insert_timestamp(res, tv.tv_sec);
 
-        if (gotcert) {
-             bd_result_set_publish(bigdata, res, 0);
-        } else { bd_result_set_free(res); }
+        bd_result_set_publish(bigdata, res, 0);
     }
 
     return 0;
@@ -431,8 +424,7 @@ int module_flow_statistics_flowend(bd_bigdata_t *bigdata, void *mls, bd_flow_rec
            Because the packet received in this function is not for the current flow */
         bd_result_set_insert_timestamp(res, flow_record->end_ts);
 
-        //bd_result_set_publish(bigdata, res, 0);
-        bd_result_set_free(res);
+        bd_result_set_publish(bigdata, res, 0);
     }
 
     return 0;
