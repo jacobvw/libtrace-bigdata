@@ -348,7 +348,18 @@ int module_flow_statistics_protocol_updated(bd_bigdata_t *bigdata, void *mls, lp
             handshake_complete ?
                 bd_result_set_insert_bool(tls, "handshake_complete", 1) :
                 bd_result_set_insert_bool(tls, "handshake_complete", 0);
-
+            /* is the handshake finished? */
+            bool handshake_finished = bd_tls_handshake_finished(flow);
+            handshake_finished ?
+                bd_result_set_insert_bool(tls, "handshake_finished", 1) :
+                bd_result_set_insert_bool(tls, "handshake_finished", 0);
+            /* is the sni valid? */
+            int sni_valid = bd_tls_sni_valid(flow);
+            if (sni_valid == 1) {
+                bd_result_set_insert_bool(tls, "SNI_valid", 1);
+            } else if (sni_valid == 0) {
+                bd_result_set_insert_bool(tls, "SNI_valid", 0);
+            }
 
             /* insert client and server results into the tls result */
             bd_result_set_insert_result_set(tls, "client", tls_client);

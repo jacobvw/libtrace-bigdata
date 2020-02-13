@@ -64,11 +64,18 @@ typedef struct bigdata_tls_handshake {
     /* a client certificate has been requested */
     bool client_certificate_requested;
 
-    /* number of time the finished message has been seen */
-    int finished_messages;
+    /* is the tls handshake finished? */
+    bool finished;
 
-    /* is the tls handshake complete? */
+    /* is there potentially lost tls headers due to fragmentation
+     * or reordering of packets?
+     */
     bool complete;
+
+    /* is the sni validate against the server certificate?
+     * -1 untested, 0 not valid, 1 valid
+     */
+    int sni_valid;
 
 } bd_tls_handshake;
 
@@ -230,7 +237,8 @@ int bd_tls_server_done(Flow *flow);
  */
 int bd_tls_client_certificate_requested(Flow *flow);
 
-/* Is the TLS handshake complete.
+/* Is the TLS handshake complete. I.E. have no packets been lost due to
+ * packet reordering or fragmentation.
  *
  * @params	flow - the flow to check for a completed handshake.
  * @returns	1 if the handshake is complete.
@@ -238,6 +246,27 @@ int bd_tls_client_certificate_requested(Flow *flow);
  *		-1 on error.
  */
 int bd_tls_handshake_complete(Flow *flow);
+
+/* Is the TLS handshake finished. I.E. have we started to see application
+ * payload.
+ *
+ * @params	flow - the flow to check for a finished handshake.
+ * @returns	1 if the handshake is finished.
+ *		0 is the handshake is NOT finished.
+ *		-1 on error.
+ */
+int bd_tls_handshake_finished(Flow *flow);
+
+/* Does to hostname within the TLS SNI field match the common or SAN names
+ * found within the certificates seen.
+ *
+ * @params	flow - the flow to check.
+ * @returns	1 if the verification passed.
+ *		0 if verification failed.
+ *		-1 if verification has not been performed.
+ *		-2 on error.
+ */
+int bd_tls_sni_valid(Flow *flow);
 
 /* Get the list of all the server certificates seen for this flow.
  *
@@ -509,5 +538,17 @@ const char *bd_tls_get_x509_signature_algorithm(X509 *cert);
  *		NULL on error.
  */
 const char *bd_tls_get_x509_public_key_algorithm(X509 *cert);
+
+/* Checks if the supplied hostname passes hostname verification for the
+ * supplied X509 certificate. This checks the common_name along with SAN
+ * names inside the certificate.
+ *
+ * @params	cert - the x509 certificate.
+ *		hostname to check.
+ * @returns	1 if hostname verification passes.
+ *		0 if hostname verification failes.
+ *		-1 on error.
+ */
+int bd_tls_val_x509_host_to_cert(X509 *cert, const char *hostname);
 
 #endif

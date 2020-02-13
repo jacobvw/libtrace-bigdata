@@ -11,6 +11,8 @@
 #include <openssl/x509_vfy.h>
 #include <openssl/pem.h>
 
+#include "hostcheck.h"
+
 /* buffer sizes used to generate ja3 md5 */
 #define BD_TLS_JA3_LEN 10000
 #define BD_TLS_EXT_LEN 5000
@@ -323,8 +325,10 @@ bd_tls_handshake *bd_tls_handshake_create() {
     handshake->server = NULL;
     handshake->server_done = 0;
     handshake->client_certificate_requested = 0;
-    handshake->finished_messages = 0;
-    handshake->complete = 0;
+    handshake->finished = 0;
+    /* assume the tls handshake is complete at the start */
+    handshake->complete = 1;
+    handshake->sni_valid = -1;
 
     return handshake;
 }
@@ -557,6 +561,20 @@ int bd_tls_handshake_complete(Flow *flow) {
     }
 
     return handshake->complete;
+}
+int bd_tls_handshake_finished(Flow *flow) {
+    bd_tls_handshake *handshake = handshake = bd_tls_get_handshake(flow);
+    if (handshake == NULL) {
+        return -1;
+    }
+    return handshake->finished;
+}
+int bd_tls_sni_valid(Flow *flow) {
+    bd_tls_handshake *handshake = bd_tls_get_handshake(flow);
+    if (handshake == NULL) {
+        return -2;
+    }
+    return handshake->sni_valid;
 }
 
 /* X509 certificate API functions */
@@ -961,17 +979,15 @@ const char *bd_tls_get_x509_public_key_algorithm(X509 *cert) {
             return NULL;
     }
 }
-int bd_tls_validate_certificate(X509 *cert, const char *hostname) {
-
-    bool match = 0;
+int bd_tls_val_x509_host_to_cert(X509 *cert, const char *hostname) {
 
     /* get the certificates common name */
     const char *cname = (const char *)bd_tls_get_x509_common_name(cert);
     if (cname != NULL) {
         /* check common name for a match */
-        //if (Curl_cert_hostcheck(cname, hostname) == CURL_HOST_MATCH) {
-        //    return 1;
-        //}
+        if (Curl_cert_hostcheck(cname, hostname) == CURL_HOST_MATCH) {
+            return 1;
+        }
     }
 
     std::list<char *> *altnames = bd_tls_get_x509_alt_names(cert);
@@ -979,15 +995,14 @@ int bd_tls_validate_certificate(X509 *cert, const char *hostname) {
         std::list<char *>::iterator it;
         for (it = altnames->begin(); it != altnames->end(); it++) {
             /* check each alt name for a match */
-            //if (Curl_cert_hostcheck(*it, hostname) == CURL_HOST_MATCH) {
-            //    match = 1;
-            //    continue;
-            //}
+            if (Curl_cert_hostcheck(*it, hostname) == CURL_HOST_MATCH) {
+                bd_tls_free_x509_alt_names(altnames);
+                return 1;
+            }
         }
     }
-    bd_tls_free_x509_alt_names(altnames);
 
-    return match;
+    return 0;
 }
 
 int bd_tls_update(bd_bigdata_t *bigdata, bd_tls_handshake *tls_handshake) {
@@ -1058,6 +1073,12 @@ int bd_tls_update(bd_bigdata_t *bigdata, bd_tls_handshake *tls_handshake) {
          * the full tls message.
          */
         if (remaining < (ntohs(hdr->length) + sizeof(bd_tls_hdr))) {
+            /* mark the handshake as incomplete only if this is
+             * a handshake packet.
+             */
+            if (payload[0] == TLS_PACKET_HANDSHAKE) {
+                tls_handshake->complete = 0;
+            }
             return 0;
         }
 
@@ -1073,7 +1094,7 @@ int bd_tls_update(bd_bigdata_t *bigdata, bd_tls_handshake *tls_handshake) {
             case TLS_PACKET_HANDSHAKE: {
 
                 /* what type of handshake is this message. */
-                switch ((payload+5)[0]) {
+                switch ((payload + sizeof(bd_tls_hdr))[0]) {
 
                      case TLS_HANDSHAKE_HELO_REQUEST: {
                          break;
@@ -1082,7 +1103,8 @@ int bd_tls_update(bd_bigdata_t *bigdata, bd_tls_handshake *tls_handshake) {
                          if (tls_handshake->client == NULL) {
                              tls_handshake->client =
                                  bd_tls_parse_client_hello(bigdata,
-                                      remaining-5, payload+5);
+                                      remaining - sizeof(bd_tls_hdr),
+                                      payload + sizeof(bd_tls_hdr));
                          }
                          break;
                      }
@@ -1090,7 +1112,8 @@ int bd_tls_update(bd_bigdata_t *bigdata, bd_tls_handshake *tls_handshake) {
                          if (tls_handshake->server == NULL) {
                              tls_handshake->server =
                                  bd_tls_parse_server_hello(bigdata,
-                                      remaining-5, payload+5);
+                                      remaining - sizeof(bd_tls_hdr),
+                                      payload + sizeof(bd_tls_hdr));
                          }
                          break;
                      }
@@ -1103,18 +1126,42 @@ int bd_tls_update(bd_bigdata_t *bigdata, bd_tls_handshake *tls_handshake) {
                              int srv_pkt = bd_flow_is_server_packet(bigdata);
 
                              if (srv_pkt && tls_handshake->server != NULL) {
-                                 bd_tls_parse_x509_certificate(payload+5,
+                                 bd_tls_parse_x509_certificate(
+                                     payload + sizeof(bd_tls_hdr),
                                      tls_handshake->server->certificates,
-                                     remaining-5);
-                                 break;
+                                     remaining - sizeof(bd_tls_hdr));
+                             } else if (!srv_pkt && tls_handshake->client != NULL) {
+                                 bd_tls_parse_x509_certificate(
+                                     payload + sizeof(bd_tls_hdr),
+                                     tls_handshake->client->certificates,
+                                     remaining - sizeof(bd_tls_hdr));
                              }
 
-                             if (!srv_pkt && tls_handshake->client != NULL) {
-                                 bd_tls_parse_x509_certificate(payload+5,
-                                     tls_handshake->client->certificates,
-                                     remaining-5);
-                                 break;
+                             /* verify sni matches certificate */
+                             char *sni = bd_tls_get_client_extension_sni(bigdata->flow);
+                             /* if a match has been found for this flow no point
+                              * in checking again.
+                              */
+                             if (sni != NULL && tls_handshake->sni_valid != 1) {
+                                 const std::list<X509 *> *server_certs =
+                                     bd_tls_get_x509_server_certificates(bigdata->flow);
+                                 if (server_certs != NULL) {
+                                     std::list<X509 *>::const_iterator it;
+                                     for (it = server_certs->begin(); it !=
+                                         server_certs->end(); it++) {
+
+                                         tls_handshake->sni_valid =
+                                             bd_tls_val_x509_host_to_cert(*it, sni);
+
+                                         /* may aswell end here if a match is found */
+                                         if (tls_handshake->sni_valid == 1) {
+                                             break;
+                                         }
+                                     }
+                                 }
                              }
+
+
                          }
 
                          break;
@@ -1132,7 +1179,6 @@ int bd_tls_update(bd_bigdata_t *bigdata, bd_tls_handshake *tls_handshake) {
                      case TLS_HANDSHAKE_CLIENT_KEY_EXCHANGE:
                          break;
                      case TLS_HANDSHAKE_FINISHED:
-                         tls_handshake->finished_messages += 1;
                          break;
                      default: {
                          break;
@@ -1143,9 +1189,9 @@ int bd_tls_update(bd_bigdata_t *bigdata, bd_tls_handshake *tls_handshake) {
             }
 
             case TLS_PACKET_APPLICATION_DATA: {
-                /* safe to say the handshake is complete if application data
+                /* safe to say the handshake is finished if application data
                  * is being exchanged? */
-                tls_handshake->complete = 1;
+                tls_handshake->finished = 1;
                 break;
             }
 
@@ -1819,6 +1865,8 @@ static bool bd_tls_is_handshake_encrypted(char *payload) {
 }
 
 const char *bd_tls_cipher_to_string(uint16_t cipher) {
+    char buf[100];
+
     switch (cipher) {
         case TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256:
             return "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256";
@@ -2045,6 +2093,7 @@ const char *bd_tls_cipher_to_string(uint16_t cipher) {
         case TLS_RSA_PSK_WITH_CHACHA20_POLY1305_SHA256:
             return "TLS_RSA_PSK_WITH_CHACHA20_POLY1305_SHA256";
         default:
+            //snprintf(buf, sizeof(buf), "UNKNOWN (%u)", cipher);
             return "UNKNOWN";
     }
 }
