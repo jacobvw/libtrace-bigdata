@@ -672,7 +672,11 @@ static const unsigned char *bd_tls_get_subject_NID(X509 *cert, int issuer,
         }
         e = X509_NAME_get_entry(nme, lastpos);
         ASN1_STRING *d = X509_NAME_ENTRY_get_data(e);
+#if (OPENSSL_VERSION_NUMBER > 0x10100000L)
         return ASN1_STRING_get0_data(d);
+#else
+        return ASN1_STRING_data(d);
+#endif
     }
     return NULL;
 }
@@ -692,7 +696,11 @@ std::list<char *> *bd_tls_get_x509_alt_names(X509 *cert) {
 
         if (current_name->type == GEN_DNS) {
 
+#if (OPENSSL_VERSION_NUMBER > 0x10100000L)
             char *dns_name = (char *)ASN1_STRING_get0_data(current_name->d.dNSName);
+#else
+            char *dns_name = (char *)ASN1_STRING_data(current_name->d.dNSName);
+#endif
 
             // Make sure there isn't an embedded NUL character in the DNS name
             if ((size_t)ASN1_STRING_length(current_name->d.dNSName) != strlen(dns_name)) {
@@ -907,6 +915,7 @@ int bd_tls_get_x509_public_key_size(X509 *cert) {
     int key_type = EVP_PKEY_base_id(pkey);
     int keysize = -1;
 
+#if (OPENSSL_VERSION_NUMBER > 0x10100000L)
     switch (key_type) {
         case EVP_PKEY_RSA: {
             RSA *r = EVP_PKEY_get0_RSA(pkey);
@@ -938,6 +947,16 @@ int bd_tls_get_x509_public_key_size(X509 *cert) {
         default:
             break;
     }
+#else
+    keysize = key_type==EVP_PKEY_RSA && pkey->pkey.rsa->n ?
+        BN_num_bits(pkey->pkey.rsa->n) : keysize;
+    keysize = key_type==EVP_PKEY_DSA && pkey->pkey.dsa->p ?
+        BN_num_bits(pkey->pkey.dsa->p) : keysize;
+    keysize = key_type==EVP_PKEY_DH  && pkey->pkey.dh->p  ?
+        BN_num_bits(pkey->pkey.dh->p) : keysize;
+    keysize = key_type==EVP_PKEY_EC  ?
+        EC_GROUP_get_degree(EC_KEY_get0_group(pkey->pkey.ec)) : keysize;
+#endif
 
     EVP_PKEY_free(pkey);
 
@@ -949,10 +968,16 @@ const char *bd_tls_get_x509_signature_algorithm(X509 *cert) {
         return NULL;
     }
 
-    int pkey_nid = X509_get_signature_nid(cert);
+    int pkey_nid;
+
+#if (OPENSSL_VERSION_NUMBER > 0x10100000L)
+    pkey_nid = X509_get_signature_nid(cert);
     if (pkey_nid == NID_undef) {
         return NULL;
     }
+#else
+    pkey_nid = OBJ_obj2nid(cert->sig_alg->algorithm);
+#endif
 
     return OBJ_nid2ln(pkey_nid);
 }
