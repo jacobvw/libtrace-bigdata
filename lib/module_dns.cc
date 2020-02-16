@@ -24,7 +24,7 @@ struct module_dns_local {
 };
 
 int module_dns_answer_to_result_set(bd_result_set_t *result_set, dns_answer_t *ans,
-    const char *type, int num);
+    const char *type);
 void *module_dns_starting(void *tls);
 int module_dns_packet(libtrace_t *trace, libtrace_thread_t *thread,
     Flow *flow, libtrace_packet_t *packet, void *tls, void *mls);
@@ -173,27 +173,49 @@ int module_dns_packet(bd_bigdata_t *bigdata, void *mls) {
         bd_result_set_insert_tag(result_set, "opcode", buf);
 
         // for each question
+        std::list<bd_result_set_t *> questions;
         for (i = 0; i < (int)resp->qdcount; i++) {
-            snprintf(buf, sizeof(buf), "%s%d", "question", i);
-            bd_result_set_insert_string(result_set, buf, resp->questions[i].name);
+            bd_result_set_t *q = bd_result_set_create(bigdata, "dns");
 
-            snprintf(buf, sizeof(buf), "%s%d%s", "question", i, "_type");
-            bd_result_set_insert_tag(result_set, buf,
-                dns_type_text(resp->questions[i].type));
+            bd_result_set_insert_string(q, "question", resp->questions[i].name);
+            bd_result_set_insert_tag(q, "type", dns_type_text(resp->questions[i].type));
+
+            questions.push_back(q);
         }
+        bd_result_set_insert_result_set_array(result_set, "questions", &questions);
 
         // for each answer
+        std::list<bd_result_set_t *> answers;
         for (i = 0; i < (int)resp->ancount; i++) {
-            module_dns_answer_to_result_set(result_set, &resp->answers[i], "answer", i);
+            bd_result_set_t *a = bd_result_set_create(bigdata, "dns");
+
+            module_dns_answer_to_result_set(a, &resp->answers[i], "answer");
+
+            answers.push_back(a);
         }
+        bd_result_set_insert_result_set_array(result_set, "answers", &answers);
+
         // for each nameserver
+        std::list<bd_result_set_t *> nameservers;
         for (i = 0; i < (int)resp->nscount; i++) {
-            module_dns_answer_to_result_set(result_set, &resp->nameservers[i], "nameserver", i);
+            bd_result_set_t *n = bd_result_set_create(bigdata, "dns");
+
+            module_dns_answer_to_result_set(n, &resp->nameservers[i], "nameserver");
+
+            nameservers.push_back(n);
         }
+        bd_result_set_insert_result_set_array(result_set, "nameservers", &nameservers);
+
         // for each additional
+        std::list<bd_result_set_t *> additionals;
         for (i = 0; i < (int)resp->arcount; i++) {
-            module_dns_answer_to_result_set(result_set, &resp->additional[i], "additional", i);
+            bd_result_set_t *a = bd_result_set_create(bigdata, "dns");
+
+            module_dns_answer_to_result_set(a, &resp->additional[i], "additional");
+
+            additionals.push_back(a);
         }
+        bd_result_set_insert_result_set_array(result_set, "additionals", &additionals);
 
         // set the timestamp for the result
         struct timeval tv = trace_get_timeval(packet);
@@ -275,63 +297,58 @@ int module_dns_ending(void *tls, void *mls) {
 }
 
 int module_dns_answer_to_result_set(bd_result_set_t *result_set, dns_answer_t *ans,
-    const char *type, int num) {
+    const char *type) {
 
     char buf[100];
-    char buf2[30];
-    char buf3[30];
-
-    snprintf(buf2, sizeof(buf2), "%s%d", type, num);
-    snprintf(buf3, sizeof(buf3), "%s%d%s", type, num, "_type");
 
     switch(ans->generic.type) {
         case RR_NS:
-            bd_result_set_insert_string(result_set, buf2, ans->ns.nsdname);
-            bd_result_set_insert_tag(result_set, buf3, dns_type_text(ans->ns.type));
+            bd_result_set_insert_string(result_set, type, ans->ns.nsdname);
+            bd_result_set_insert_tag(result_set, "type", dns_type_text(ans->ns.type));
             break;
         case RR_A:
             inet_ntop(AF_INET, &ans->a.address, buf, sizeof(buf));
-            bd_result_set_insert_string(result_set, buf2, buf);
-            bd_result_set_insert_tag(result_set, buf3, dns_type_text(ans->a.type));
+            bd_result_set_insert_string(result_set, type, buf);
+            bd_result_set_insert_tag(result_set, "type", dns_type_text(ans->a.type));
             break;
         case RR_AAAA:
             inet_ntop(AF_INET6, &ans->aaaa.address, buf, sizeof(buf));
-            bd_result_set_insert_string(result_set, buf2, buf);
-            bd_result_set_insert_tag(result_set, buf3, dns_type_text(ans->aaaa.type));
+            bd_result_set_insert_string(result_set, type, buf);
+            bd_result_set_insert_tag(result_set, "type", dns_type_text(ans->aaaa.type));
             break;
         case RR_CNAME:
-            bd_result_set_insert_string(result_set, buf2, ans->cname.cname);
-            bd_result_set_insert_tag(result_set, buf3, dns_type_text(ans->cname.type));
+            bd_result_set_insert_string(result_set, type, ans->cname.cname);
+            bd_result_set_insert_tag(result_set, "type", dns_type_text(ans->cname.type));
             break;
         case RR_MX:
             snprintf(buf, sizeof(buf), "%d %s",
                 ans->mx.preference,
                 ans->mx.exchange);
-            bd_result_set_insert_string(result_set, buf2, buf);
-            bd_result_set_insert_tag(result_set, buf3, dns_type_text(ans->mx.type));
+            bd_result_set_insert_string(result_set, type, buf);
+            bd_result_set_insert_tag(result_set, "type", dns_type_text(ans->mx.type));
             break;
         case RR_PTR:
-            bd_result_set_insert_string(result_set, buf2, ans->ptr.ptr);
-            bd_result_set_insert_tag(result_set, buf3, dns_type_text(ans->ptr.type));
+            bd_result_set_insert_string(result_set, type, ans->ptr.ptr);
+            bd_result_set_insert_tag(result_set, "type", dns_type_text(ans->ptr.type));
             break;
         case RR_HINFO:
             snprintf(buf, sizeof(buf), "%s %s",
                 ans->hinfo.cpu,
                 ans->hinfo.os);
-            bd_result_set_insert_string(result_set, buf2, buf);
-            bd_result_set_insert_tag(result_set, buf3, dns_type_text(ans->hinfo.type));
+            bd_result_set_insert_string(result_set, type, buf);
+            bd_result_set_insert_tag(result_set, "type", dns_type_text(ans->hinfo.type));
             break;
         case RR_MINFO:
             snprintf(buf, sizeof(buf), "%s %s",
                 ans->minfo.rmailbx,
                 ans->minfo.emailbx);
-            bd_result_set_insert_string(result_set, buf2, buf);
-            bd_result_set_insert_tag(result_set, buf3, dns_type_text(ans->minfo.type));
+            bd_result_set_insert_string(result_set, type, buf);
+            bd_result_set_insert_tag(result_set, "type", dns_type_text(ans->minfo.type));
             break;
         case RR_SPF:
         case RR_TXT:
-            bd_result_set_insert_string(result_set, buf2, ans->txt.text);
-            bd_result_set_insert_tag(result_set, buf3, dns_type_text(ans->txt.type));
+            bd_result_set_insert_string(result_set, type, ans->txt.text);
+            bd_result_set_insert_tag(result_set, "type", dns_type_text(ans->txt.type));
             break;
         case RR_SOA:
             snprintf(buf, sizeof(buf), "%u %u %u %u %u",
@@ -340,8 +357,8 @@ int module_dns_answer_to_result_set(bd_result_set_t *result_set, dns_answer_t *a
                 ans->soa.retry,
                 ans->soa.expire,
                 ans->soa.minimum);
-            bd_result_set_insert_string(result_set, buf2, buf);
-            bd_result_set_insert_tag(result_set, buf3, dns_type_text(ans->soa.type));
+            bd_result_set_insert_string(result_set, type, buf);
+            bd_result_set_insert_tag(result_set, "type", dns_type_text(ans->soa.type));
             break;
         case RR_LOC:
             break;
@@ -351,16 +368,16 @@ int module_dns_answer_to_result_set(bd_result_set_t *result_set, dns_answer_t *a
                 ans->srv.weight,
                 ans->srv.port,
                 ans->srv.target);
-            bd_result_set_insert_string(result_set, buf2, buf);
-            bd_result_set_insert_tag(result_set, buf3, dns_type_text(ans->srv.type));
+            bd_result_set_insert_string(result_set, type, buf);
+            bd_result_set_insert_tag(result_set, "type", dns_type_text(ans->srv.type));
             break;
         case RR_OPT:
             snprintf(buf, sizeof(buf), "%lu %s %lu",
                 (unsigned long)ans->opt.udp_payload,
                 ans->opt.fdo ? "true" : "false",
                 (unsigned long)ans->opt.numopts);
-            bd_result_set_insert_string(result_set, buf2, buf);
-            bd_result_set_insert_tag(result_set, buf3, dns_type_text(ans->opt.type));
+            bd_result_set_insert_string(result_set, type, buf);
+            bd_result_set_insert_tag(result_set, "type", dns_type_text(ans->opt.type));
             break;
         default:
             break;
