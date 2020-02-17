@@ -289,15 +289,15 @@ static bd_tls_server *bd_tls_parse_server_hello(bd_bigdata_t *bigdata,
     uint16_t remaining, char *payload);
 
 static void bd_tls_parse_ec_point_extension(char *payload,
-    bd_tls_client *client);
+    bd_tls_client *client, uint16_t extension_len);
 static void bd_tls_parse_ec_curves_extension(char *payload,
-    bd_tls_client *client);
+    bd_tls_client *client, uint16_t extension_len);
 static void bd_tls_parse_server_name_extension(char *payload,
-    bd_tls_client *client);
+    bd_tls_client *client, uint16_t extension_len);
 static void bd_tls_parse_session_ticket_extension(char *payload,
-    bd_tls_client *client);
+    bd_tls_client *client, uint16_t extension_len);
 static void bd_tls_parse_support_versions_extension(char *payload,
-    std::list<uint16_t> *supported_versions);
+    std::list<uint16_t> *supported_versions, uint16_t extension_len);
 static void bd_tls_parse_x509_certificate(char *payload, std::list<X509 *>
     *certificates, uint32_t remaining);
 
@@ -1302,6 +1302,10 @@ static bd_tls_server *bd_tls_parse_server_hello(bd_bigdata_t *bigdata,
     length = hdr->length[0] << 16 | hdr->length[1] << 8 |
         hdr->length[2];
 
+    if (length > remaining) {
+        return NULL;
+    }
+
     /* create the server hello structure */
     server = bd_tls_server_create();
 
@@ -1322,6 +1326,11 @@ static bd_tls_server *bd_tls_parse_server_hello(bd_bigdata_t *bigdata,
 
     extensions_len = ntohs(*(uint16_t *)payload);
 
+    if (extensions_len > remaining) {
+        bd_tls_server_destroy(server);
+        return NULL;
+    }
+
     /* move payload to the first extension */
     payload += 2;
 
@@ -1332,6 +1341,11 @@ static bd_tls_server *bd_tls_parse_server_hello(bd_bigdata_t *bigdata,
 
         extension = ntohs(*(uint16_t *)payload);
         extension_len = ntohs(*(uint16_t *)(payload+2));
+
+        if (extension_len > remaining) {
+            bd_tls_server_destroy(server);
+            return NULL;
+        }
 
         /* insert the extension code if not GREASE */
         if (!bd_tls_ext_grease(extension)) {
@@ -1440,6 +1454,10 @@ static bd_tls_client *bd_tls_parse_client_hello(bd_bigdata_t *bigdata,
     /* calculate length of the hello message */
     length = hdr->length[0] << 16 | hdr->length[1] << 8 |
         hdr->length[2];
+    /* resonable length? */
+    if (length > remaining) {
+        return NULL;
+    }
 
     /* create the client */
     client = bd_tls_client_create();
@@ -1458,6 +1476,11 @@ static bd_tls_client *bd_tls_parse_client_hello(bd_bigdata_t *bigdata,
     /* advance the payload pointer to the ciphers.
      * skipping over the cipher length field. */
     payload += 2;
+    /* check we got back a resonable length for ciphers */
+    if (cipher_len > remaining) {
+        bd_tls_client_destroy(client);
+        return NULL;
+    }
 
     /* copy over each ciper only if not grease */
     for (i = 0; i < num_ciphers; i++) {
@@ -1472,6 +1495,12 @@ static bd_tls_client *bd_tls_parse_client_hello(bd_bigdata_t *bigdata,
     compression_methods_len = *(uint8_t *)payload;
     /* move to the first compression method */
     payload += 1;
+    /* make sure we got back a resonable length for compression
+     * methods */
+    if (compression_methods_len > remaining) {
+        bd_tls_client_destroy(client);
+        return NULL;
+    }
 
     /* copy over each compression method */
     for (i = 0; i < compression_methods_len; i++) {
@@ -1485,12 +1514,22 @@ static bd_tls_client *bd_tls_parse_client_hello(bd_bigdata_t *bigdata,
     extensions_len = ntohs(*(uint16_t *)payload);
     /* move forward to the position of the first extension */
     payload += 2;
+    /* make sure we got back a resonable length for extensions */
+    if (extensions_len > remaining) {
+        bd_tls_client_destroy(client);
+        return NULL;
+    }
 
     /* loop over each client extension */
     for (i = 0; i < extensions_len; i++) {
 
         extension = ntohs(*(uint16_t *)payload);
         extension_len = ntohs(*(uint16_t *)(payload+2));
+        /* make sure this extension is a resonable length */
+        if (extension_len > remaining) {
+            bd_tls_client_destroy(client);
+            return NULL;
+        }
 
         /* insert extension code for ja3, only if not GREASE */
         if (!bd_tls_ext_grease(extension)) {
@@ -1500,27 +1539,27 @@ static bd_tls_client *bd_tls_parse_client_hello(bd_bigdata_t *bigdata,
         switch (extension) {
             case TLS_EXTENSION_SERVER_NAME: {
                 bd_tls_parse_server_name_extension(payload,
-                    client);
+                    client, extension_len);
                 break;
             }
             case TLS_EXTENSION_EC_CURVES: {
                 bd_tls_parse_ec_curves_extension(payload,
-                    client);
+                    client, extension_len);
                 break;
             }
             case TLS_EXTENSION_EC_POINT_FORMATS: {
                 bd_tls_parse_ec_point_extension(payload,
-                    client);
+                    client, extension_len);
                 break;
             }
             case TLS_EXTENSION_SESSION_TICKET: {
                 bd_tls_parse_session_ticket_extension(payload,
-                    client);
+                    client, extension_len);
                 break;
             }
             case TLS_EXTENSION_SUPPORTED_VERSIONS: {
                 bd_tls_parse_support_versions_extension(payload,
-                    client->extension_versions);
+                    client->extension_versions, extension_len);
                 break;
             }
             case TLS_EXTENSION_ENCRYPTED_SERVER_NAME: {
@@ -1703,7 +1742,7 @@ static int bd_tls_generate_client_ja3_md5(bd_tls_client *client) {
 }
 
 static void bd_tls_parse_ec_point_extension(char *payload,
-    bd_tls_client *client) {
+    bd_tls_client *client, uint16_t extension_len) {
 
     uint16_t len;
     uint8_t format_len;
@@ -1721,7 +1760,7 @@ static void bd_tls_parse_ec_point_extension(char *payload,
 }
 
 static void bd_tls_parse_ec_curves_extension(char *payload,
-    bd_tls_client *client) {
+    bd_tls_client *client, uint16_t extension_len) {
 
     uint16_t len;
     uint16_t num_curves;
@@ -1741,7 +1780,7 @@ static void bd_tls_parse_ec_curves_extension(char *payload,
 }
 
 static void bd_tls_parse_session_ticket_extension(char *payload,
-    bd_tls_client *client) {
+    bd_tls_client *client, uint16_t extension_len) {
 
     uint16_t len;
 
@@ -1755,7 +1794,7 @@ static void bd_tls_parse_session_ticket_extension(char *payload,
 }
 
 static void bd_tls_parse_support_versions_extension(char *payload,
-    std::list<uint16_t> *supported_versions) {
+    std::list<uint16_t> *supported_versions, uint16_t extension_len) {
 
     uint16_t len;
     int num_versions;
@@ -1829,7 +1868,7 @@ static void bd_tls_parse_x509_certificate(char *payload, std::list<X509 *>
 }
 
 static void bd_tls_parse_server_name_extension(char *payload,
-    bd_tls_client *client) {
+    bd_tls_client *client, uint16_t extension_len) {
 
     uint16_t len;
     uint16_t list_len;
