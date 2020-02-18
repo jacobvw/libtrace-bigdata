@@ -16,6 +16,10 @@ struct module_influxdb_conf {
     bool ssl_verifypeer;
     bool batch_results;
     int batch_count;
+
+    char retention[10];	/* how long each result is kept within influx */
+    int replication;	/* how many times each result is replicated
+			 * witin the influx cluster. */
 };
 static struct module_influxdb_conf *config;
 
@@ -32,6 +36,9 @@ void *module_influxdb_stopping(void *tls, void *mls);
 static std::string module_influxdb_result_to_query(bd_result_set *result);
 static size_t module_influxdb_callback(void *buffer, size_t size, size_t nmemb,
     void *userp);
+static size_t module_influxdb_policy_callback(void *buffer, size_t size,
+    size_t nmemb, void *userp);
+static void module_influxdb_policy_create(const char *action);
 
 void *module_influxdb_starting(void *tls) {
 
@@ -65,11 +72,11 @@ void *module_influxdb_starting(void *tls) {
     // get a curl handle
     opts->curl = curl_easy_init();
     if (opts->curl) {
-        char buff[200];
-        snprintf(buff, sizeof(buff), "%s%s%s%s%s%s%s", config->host, "/write?db=", config->db,
+        char buf[200];
+        snprintf(buf, sizeof(buf), "%s%s%s%s%s%s%s", config->host, "/write?db=", config->db,
             "&u=", config->usr, "&p=", config->pwd);
 
-        curl_easy_setopt(opts->curl, CURLOPT_URL, buff);
+        curl_easy_setopt(opts->curl, CURLOPT_URL, buf);
         curl_easy_setopt(opts->curl, CURLOPT_PORT, config->port);
 
         /* define callback function */
@@ -83,7 +90,64 @@ void *module_influxdb_starting(void *tls) {
         }
     }
 
+    /* Apply the policy for the database */
+    module_influxdb_policy_create("CREATE");
+
     return opts;
+}
+
+static void module_influxdb_policy_create(const char *action) {
+
+    CURL *retention_curl;
+    char retention_url[200];
+    char retention_data[200];
+
+    /* set retension and replication options */
+    retention_curl = curl_easy_init();
+    if (retention_curl) {
+
+        /* set the curl URL */
+        snprintf(retention_url, sizeof(retention_url), "%s/query?u=%s&p=%s",
+            config->host, config->usr, config->pwd);
+        /* create the new policy */
+        snprintf(retention_data, sizeof(retention_data), "q=%s RETENTION "
+            "POLICY \"libtracebigdata\" ON \"%s\" DURATION %s REPLICATION "
+            "%d DEFAULT", action, config->db, config->retention, config->replication);
+
+        curl_easy_setopt(retention_curl, CURLOPT_URL, retention_url);
+        curl_easy_setopt(retention_curl, CURLOPT_PORT, config->port);
+        curl_easy_setopt(retention_curl, CURLOPT_WRITEFUNCTION,
+            module_influxdb_policy_callback);
+
+        if (config->ssl_verifypeer) {
+            curl_easy_setopt(retention_curl, CURLOPT_SSL_VERIFYPEER, 1);
+        } else {
+            curl_easy_setopt(retention_curl, CURLOPT_SSL_VERIFYPEER, 0);
+        }
+
+        curl_easy_setopt(retention_curl, CURLOPT_POSTFIELDS, retention_data);
+        curl_easy_perform(retention_curl);
+        curl_easy_cleanup(retention_curl);
+    }
+}
+
+static size_t module_influxdb_policy_callback(void *buffer, size_t size,
+    size_t nmemb, void *userp) {
+
+    /* match the following on retention policy existing.
+     * {"results":[{"statement_id":0,"error":"retention policy already exists"}]}
+     * if matches try to alter the policy instead */
+
+    char *errorstr;
+    errorstr = strstr((char *)buffer, "error");
+    if (errorstr != NULL) {
+        errorstr = strstr((char *)buffer, "exists");
+        if (errorstr != NULL) {
+            module_influxdb_policy_create("ALTER");
+        }
+    }
+
+    return size *nmemb;
 }
 
 static size_t module_influxdb_callback(void *buffer, size_t size, size_t nmemb,
@@ -268,7 +332,7 @@ int module_influxdb_config(yaml_parser_t *parser, yaml_event_t *event, int *leve
                 }
                 if (strcmp((char *)event->data.scalar.value, "password") == 0) {
                     consume_event(parser, event, level);
-                    config->pwd = strdup((char *)event->data.scalar.value);;
+                    config->pwd = strdup((char *)event->data.scalar.value);
                     break;
                 }
                 if (strcmp((char *)event->data.scalar.value, "ssl_verify_peer") == 0) {
@@ -298,6 +362,21 @@ int module_influxdb_config(yaml_parser_t *parser, yaml_event_t *event, int *leve
                     consume_event(parser, event, level);
                     config->batch_count = atoi((char *)event->data.scalar.value);
                     break;
+                }
+                if (strcmp((char *)event->data.scalar.value, "retention") == 0) {
+                    consume_event(parser, event, level);
+                    strncpy(config->retention, (char *)event->data.scalar.value,
+                        sizeof(config->retention));
+                    break;
+                }
+                if (strcmp((char *)event->data.scalar.value, "replication") == 0) {
+                    consume_event(parser, event, level);
+                    config->replication = atoi((char *)event->data.scalar.value);
+                    if (config->replication == 0) {
+                        logger(LOG_WARNING, "Invalid replication value. "
+                            "module_influxDB. setting to default 1");
+                        config->replication = 1;
+                    }
                 }
                 consume_event(parser, event, level);
                 break;
@@ -340,6 +419,8 @@ int module_influxdb_init(bd_bigdata_t *bigdata) {
     config->ssl_verifypeer = 1;
     config->batch_results = 0;
     config->batch_count = 200;
+    strncpy(config->retention, "inf", 3);
+    config->replication = 1;
 
     // create callback set
     config->callbacks = bd_create_cb_set("influxdb");
