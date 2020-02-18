@@ -171,7 +171,7 @@ where:
     batch_results: 1
     # If batching results, how many to send at a time
     batch_count: 200
-    # The retension policy for data stored in influxDB (How long to store
+    # The retention policy for data stored in influxDB (How long to store
     # data within each influxDB table before purging it).
     # Note: use INF to never purge any data.
     # Available units:
@@ -184,7 +184,7 @@ where:
     # d		days
     # w		weeks
     # format: int_literal duration_unit. e.g. 30d
-    retension: inf
+    retention: inf
     # How many independent copies are stored in the cluster
     replication: 1
 
