@@ -141,9 +141,12 @@ static size_t module_influxdb_policy_callback(void *buffer, size_t size,
     char *errorstr;
     errorstr = strstr((char *)buffer, "error");
     if (errorstr != NULL) {
-        errorstr = strstr((char *)buffer, "exists");
+        errorstr = strstr((char *)buffer, "retention policy already exists");
         if (errorstr != NULL) {
             module_influxdb_policy_create("ALTER");
+        } else {
+            logger(LOG_INFO, "InfluxDB policy error: %.*s",
+                strlen((char *)buffer)-1, (char *)buffer);
         }
     }
 
