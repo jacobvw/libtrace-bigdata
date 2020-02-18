@@ -599,11 +599,12 @@ static std::string module_influxdb_result_to_query_fields(bd_result_set *result,
                 break;
             case BD_TYPE_STRING_ARRAY:
             case BD_TYPE_IP_STRING_ARRAY:
-                if (!first_pass || nested) {
-                    influx_line += ",";
-                }
-                first_pass = 0;
                 for (int j = 0; j < result->results[i]->num_values; j++) {
+                    if (!first_pass || nested) {
+                        influx_line += ",";
+                    }
+                    first_pass = 0;
+
                     snprintf(buf, sizeof(buf), "%s%s.%d",
                         prefix.c_str(), result->results[i]->key, j);
                     influx_line += buf;
@@ -618,17 +619,15 @@ static std::string module_influxdb_result_to_query_fields(bd_result_set *result,
                         influx_line += result->results[i]->value.data_string_array[j];
                     }
                     influx_line += "\"";
-                    if (j+1 != result->results[i]->num_values) {
-                        influx_line += ",";
-                    }
                 }
                 break;
             case BD_TYPE_FLOAT_ARRAY:
-                if (!first_pass || nested) {
-                    influx_line += ",";
-                }
-                first_pass = 0;
                 for (int j = 0; j < result->results[i]->num_values; j++) {
+                    if (!first_pass || nested) {
+                        influx_line += ",";
+                    }
+                    first_pass = 0;
+
                     snprintf(buf, sizeof(buf), "%s%s.%d",
                         prefix.c_str(), result->results[i]->key, j);
                     influx_line += buf;
@@ -636,17 +635,15 @@ static std::string module_influxdb_result_to_query_fields(bd_result_set *result,
                     snprintf(buf, sizeof(buf), "%f",
                         result->results[i]->value.data_float_array[j]);
                     influx_line += buf;
-                    if (j+1 != result->results[i]->num_values) {
-                        influx_line += ",";
-                    }
                 }
                 break;
             case BD_TYPE_DOUBLE_ARRAY:
-                if (!first_pass || nested) {
-                    influx_line += ",";
-                }
-                first_pass = 0;
                 for (int j = 0; j < result->results[i]->num_values; j++) {
+                    if (!first_pass || nested) {
+                        influx_line += ",";
+                    }
+                    first_pass = 0;
+
                     snprintf(buf, sizeof(buf), "%s%s.%d",
                         prefix.c_str(), result->results[i]->key, j);
                     influx_line += buf;
@@ -654,17 +651,15 @@ static std::string module_influxdb_result_to_query_fields(bd_result_set *result,
                     snprintf(buf, sizeof(buf), "%lf",
                         result->results[i]->value.data_double_array[j]);
                     influx_line += buf;
-                    if (j+1 != result->results[i]->num_values) {
-                        influx_line += ",";
-                    }
                 }
                 break;
             case BD_TYPE_INT_ARRAY:
-                if (!first_pass || nested) {
-                    influx_line += ",";
-                }
-                first_pass = 0;
                 for (int j = 0; j < result->results[i]->num_values; j++) {
+                    if (!first_pass || nested) {
+                        influx_line += ",";
+                    }
+                    first_pass = 0;
+
                     snprintf(buf, sizeof(buf), "%s%s.%d",
                         prefix.c_str(), result->results[i]->key, j);
                     influx_line += buf;
@@ -672,17 +667,15 @@ static std::string module_influxdb_result_to_query_fields(bd_result_set *result,
                     snprintf(buf, sizeof(buf), "%li",
                         result->results[i]->value.data_int_array[j]);
                     influx_line += buf;
-                    if (j+1 != result->results[i]->num_values) {
-                        influx_line += ",";
-                    }
                 }
                 break;
             case BD_TYPE_UINT_ARRAY:
-                if (!first_pass || nested) {
-                    influx_line += ",";
-                }
-                first_pass = 0;
                 for (int j = 0; j < result->results[i]->num_values; j++) {
+                    if (!first_pass || nested) {
+                        influx_line += ",";
+                    }
+                    first_pass = 0;
+
                     snprintf(buf, sizeof(buf), "%s%s.%d",
                         prefix.c_str(), result->results[i]->key, j);
                     influx_line += buf;
@@ -690,9 +683,6 @@ static std::string module_influxdb_result_to_query_fields(bd_result_set *result,
                     snprintf(buf, sizeof(buf), "%lu",
                         result->results[i]->value.data_uint_array[j]);
                     influx_line += buf;
-                    if (j+1 != result->results[i]->num_values) {
-                        influx_line += ",";
-                    }
                 }
                 break;
             case BD_TYPE_RESULT_SET:
