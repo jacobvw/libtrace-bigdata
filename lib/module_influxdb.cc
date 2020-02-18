@@ -90,9 +90,6 @@ void *module_influxdb_starting(void *tls) {
         }
     }
 
-    /* Apply the policy for the database */
-    module_influxdb_policy_create("CREATE");
-
     return opts;
 }
 
@@ -202,6 +199,8 @@ int module_influxdb_export_result(bd_bigdata_t *bigdata, mod_influxdb_opts_t *op
 
         /* If InfluxDB was previously offline or status was unknown */
         if (opts->influx_online < 1) {
+            /* this would be a good time to create or alter any database policy */
+            module_influxdb_policy_create("CREATE");
             logger(LOG_INFO, "InfluxDB is online.");
         }
 
