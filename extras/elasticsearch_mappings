@@ -1,62 +1,71 @@
-curl -X PUT "localhost:9200/flow_statistics"
-curl -X PUT "localhost:9200/flow_statistics/_mapping" -H 'Content-Type: application/json' -d'
+curl -X PUT "localhost:9200/_template/libtrace-bigdata" -H 'Content-Type: application/json' -d'
 {
+  "version": 1,
+  "order": 0,
+  "index_patterns": [
+    "bgp",
+    "dns",
+    "flow_statistics",
+    "http",
+    "protocol_statistics",
+    "smtp"
+  ],
+  "mappings": {    
+    "_routing": {
+      "required": false
+    },
+    "numeric_detection": false,
+    "dynamic_date_formats": [
+      "strict_date_optional_time",
+      "yyyy/MM/dd HH:mm:ss Z||yyyy/MM/dd Z"
+    ],
+    "_meta": {},
+    "dynamic": true,
+    "_source": {
+      "excludes": [],
+      "includes": [],
+      "enabled": true
+    },
+    "dynamic_templates": [],
+    "date_detection": true,
     "properties": {
-      "destination_ip": { "type": "ip" },
-      "destination_ip_geohash": { "type": "geo_point" },
-      "end_ts": { "type": "date", "format": "epoch_millis" },
-      "source_ip": { "type": "ip" },
-      "source_ip_geohash": { "type": "geo_point" },
-      "start_ts": { "type": "date", "format": "epoch_millis" },
-      "timestamp": { "type": "date", "format": "epoch_millis" }
+      "start_ts": {
+        "format": "epoch_millis",
+        "index": true,
+        "ignore_malformed": false,
+        "store": false,
+        "type": "date",
+        "doc_values": true
+      },
+      "destination_ip": {
+        "type": "ip"
+      },
+      "end_ts": {
+        "format": "epoch_millis",
+        "index": true,
+        "ignore_malformed": false,
+        "store": false,
+        "type": "date",
+        "doc_values": true
+      },
+      "source_ip_geohash": {
+        "type": "geo_point"
+      },
+      "destination_ip_geohash": {
+        "type": "geo_point"
+      },
+      "timestamp": {
+        "format": "epoch_millis",
+        "index": true,
+        "ignore_malformed": false,
+        "store": false,
+        "type": "date",
+        "doc_values": true
+      },
+      "source_ip": {
+        "type": "ip"
+      }
     }
-}
-'
-
-curl -X PUT "localhost:9200/dns"
-curl -X PUT "localhost:9200/dns/_mapping" -H 'Content-Type: application/json' -d'
-{
-    "properties": {
-      "source_ip": { "type": "ip" },
-      "source_ip_geohash": { "type": "geo_point" },
-      "destination_ip": { "type": "ip" },
-      "destination_ip_geohash": { "type": "geo_point" },
-      "timestamp": { "type": "date", "format": "epoch_millis" }
-    }
-}
-'
-
-curl -X PUT "localhost:9200/protocol_statistics"
-curl -X PUT "localhost:9200/protocol_statistics/_mapping" -H 'Content-Type: application/json' -d'
-{
-    "properties": {
-      "timestamp": { "type": "date", "format": "epoch_millis" }
-    }
-}
-'
-
-curl -X PUT "localhost:9200/http"
-curl -X PUT "localhost:9200/http/_mapping" -H 'Content-Type: application/json' -d'
-{
-    "properties": {
-      "destination_ip": { "type": "ip" },
-      "destination_ip_geohash": { "type": "geo_point" },
-      "source_ip": { "type": "ip" },
-      "source_ip_geohash": { "type": "geo_point" },
-      "timestamp": { "type": "date", "format": "epoch_millis" }
-    }
-}
-'
-
-curl -X PUT "localhost:9200/bgp"
-curl -X PUT "localhost:9200/bgp/_mapping" -H 'Content-Type: application/json' -d'
-{
-    "properties": {
-      "destination_ip": { "type": "ip" },
-      "destination_ip_geohash": { "type": "geo_point" },
-      "source_ip": { "type": "ip" },
-      "source_ip_geohash": { "type": "geo_point" },
-      "timestamp": { "type": "date", "format": "epoch_millis" }
-    }
+  }
 }
 '
