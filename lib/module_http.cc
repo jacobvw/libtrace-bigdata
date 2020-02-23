@@ -182,31 +182,40 @@ int module_http_packet(bd_bigdata_t *bigdata, void *mls) {
                 /* insert request data */
                 bd_result_set_insert_tag(result_set, "request_method", request->method);
                 bd_result_set_insert_string(result_set, "request_path", request->path);
-                for (int i = 0; i != request->num_headers; ++i) {
-                    snprintf(header_name, sizeof(header_name), "%s_%s", "request",
-                        request->headers[i].name);
-                    bd_result_set_insert_string(result_set, header_name, request->headers[i].value);
+
+                /* create result set for the request headers */
+                bd_result_set_t *req_hdrs = bd_result_set_create(bigdata, "http");
+                for (int i = 0; i != request->num_headers; i++) {
+
+                    bd_result_set_insert_string(req_hdrs, request->headers[i].name, request->headers[i].value);
+
                     free(request->headers[i].name);
                     free(request->headers[i].value);
                 }
+                bd_result_set_insert_result_set(result_set, "request_headers", req_hdrs);
 
                 /* insert response data */
                 bd_result_set_insert_int(result_set, "response_code", status);
-                for (int i = 0; i != num_headers; ++i) {
-                    snprintf(header_name, sizeof(header_name), "%s_%.*s", "response",
-                        (int)headers[i].name_len, headers[i].name);
+
+                /* insert response headers */
+                bd_result_set_t *resp_hdrs = bd_result_set_create(bigdata, "http");
+                for (int i = 0; i != num_headers; i++) {
+
+                    snprintf(header_name, sizeof(header_name), "%.*s", (int)headers[i].name_len,
+                        headers[i].name);
                     snprintf(header_value, sizeof(header_value), "%.*s", (int)headers[i].value_len,
                         headers[i].value);
 
                     /* if the response value contains a " escape it */
                     if (strstr(header_value, "\"")) {
                         char *w = bd_replaceWord(header_value, "\"", "\\\"");
-                        bd_result_set_insert_string(result_set, header_name, header_value);
+                        bd_result_set_insert_string(resp_hdrs, header_name, w);
                         free(w);
                     } else {
-                        bd_result_set_insert_string(result_set, header_name, header_value);
+                        bd_result_set_insert_string(resp_hdrs, header_name, header_value);
                     }
                 }
+                bd_result_set_insert_result_set(result_set, "response_headers", resp_hdrs);
 
                 /* insert the timestamp */
                 struct timeval tv = trace_get_timeval(bigdata->packet);
