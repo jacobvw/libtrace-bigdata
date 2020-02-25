@@ -8,6 +8,7 @@ AC_CONFIG_SRCDIR([lib/bigdata.cc])
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_AUX_DIR([build])
 AM_INIT_AUTOMAKE([subdir-objects])
+AC_CONFIG_MACRO_DIR([m4])
 
 # Make sure we use the relatively silent automake output
 m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])])
@@ -68,7 +69,8 @@ AC_SUBST([systemdsystemunitdir], [$with_systemdsystemunitdir])
 #AC_CHECK_HEADER_STDBOOL
 #AC_C_INLINE
 #AC_TYPE_INT64_T
-#AC_C_RESTRICT
+# DNS plugin uses restrict
+AC_C_RESTRICT
 #AC_TYPE_SIZE_T
 #AC_TYPE_UINT16_T
 #AC_TYPE_UINT32_T
@@ -76,11 +78,11 @@ AC_SUBST([systemdsystemunitdir], [$with_systemdsystemunitdir])
 #AC_TYPE_UINT8_T
 
 # All our source files for function replacements are in lib/
-AC_CONFIG_LIBOBJ_DIR(rpl)
+#AC_CONFIG_LIBOBJ_DIR(rpl)
 
 # Checks for library functions.
-AC_FUNC_MALLOC
-AC_FUNC_REALLOC
+#AC_FUNC_MALLOC
+#AC_FUNC_REALLOC
 
 AM_CONDITIONAL([HAVE_LIBRDKAFKA], [test "x$rdkafkafound" = xtrue])
 AM_CONDITIONAL([HAVE_DOXYGEN], [test x"$bd_doxygen" = xtrue])
