@@ -41,10 +41,10 @@ typedef struct bigdata_flow_record bd_flow_record_t;
 #include "module_flow_statistics.h"
 #include "module_http.h"
 #include "module_bgp.h"
-#include "module_ja3.h"
 
 // Filter plugins
 #include "module_maxmind.h"
+#include "module_ja3.h"
 
 // Output Plugins
 #ifdef HAVE_LIBCURL
