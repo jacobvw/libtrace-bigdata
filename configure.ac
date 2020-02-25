@@ -69,11 +69,12 @@ AC_TYPE_UINT32_T
 AC_TYPE_UINT64_T
 AC_TYPE_UINT8_T
 
+# All our source files for function replacements are in lib/
+AC_CONFIG_LIBOBJ_DIR(lib)
+
 # Checks for library functions.
 AC_FUNC_MALLOC
 AC_FUNC_REALLOC
-AC_FUNC_STRTOD
-AC_CHECK_FUNCS([memchr memset modf pow strdup])
 
 AM_CONDITIONAL([HAVE_LIBRDKAFKA], [test "x$rdkafkafound" = xtrue])
 AM_CONDITIONAL([HAVE_DOXYGEN], [test x"$bd_doxygen" = xtrue])
