@@ -47,8 +47,6 @@ void *module_dns_starting(void *tls) {
 
 int module_dns_packet(bd_bigdata_t *bigdata, void *mls) {
 
-    libtrace_packet_t *packet = bigdata->packet;
-
     // Gain access to module local storage
     struct module_dns_local *m_local = (struct module_dns_local *)mls;
 
@@ -61,8 +59,10 @@ int module_dns_packet(bd_bigdata_t *bigdata, void *mls) {
     void *payload;
     int i;
     char buf[30];
+    uint64_t flow_id;
 
-    payload = trace_get_layer3(packet, &ethertype, &remaining);
+    payload = trace_get_layer3(bigdata->packet, &ethertype, &remaining);
+    flow_id = bd_flow_get_id(bigdata->flow);
 
     // no layer3 header
     if (payload == NULL) { return 1; }
@@ -70,8 +70,8 @@ int module_dns_packet(bd_bigdata_t *bigdata, void *mls) {
     if (remaining == 0) { return 1; }
 
     // check if packet is udp or tcp
-    if ((udp = trace_get_udp(packet)) == NULL) {
-        if ((tcp = trace_get_tcp(packet)) == NULL) {
+    if ((udp = trace_get_udp(bigdata->packet)) == NULL) {
+        if ((tcp = trace_get_tcp(bigdata->packet)) == NULL) {
             return 1;
         }
         is_udp = 0;
@@ -118,7 +118,7 @@ int module_dns_packet(bd_bigdata_t *bigdata, void *mls) {
                 logger(LOG_CRIT, "Unable to allocate memory. func. module_dns_packet()");
                 exit(BD_OUTOFMEMORY);
             }
-            req_stor->start_ts = trace_get_seconds(packet);
+            req_stor->start_ts = trace_get_seconds(bigdata->packet);
 
             // insert request into the map
             map->insert({identifier, req_stor});
@@ -130,7 +130,7 @@ int module_dns_packet(bd_bigdata_t *bigdata, void *mls) {
         struct module_dns_req *req = (struct module_dns_req *)search->second;
 
         // finish populating the result structure
-        req->end_ts = trace_get_seconds(packet);
+        req->end_ts = trace_get_seconds(bigdata->packet);
 
         // retrieve the response
         dns_query_t *resp = (dns_query_t *)bufresult;
@@ -141,13 +141,15 @@ int module_dns_packet(bd_bigdata_t *bigdata, void *mls) {
             logger(LOG_CRIT, "Unable to allocate memory. func. module_dns_packet()");
             exit(BD_OUTOFMEMORY);
         }
-        req->src_ip = trace_get_source_address_string(packet, req->src_ip,
+        req->src_ip = trace_get_source_address_string(bigdata->packet, req->src_ip,
             INET6_ADDRSTRLEN);
-        req->dst_ip = trace_get_destination_address_string(packet, req->dst_ip,
+        req->dst_ip = trace_get_destination_address_string(bigdata->packet, req->dst_ip,
             INET6_ADDRSTRLEN);
 
         // create the result set
         bd_result_set_t *result_set = bd_result_set_create(bigdata, "dns");
+
+        bd_result_set_insert_uint(result_set, "flow_id", flow_id);
 
         /* flip source/dst IPs because this is the response packet, want them to match
          * the request packet */
@@ -218,7 +220,7 @@ int module_dns_packet(bd_bigdata_t *bigdata, void *mls) {
         bd_result_set_insert_result_set_array(result_set, "additionals", &additionals);
 
         // set the timestamp for the result
-        struct timeval tv = trace_get_timeval(packet);
+        struct timeval tv = trace_get_timeval(bigdata->packet);
         bd_result_set_insert_timestamp(result_set, tv.tv_sec);
 
         // send resultset to reporter thread

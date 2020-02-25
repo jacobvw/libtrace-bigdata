@@ -174,7 +174,7 @@ int module_http_packet(bd_bigdata_t *bigdata, void *mls) {
                 bd_result_set_t *result_set = bd_result_set_create(bigdata, "http");
 
                 /* insert the flow id */
-                bd_result_set_insert_uint(res, "flow_id", flow_id);
+                bd_result_set_insert_uint(result_set, "flow_id", flow_id);
 
                 /* insert source/destination ips */
                 bd_flow_get_source_ip_string(bigdata->flow, ip_tmp, INET6_ADDRSTRLEN);
