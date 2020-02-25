@@ -8,7 +8,18 @@ This code has been developed by the University of Waikato WAND
 research group. For further information please see http://www.wand.net.nz/.
 ---------------------------------------------------------------------------
 
-libtrace-bigdata is a real time packet analysis application
+Libtrace bigdata is a real time passive packet analysis application that is
+used with data visualization engines such as Kibana and Grafana to gain
+insights on the usage patterns and performance of a network and its
+applications. 
+
+Libtrace bigdata works by capturing packets from a capture point and
+passing each packet through flow, protocol and TLS decoders to form a result. 
+
+Libtrace bigdata comes with a range of pre-built input plugins, filtering
+plugins and output plugins which will satisfy most users needs. Libtrace
+bigdata is a event driven application and provides an extensive API for
+custom plugin development.
 
 Documentation and furthur information about libtrace-bigdata can be found
 at the wiki page, see https://github.com/jacobvw/libtrace-bigdata/wiki
