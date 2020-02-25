@@ -1,25 +1,30 @@
 AC_PREREQ([2.69])
 AC_INIT([libtrace-bigdata], [1.0], [jacobvw@icloud.com])
+
+MAJOR=1
+MINOR=0
+
 AC_CONFIG_SRCDIR([lib/bigdata.cc])
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_AUX_DIR([build])
-
 AM_INIT_AUTOMAKE([subdir-objects])
 
 # Make sure we use the relatively silent automake output
 m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])])
 
-AC_GNU_SOURCE
+AC_DEFINE([LIBTRACE_BIGDATA_MAJOR],${LIBTRACE_BIGDATA_MAJOR}, [libtrace bigdata major version])
+AC_DEFINE([LIBTRACE_BIGDATA_MINOR],${LIBTRACE_BIGDATA_MINOR}, [libtrace bigdata minor version])
+
+#AC_GNU_SOURCE
 
 # Checks for programs.
 AC_PROG_CXX
 AC_PROG_CC
 AC_PROG_INSTALL
-AC_PROG_AWK
-AC_PROG_CPP
-AC_PROG_MKDIR_P
-AC_PROG_SED
-PKG_PROG_PKG_CONFIG
+#AC_PROG_AWK
+#AC_PROG_CPP
+#AC_PROG_MKDIR_P
+#AC_PROG_SED
 
 # Checks for libraries.
 
@@ -52,6 +57,7 @@ fi
 AC_CHECK_PROG([bd_doxygen], [doxygen], [true], [false])
 
 # check for systemd
+PKG_PROG_PKG_CONFIG
 AC_ARG_WITH([systemdsystemunitdir],
     AS_HELP_STRING([--with-systemdunitdir=DIR], [Directory for systemd service files]),
     [], [with_systemdsystemunitdir=$($PKG_CONFIG --variable=systemdsystemunitdir systemd)])
@@ -59,18 +65,18 @@ AC_ARG_WITH([systemdsystemunitdir],
 AC_SUBST([systemdsystemunitdir], [$with_systemdsystemunitdir])
 
 # Checks for typedefs, structures, and compiler characteristics.
-AC_CHECK_HEADER_STDBOOL
-AC_C_INLINE
-AC_TYPE_INT64_T
-AC_C_RESTRICT
-AC_TYPE_SIZE_T
-AC_TYPE_UINT16_T
-AC_TYPE_UINT32_T
-AC_TYPE_UINT64_T
-AC_TYPE_UINT8_T
+#AC_CHECK_HEADER_STDBOOL
+#AC_C_INLINE
+#AC_TYPE_INT64_T
+#AC_C_RESTRICT
+#AC_TYPE_SIZE_T
+#AC_TYPE_UINT16_T
+#AC_TYPE_UINT32_T
+#AC_TYPE_UINT64_T
+#AC_TYPE_UINT8_T
 
 # All our source files for function replacements are in lib/
-AC_CONFIG_LIBOBJ_DIR(lib)
+AC_CONFIG_LIBOBJ_DIR(rpl)
 
 # Checks for library functions.
 AC_FUNC_MALLOC
@@ -83,4 +89,5 @@ AM_CONDITIONAL([HAVE_SYSTEMD], [test -n "$with_systemdsystemunitdir"])
 
 AM_COND_IF([HAVE_DOXYGEN], [AC_CONFIG_FILES([docs/Doxyfile docs/Makefile])])
 AM_COND_IF([HAVE_SYSTEMD], [AC_CONFIG_FILES([systemd/Makefile])])
+
 AC_OUTPUT(Makefile lib/Makefile)
