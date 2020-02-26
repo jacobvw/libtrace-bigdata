@@ -5,16 +5,21 @@
 #include <stdio.h>
 
 bd_result_set_t *bd_result_set_create(bd_bigdata_t *bigdata, const char *mod) {
+    if (bigdata == NULL) {
+        logger(LOG_NOTICE, "NULL bigdata structure. func. bd_result_set_create()");
+        return NULL;
+    }
+
     // create result set structure
     bd_result_set_t *res = (bd_result_set_t *)malloc(sizeof(bd_result_set_t));
     if (res == NULL) {
-        logger(LOG_CRIT, "Unable to allocate memory. func. bd_create_output_result_set()\n");
+        logger(LOG_CRIT, "Unable to allocate memory. func. bd_create_output_result_set()");
         exit(BD_OUTOFMEMORY);
     }
     // allocate space for the result pointers
     res->results = (bd_result_t **)malloc(sizeof(bd_result_t *)*RESULT_SET_INIT_SIZE);
     if (res->results == NULL) {
-        logger(LOG_CRIT, "Unable to allocate memory. func. bd_create_output_result_set()\n");
+        logger(LOG_CRIT, "Unable to allocate memory. func. bd_create_output_result_set()");
         exit(BD_OUTOFMEMORY);
     }
     res->module = mod;
@@ -31,7 +36,7 @@ static int bd_result_set_insert(bd_result_set_t *result_set, char const *key, bd
     bd_result_t *newresult;
 
     if (result_set == NULL) {
-        logger(LOG_CRIT, "NULL result set. func. bd_result_set_insert()\n");
+        logger(LOG_CRIT, "NULL result set. func. bd_result_set_insert()");
         exit(BD_OUTOFMEMORY);
     }
 
@@ -41,7 +46,7 @@ static int bd_result_set_insert(bd_result_set_t *result_set, char const *key, bd
         result_set->results = (bd_result_t **)realloc(result_set->results,
             sizeof(bd_result_t *)*result_set->allocated_results);
         if (result_set->results == NULL) {
-            logger(LOG_CRIT, "Unable to allocate memory. func. bd_result_set_insert()\n");
+            logger(LOG_CRIT, "Unable to allocate memory. func. bd_result_set_insert()");
             exit(BD_OUTOFMEMORY);
         }
     }
@@ -49,7 +54,7 @@ static int bd_result_set_insert(bd_result_set_t *result_set, char const *key, bd
     /* create the new result */
     newresult = (bd_result_t *)malloc(sizeof(bd_result_t));
     if (newresult == NULL) {
-        fprintf(stderr, "Unable to allocate memory. func. bd_result_set_insert()\n");
+        fprintf(stderr, "Unable to allocate memory. func. bd_result_set_insert()");
         exit(BD_OUTOFMEMORY);
     }
 
@@ -76,7 +81,15 @@ static int bd_result_set_insert(bd_result_set_t *result_set, char const *key, bd
 int bd_result_set_insert_string(bd_result_set_t *result_set, char const *key,
     const char *value) {
 
+    if (result_set == NULL) {
+        logger(LOG_NOTICE, "NULL result set. func. "
+            "bd_result_set_insert_string()");
+        return 1;
+    }
+
     if (value == NULL) {
+        logger(LOG_NOTICE, "NULL value passed into. func. "
+            "bd_result_set_insert_string()");
         return 1;
     }
 
@@ -93,6 +106,12 @@ int bd_result_set_insert_string(bd_result_set_t *result_set, char const *key,
 }
 int bd_result_set_insert_string_array(bd_result_set_t *result_set, char const *key,
     int num_args, ...) {
+
+    if (result_set == NULL) {
+        logger(LOG_NOTICE, "NULL result set. func. "
+            "bd_result_set_insert_string_array()");
+        return 1;
+    }
 
     va_list ap;
     int i;
@@ -125,6 +144,12 @@ int bd_result_set_insert_string_array(bd_result_set_t *result_set, char const *k
 int bd_result_set_insert_string_array(bd_result_set_t *result_set, char const *key,
     std::list<char *> *items) {
 
+    if (result_set == NULL) {
+        logger(LOG_NOTICE, "NULL result set. func. "
+            "bd_result_set_insert_string_array()");
+        return 1;
+    }
+
     std::list<char *>::iterator it = items->begin();
 
     /* create array of pointers for each string */
@@ -155,6 +180,12 @@ int bd_result_set_insert_string_array(bd_result_set_t *result_set, char const *k
 int bd_result_set_insert_float(bd_result_set_t *result_set, char const *key,
     float value) {
 
+    if (result_set == NULL) {
+        logger(LOG_NOTICE, "NULL result set. func. "
+            "bd_result_set_insert_float)");
+        return 1;
+    }
+
     union bd_record_value val;
     val.data_float = value;
     bd_result_set_insert(result_set, key, BD_TYPE_FLOAT, val, 0);
@@ -163,6 +194,12 @@ int bd_result_set_insert_float(bd_result_set_t *result_set, char const *key,
 }
 int bd_result_set_insert_float_array(bd_result_set_t *result_set, char const *key,
     int num_args, ...) {
+
+    if (result_set == NULL) {
+        logger(LOG_NOTICE, "NULL result set. func. "
+            "bd_result_set_insert_float_array()");
+        return 1;
+    }
 
     va_list ap;
     int i;
@@ -191,6 +228,12 @@ int bd_result_set_insert_float_array(bd_result_set_t *result_set, char const *ke
 int bd_result_set_insert_double(bd_result_set_t *result_set, char const *key,
     double value) {
 
+    if (result_set == NULL) {
+        logger(LOG_NOTICE, "NULL result set. func. "
+            "bd_result_set_insert_double()");
+        return 1;
+    }
+
     union bd_record_value val;
     val.data_double = value;
     bd_result_set_insert(result_set, key, BD_TYPE_DOUBLE, val, 0);
@@ -199,6 +242,12 @@ int bd_result_set_insert_double(bd_result_set_t *result_set, char const *key,
 }
 int bd_result_set_insert_double_array(bd_result_set_t *result_set, char const *key,
     int num_args, ...) {
+
+    if (result_set == NULL) {
+        logger(LOG_NOTICE, "NULL result set. func. "
+            "bd_result_set_insert_double_array()");
+        return 1;
+    }
 
     va_list ap;
     int i;
@@ -226,6 +275,12 @@ int bd_result_set_insert_double_array(bd_result_set_t *result_set, char const *k
 int bd_result_set_insert_int(bd_result_set_t *result_set, char const *key,
     int64_t value) {
 
+    if (result_set == NULL) {
+        logger(LOG_NOTICE, "NULL result set. func. "
+            "bd_result_set_insert_int()");
+        return 1;
+    }
+
     union bd_record_value val;
     val.data_int = value;
     bd_result_set_insert(result_set, key, BD_TYPE_INT, val, 0);
@@ -234,6 +289,12 @@ int bd_result_set_insert_int(bd_result_set_t *result_set, char const *key,
 }
 int bd_result_set_insert_int_array(bd_result_set_t *result_set, char const *key,
     int num_args, ...) {
+
+    if (result_set == NULL) {
+        logger(LOG_NOTICE, "NULL result set. func. "
+            "bd_result_set_insert_int_array()");
+        return 1;
+    }
 
     va_list ap;
     int i;
@@ -260,6 +321,12 @@ int bd_result_set_insert_int_array(bd_result_set_t *result_set, char const *key,
 int bd_result_set_insert_uint(bd_result_set_t *result_set, char const *key,
     uint64_t value) {
 
+    if (result_set == NULL) {
+        logger(LOG_NOTICE, "NULL result set. func. "
+            "bd_result_set_insert_uint()");
+        return 1;
+    }
+
     union bd_record_value val;
     val.data_uint = value;
     bd_result_set_insert(result_set, key, BD_TYPE_UINT, val, 0);
@@ -268,6 +335,12 @@ int bd_result_set_insert_uint(bd_result_set_t *result_set, char const *key,
 }
 int bd_result_set_insert_uint_array(bd_result_set_t *result_set, char const *key,
     int num_args, ...) {
+
+    if (result_set == NULL) {
+        logger(LOG_NOTICE, "NULL result set. func. "
+            "bd_result_set_insert_uint_array()");
+        return 1;
+    }
 
     va_list ap;
     int i;
@@ -294,6 +367,12 @@ int bd_result_set_insert_uint_array(bd_result_set_t *result_set, char const *key
 int bd_result_set_insert_bool(bd_result_set_t *result_set, char const *key,
     bool value) {
 
+    if (result_set == NULL) {
+        logger(LOG_NOTICE, "NULL result set. func. "
+            "bd_result_set_insert_bool()");
+        return 1;
+    }
+
     union bd_record_value val;
     val.data_bool = value;
     bd_result_set_insert(result_set, key, BD_TYPE_BOOL, val, 0);
@@ -301,16 +380,30 @@ int bd_result_set_insert_bool(bd_result_set_t *result_set, char const *key,
     return 0;
 }
 int bd_result_set_insert_timestamp(bd_result_set_t *result_set, uint64_t timestamp) {
+
+    if (result_set == NULL) {
+        logger(LOG_NOTICE, "NULL result set. func. "
+            "bd_result_set_insert_timestamp()");
+        return 1;
+    }
+
     result_set->timestamp = timestamp;
+
     return 0;
 }
 int bd_result_set_insert_tag(bd_result_set_t *result_set, char const *tag,
     const char *value) {
 
+    if (result_set == NULL) {
+        logger(LOG_NOTICE, "NULL result set. func. "
+            "bd_result_set_insert_tag()");
+        return 1;
+    }
+
     union bd_record_value val;
     val.data_string = strdup(value);
     if (val.data_string == NULL) {
-        logger(LOG_CRIT, "Unable to allocate memory. func. bd_result_set_insert_string()\n");
+        logger(LOG_CRIT, "Unable to allocate memory. func. bd_result_set_insert_string()");
         exit(BD_OUTOFMEMORY);
     }
     bd_result_set_insert(result_set, tag, BD_TYPE_TAG, val, 0);
@@ -320,10 +413,16 @@ int bd_result_set_insert_tag(bd_result_set_t *result_set, char const *tag,
 int bd_result_set_insert_ip_string(bd_result_set_t *result_set, char const *key,
     const char *value) {
 
+    if (result_set == NULL) {
+        logger(LOG_NOTICE, "NULL result set. func. "
+            "bd_result_set_insert_ip_string()");
+        return 1;
+    }
+
     union bd_record_value val;
     val.data_string = strdup(value);
     if (val.data_string == NULL) {
-        logger(LOG_CRIT, "Unable to allocate memory. func. bd_result_set_insert_ip_string()\n");
+        logger(LOG_CRIT, "Unable to allocate memory. func. bd_result_set_insert_ip_string()");
         exit(BD_OUTOFMEMORY);
     }
     bd_result_set_insert(result_set, key, BD_TYPE_IP_STRING, val, 0);
@@ -332,6 +431,12 @@ int bd_result_set_insert_ip_string(bd_result_set_t *result_set, char const *key,
 }
 int bd_result_set_insert_ip_string_array(bd_result_set_t *result_set, char const *key,
     int num_args, ...) {
+
+    if (result_set == NULL) {
+        logger(LOG_NOTICE, "NULL result set. func. "
+            "bd_result_set_insert_ip_string_array()");
+        return 1;
+    }
 
     va_list ap;
     int i;
@@ -365,7 +470,9 @@ int bd_result_set_insert_result_set(bd_result_set_t *result_set, char const *key
     bd_result_set_t *value) {
 
     if (result_set == NULL || value == NULL) {
-        return -1;
+        logger(LOG_NOTICE, "NULL result set. func. "
+            "bd_result_set_insert_result_set()");
+        return 1;
     }
 
     union bd_record_value val;
@@ -379,7 +486,9 @@ int bd_result_set_insert_result_set_array(bd_result_set_t *result_set,
     char const *key, std::list<bd_result_set_t *> *items) {
 
     if (result_set == NULL || items == NULL) {
-        return -1;
+        logger(LOG_NOTICE, "NULL result set. func. "
+            "bd_result_set_insert_result_set_array()");
+        return 1;
     }
 
     std::list<bd_result_set_t *>::iterator it = items->begin();
@@ -407,11 +516,25 @@ int bd_result_set_insert_result_set_array(bd_result_set_t *result_set,
 }
 
 int bd_result_set_lock(bd_result_set_t *result_set) {
+
+    if (result_set == NULL) {
+        logger(LOG_NOTICE, "NULL result set. func. "
+            "bd_result_set_lock()");
+        return 1;
+    }
+
     result_set->free_lock += 1;
 
     return 0;
 }
 int bd_result_set_unlock(bd_result_set_t *result_set) {
+
+    if (result_set == NULL) {
+        logger(LOG_NOTICE, "NULL result set. func. "
+            "bd_result_set_unlock()");
+        return 1;
+    }
+
     result_set->free_lock -= 1;
     bd_result_set_free(result_set);
 
@@ -421,7 +544,7 @@ int bd_result_set_unlock(bd_result_set_t *result_set) {
 int bd_result_set_publish(bd_bigdata_t *bigdata, bd_result_set_t *result, uint64_t key) {
 
     if (result == NULL) {
-        logger(LOG_DEBUG, "NULL result set. func. bd_result_set_output()\n");
+        logger(LOG_DEBUG, "NULL result set. func. bd_result_set_output()");
         return -1;
     }
 
@@ -444,7 +567,7 @@ int bd_result_set_publish(bd_bigdata_t *bigdata, bd_result_set_t *result, uint64
         bd_result_set_wrap_t *res = (bd_result_set_wrap_t *)
             malloc(sizeof(bd_result_set_wrap_t));
         if (res == NULL) {
-            logger(LOG_CRIT, "Unable to allocate memory. func. bd_result_set_publish()\n");
+            logger(LOG_CRIT, "Unable to allocate memory. func. bd_result_set_publish()");
             exit(BD_OUTOFMEMORY);
         }
         res->type = BD_RESULT_PUBLISH;
@@ -464,14 +587,14 @@ int bd_result_set_publish(bd_bigdata_t *bigdata, bd_result_set_t *result, uint64
 int bd_result_combine(bd_bigdata_t *bigdata, void *result, uint64_t key, int module_id) {
 
     if (result == NULL) {
-        logger(LOG_DEBUG, "NULL result set. func. bd_result_set_combine()\n");
+        logger(LOG_DEBUG, "NULL result set. func. bd_result_set_combine()");
         return -1;
     }
 
     bd_result_set_wrap_t *res = (bd_result_set_wrap_t *)
         malloc(sizeof(bd_result_set_wrap_t));
     if (res == NULL) {
-        logger(LOG_CRIT, "Unable to allocate memory. func. bd_result_set_publish()\n");
+        logger(LOG_CRIT, "Unable to allocate memory. func. bd_result_set_publish()");
         exit(BD_OUTOFMEMORY);
     }
     res->type = BD_RESULT_COMBINE;
@@ -602,7 +725,7 @@ int bd_result_set_wrap_free(bd_result_set_wrap_t *r) {
     int ret = 0;
 
     if (r == NULL) {
-        logger(LOG_DEBUG, "NULL result wrapper. func. bd_result_set_wrap_free()\n");
+        logger(LOG_DEBUG, "NULL result wrapper. func. bd_result_set_wrap_free()");
         return -1;
     }
 
@@ -646,7 +769,7 @@ char *bd_result_string_read(bd_cb_set *cbs) {
     /* allocate space to read the file into. include space to null terminate the string */
     buf = (char *)malloc(filesize + 1);
     if (buf == NULL) {
-        logger(LOG_CRIT, "Unable to allocate memory. func. bd_result_string_read()\n");
+        logger(LOG_CRIT, "Unable to allocate memory. func. bd_result_string_read()");
         exit(BD_OUTOFMEMORY);
     }
 

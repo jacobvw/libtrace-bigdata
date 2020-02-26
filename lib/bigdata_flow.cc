@@ -205,45 +205,80 @@ int flow_expire(bd_bigdata_t *bigdata) {
 }
 
 uint64_t bd_flow_get_in_packets(Flow *flow) {
-    // gain access to flow metrics
-    bd_flow_record_t *flow_record = (bd_flow_record_t *)flow->extension;
+
+    bd_flow_record_t *flow_record = bd_flow_get_record(flow);
+    if (flow_record == NULL) {
+        return 0;
+    }
+
     return flow_record->in_packets;
 }
 
 uint64_t bd_flow_get_out_packets(Flow *flow) {
-    // gain access to flow metrics
-    bd_flow_record_t *flow_record = (bd_flow_record_t *)flow->extension;
+
+    bd_flow_record_t *flow_record = bd_flow_get_record(flow);
+    if (flow_record == NULL) {
+        return 0;
+    }
+
     return flow_record->out_packets;
 }
 
 uint64_t bd_flow_get_in_bytes(Flow *flow) {
-    // gain access to flow metrics
-    bd_flow_record_t *flow_record = (bd_flow_record_t *)flow->extension;
+
+    bd_flow_record_t *flow_record = bd_flow_get_record(flow);
+    if (flow_record == NULL) {
+        return 0;
+    }
+
     return flow_record->in_bytes;
 }
 
 uint64_t bd_flow_get_out_bytes(Flow *flow) {
-    // gain access to flow metrics
-    bd_flow_record_t *flow_record = (bd_flow_record_t *)flow->extension;
+
+    bd_flow_record_t *flow_record = bd_flow_get_record(flow);
+    if (flow_record == NULL) {
+        return 0;
+    }
+
     return flow_record->out_bytes;
 }
 
 int bd_flow_get_direction(Flow *flow) {
-    bd_flow_record_t *flow_record = (bd_flow_record_t *)flow->extension;
+
+    bd_flow_record_t *flow_record = bd_flow_get_record(flow);
+    if (flow_record == NULL) {
+        return 0;
+    }
+
     return flow_record->init_dir;
 }
 
 uint16_t bd_flow_get_source_port(Flow *flow) {
-    bd_flow_record_t *flow_record = (bd_flow_record_t *)flow->extension;
+
+    bd_flow_record_t *flow_record = bd_flow_get_record(flow);
+    if (flow_record == NULL) {
+        return 0;
+    }
+
     return flow_record->src_port;
 }
 
 uint16_t bd_flow_get_destination_port(Flow *flow) {
-    bd_flow_record_t *flow_record = (bd_flow_record_t *)flow->extension;
+
+    bd_flow_record_t *flow_record = bd_flow_get_record(flow);
+    if (flow_record == NULL) {
+        return 0;
+    }
+
     return flow_record->dst_port;
 }
 
 int bd_flow_is_server_packet(bd_bigdata_t *bigdata) {
+
+    if (bigdata == NULL) {
+        return -1;
+    }
 
     if (bigdata->flow == NULL || bigdata->packet == NULL) {
         return -1;
@@ -268,11 +303,16 @@ int bd_flow_is_server_packet(bd_bigdata_t *bigdata) {
 struct sockaddr_storage *bd_flow_get_source_ip(Flow *flow,
     struct sockaddr_storage *src) {
 
-    if (src == NULL) {
+    if (flow == NULL || src == NULL) {
         return NULL;
     }
 
-    bd_flow_record_t *flow_record = (bd_flow_record_t *)flow->extension;
+    bd_flow_record_t *flow_record = bd_flow_get_record(flow);
+
+    if (flow_record == NULL) {
+        return NULL;
+    }
+
     memcpy(src, &(flow_record->src_ip), sizeof(struct sockaddr_storage));
 
     return src;
@@ -281,19 +321,16 @@ struct sockaddr_storage *bd_flow_get_source_ip(Flow *flow,
 struct sockaddr_storage *bd_flow_get_destination_ip(Flow *flow,
     struct sockaddr_storage *dst) {
 
-    if (flow == NULL) {
+    if (flow == NULL || dst == NULL) {
         return NULL;
     }
 
-    if (dst == NULL) {
-        return NULL;
+    bd_flow_record_t *flow_record = bd_flow_get_record(flow);
+
+    if (flow_record == NULL) {
+        return 0;
     }
 
-    if (flow->extension == NULL) {
-        return NULL;
-    }
-
-    bd_flow_record_t *flow_record = (bd_flow_record_t *)flow->extension;
     memcpy(dst, &(flow_record->dst_ip), sizeof(struct sockaddr_storage));
 
     return dst;
@@ -338,38 +375,32 @@ char *bd_flow_get_source_ip_string(Flow *flow, char *space, int spacelen) {
 
 lpi_protocol_t bd_flow_get_protocol(Flow *flow) {
 
-    if (flow == NULL) {
-        logger(LOG_DEBUG, "NULL flow. func. bd_flow_get_protocol()");
+    bd_flow_record_t *flow_record = bd_flow_get_record(flow);
+    if (flow_record == NULL) {
         return LPI_PROTO_UNKNOWN;
     }
 
-    bd_flow_record_t *flow_rec = (bd_flow_record_t *)flow->extension;
-
-    return flow_rec->lpi_module->protocol;
+    return flow_record->lpi_module->protocol;
 }
 
 lpi_category_t bd_flow_get_category(Flow *flow) {
 
-    if (flow == NULL) {
-        logger(LOG_DEBUG, "NULL flow. func. bd_flow_get_category()");
+    bd_flow_record_t *flow_record = bd_flow_get_record(flow);
+    if (flow_record == NULL) {
         return LPI_CATEGORY_UNKNOWN;
     }
 
-    bd_flow_record_t *flow_rec = (bd_flow_record_t *)flow->extension;
-
-    return flow_rec->lpi_module->category;
+    return flow_record->lpi_module->category;
 }
 
 lpi_module_t *bd_flow_get_lpi_module(Flow *flow) {
 
-    if (flow == NULL) {
-        logger(LOG_DEBUG, "NULL flow. func. bd_flow_get_lpi_module()");
+    bd_flow_record_t *flow_record = bd_flow_get_record(flow);
+    if (flow_record == NULL) {
         return NULL;
     }
 
-    bd_flow_record_t *flow_rec = (bd_flow_record_t *)flow->extension;
-
-    return flow_rec->lpi_module;
+    return flow_record->lpi_module;
 }
 
 FlowManager *bd_flow_get_flowmanager(bd_bigdata_t *bigdata) {
@@ -397,7 +428,16 @@ FlowManager *bd_flow_get_flowmanager(bd_bigdata_t *bigdata) {
 
 /* Returns the flow for the current packet */
 Flow *bd_flow_get(bd_bigdata_t *bigdata) {
-     return bigdata->flow;
+
+    if (bigdata == NULL) {
+        return NULL;
+    }
+
+    if (bigdata->flow == NULL) {
+        return NULL;
+    }
+
+    return bigdata->flow;
 }
 
 bd_flow_record_t *bd_flow_get_record(Flow *flow) {
@@ -412,13 +452,13 @@ bd_flow_record_t *bd_flow_get_record(Flow *flow) {
 
 double bd_flow_get_duration(Flow *flow) {
 
-    bd_flow_record_t *rec = NULL;
+    bd_flow_record_t *flow_record = bd_flow_get_record(flow);
 
-    if ((bd_flow_get_record(flow)) != NULL) {
-        return rec->end_ts - rec->start_ts;
+    if (flow_record == NULL) {
+        return 0;
     }
 
-    return 0;
+    return flow_record->end_ts - flow_record->start_ts;
 }
 
 uint64_t bd_flow_get_id(Flow *flow) {
