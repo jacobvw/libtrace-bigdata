@@ -881,8 +881,6 @@ static void module_elasticsearch_policy_create() {
 
     policy_json += "}}}";
 
-    fprintf(stderr, "policy %s\n", policy_json.c_str());
-
     ilm_curl = curl_easy_init();
     if (ilm_curl) {
 
@@ -937,7 +935,6 @@ static size_t module_elasticsearch_ilm_read_cb(void *buffer, size_t size, size_t
     userdata->data += to_copy;
 
     return to_copy;
-
 }
 
 static size_t module_elasticsearch_ilm_write_cb(void *buffer, size_t size, size_t nmemb,
@@ -946,7 +943,10 @@ static size_t module_elasticsearch_ilm_write_cb(void *buffer, size_t size, size_
     bool error;
     char *errorstr;
 
-    fprintf(stderr, "%s\n", (char *)buffer);
+    errorstr = strstr((char *)buffer, "error");
+    if (errorstr != NULL) {
+        logger(LOG_INFO, "%s", (char *)buffer);
+    }
 
     return size * nmemb;
 }
