@@ -15,6 +15,31 @@ struct module_elasticsearch_conf {
     bool require_user_auth;
     bool batch_results;
     int batch_count;
+
+    /* ILM policy settings */
+    bool ilm_policy_enabled;
+    char *ilm_policy_name;
+    /* hot ilm phase */
+    char *hot_max_index_size;
+    int hot_max_documents;
+    char *hot_max_age;
+    int hot_index_priority;
+    /* warm ilm phase */
+    bool warm_phase_enabled;
+    char *warm_min_age;
+    int warm_number_replicas;
+    int warm_shrink_shards;
+    int warm_merge_segments;
+    int warm_index_priority;
+    /* cold ilm phase */
+    bool cold_phase_enabled;
+    char *cold_min_age;
+    int cold_number_replicas;
+    bool cold_freeze_index;
+    int cold_index_priority;
+    /* delete phase */
+    bool delete_phase_enabled;
+    char *delete_min_age;
 };
 static struct module_elasticsearch_conf *config;
 
@@ -25,7 +50,19 @@ typedef struct module_elasticsearch_options {
     int elastic_online;
 } mod_elastic_opts_t;
 
+struct ilm_json_put {
+    const char *data;
+    size_t len;
+};
+
 static size_t module_elasticsearch_callback(void *buffer, size_t size, size_t nmemb,
+    void *userp);
+static void module_elasticsearch_policy_create();
+static int module_elasticsearch_valid_policy_age(char *age);
+static int module_elasticsearch_valid_policy_size(char *size);
+static size_t module_elasticsearch_ilm_read_cb(void *buffer, size_t size, size_t nmemb,
+    void *userp);
+static size_t module_elasticsearch_ilm_write_cb(void *buffer, size_t size, size_t nmemb,
     void *userp);
 
 void *module_elasticsearch_starting(void *tls) {
@@ -84,6 +121,8 @@ void *module_elasticsearch_starting(void *tls) {
         curl_easy_setopt(opts->curl, CURLOPT_WRITEFUNCTION,
             module_elasticsearch_callback);
     }
+
+    module_elasticsearch_policy_create();
 
     return opts;
 }
@@ -248,6 +287,28 @@ int module_elasticsearch_stopping(void *tls, void *mls) {
     curl_easy_cleanup(opts->curl);
     curl_global_cleanup();
 
+    if (config->username != NULL) {
+        free(config->username);
+    }
+    if (config->password != NULL) {
+        free(config->password);
+    }
+    if (config->hot_max_index_size != NULL) {
+        free(config->hot_max_index_size);
+    }
+    if (config->hot_max_age != NULL) {
+        free(config->hot_max_age);
+    }
+    if (config->warm_min_age != NULL) {
+        free(config->warm_min_age);
+    }
+    if (config->cold_min_age != NULL) {
+        free(config->cold_min_age);
+    }
+    if (config->delete_min_age != NULL) {
+        free(config->delete_min_age);
+    }
+
     free(opts);
 
     return 0;
@@ -333,6 +394,192 @@ int module_elasticsearch_config(yaml_parser_t *parser, yaml_event_t *event, int 
                     config->port = atoi((char *)event->data.scalar.value);
                     break;
                 }
+                /* ILM policy hot phase */
+                if (strcmp((char *)event->data.scalar.value, "ilm_policy_enabled") == 0) {
+                    consume_event(parser, event, level);
+                    if (strcmp((char *)event->data.scalar.value, "1") == 0 ||
+                        strcmp((char *)event->data.scalar.value, "true") == 0 ||
+                        strcmp((char *)event->data.scalar.value, "yes") == 0) {
+
+                        config->ilm_policy_enabled = 1;
+                    } else {
+                        config->ilm_policy_enabled = 0;
+                    }
+                    break;
+                }
+                if (strcmp((char *)event->data.scalar.value, "ilm_policy_name") == 0) {
+                    consume_event(parser, event, level);
+                    config->ilm_policy_name = strdup((char *)event->data.scalar.value);
+                }
+                if (strcmp((char *)event->data.scalar.value, "hot_max_index_size") == 0) {
+                    consume_event(parser, event, level);
+                    if (!module_elasticsearch_valid_policy_size((char *)event->data.scalar.value)) {
+                        logger(LOG_INFO, "Invalid value for elasticsearch hot_max_index_size");
+                    } else {
+                        config->hot_max_index_size = strdup((char *)event->data.scalar.value);
+                    }
+                    break;
+                }
+                if (strcmp((char *)event->data.scalar.value, "hot_max_documents") == 0) {
+                    consume_event(parser, event, level);
+                    config->hot_max_documents = atoi((char *)event->data.scalar.value);
+                    if (config->hot_max_documents == 0) {
+                        logger(LOG_INFO, "Invalid value for elasticsearch hot_max_documents");
+                        config->hot_max_documents = -1;
+                    }
+                    break;
+                }
+                if (strcmp((char *)event->data.scalar.value, "hot_max_age") == 0) {
+                    consume_event(parser, event, level);
+                    if (!module_elasticsearch_valid_policy_age((char *)event->data.scalar.value)) {
+                        logger(LOG_INFO, "Invalid value for elasticsearch hot_max_age");
+                    } else {
+                        config->hot_max_age = strdup((char *)event->data.scalar.value);
+                    }
+                    break;
+                }
+                if (strcmp((char *)event->data.scalar.value, "hot_index_priority") == 0) {
+                    consume_event(parser, event, level);
+                    config->hot_index_priority = atoi((char *)event->data.scalar.value);
+                    if (config->hot_index_priority == 0) {
+                        logger(LOG_INFO, "Invalid value for elasticsearch hot_index_priority");
+                        config->hot_index_priority = -1;
+                    }
+                    break;
+                }
+                /* ILM policy warm phase */
+                if (strcmp((char *)event->data.scalar.value, "warm_phase_enabled") == 0) {
+                    consume_event(parser, event, level);
+                    if (strcmp((char *)event->data.scalar.value, "1") == 0 ||
+                        strcmp((char *)event->data.scalar.value, "true") == 0 ||
+                        strcmp((char *)event->data.scalar.value, "yes") == 0) {
+
+                        config->warm_phase_enabled = 1;
+                    } else {
+                        config->warm_phase_enabled = 0;
+                    }
+                    break;
+                }
+                if (strcmp((char *)event->data.scalar.value, "warm_min_age") == 0) {
+                    consume_event(parser, event, level);
+                    if (!module_elasticsearch_valid_policy_age((char *)event->data.scalar.value)) {
+                        logger(LOG_INFO, "Invalid value for elasticsearch warm_min_age");
+                    } else {
+                        config->warm_min_age = strdup((char *)event->data.scalar.value);
+                    }
+                    break;
+                }
+                if (strcmp((char *)event->data.scalar.value, "warm_number_replicas") == 0) {
+                    consume_event(parser, event, level);
+                    config->warm_number_replicas = atoi((char *)event->data.scalar.value);
+                    if (config->warm_number_replicas == 0) {
+                        logger(LOG_INFO, "Invalid value for elasticsearch warm_number_replicas");
+                        config->warm_number_replicas = -1;
+                    }
+                    break;
+                }
+                if (strcmp((char *)event->data.scalar.value, "warm_shrink_shards") == 0) {
+                    consume_event(parser, event, level);
+                    config->warm_shrink_shards = atoi((char *)event->data.scalar.value);
+                    if (config->warm_shrink_shards == 0) {
+                        logger(LOG_INFO, "Invalid value for elasticsearch warm_shrink_shards");
+                        config->warm_shrink_shards = -1;
+                    }
+                    break;
+                }
+                if (strcmp((char *)event->data.scalar.value, "warm_merge_segments") == 0) {
+                    consume_event(parser, event, level);
+                    config->warm_merge_segments = atoi((char *)event->data.scalar.value);
+                    if (config->warm_merge_segments == 0) {
+                        logger(LOG_INFO, "Invalid value for elasticsearch warm_merge_segments");
+                        config->warm_merge_segments = -1;
+                    }
+                    break;
+                }
+                if (strcmp((char *)event->data.scalar.value, "warm_index_priority") == 0) {
+                    consume_event(parser, event ,level);
+                    config->warm_index_priority = atoi((char *)event->data.scalar.value);
+                    if (config->warm_index_priority == 0) {
+                        logger(LOG_INFO, "Invalid value for elasticsearch warm_index_priority");
+                        config->warm_index_priority = -1;
+                    }
+                    break;
+                }
+                /* ILM cold phase */
+                if (strcmp((char *)event->data.scalar.value, "cold_phase_enabled") == 0) {
+                    consume_event(parser, event ,level);
+                    if (strcmp((char *)event->data.scalar.value, "1") == 0 ||
+                        strcmp((char *)event->data.scalar.value, "true") == 0 ||
+                        strcmp((char *)event->data.scalar.value, "yes") == 0) {
+
+                        config->cold_phase_enabled = 1;
+                    } else {
+                        config->cold_phase_enabled = 0;
+                    }
+                    break;
+                }
+                if (strcmp((char *)event->data.scalar.value, "cold_min_age") == 0) {
+                    consume_event(parser, event ,level);
+                    if (!module_elasticsearch_valid_policy_age((char *)event->data.scalar.value)) {
+                        logger(LOG_INFO, "Invalid value for elasticsearch cold_min_age");
+                    } else {
+                        config->cold_min_age = strdup((char *)event->data.scalar.value);
+                    }
+                    break;
+                }
+                if (strcmp((char *)event->data.scalar.value, "cold_number_replicas") == 0) {
+                    consume_event(parser, event ,level);
+                    config->cold_number_replicas = atoi((char *)event->data.scalar.value);
+                    if (config->cold_number_replicas == 0) {
+                        logger(LOG_INFO, "Invalid value for elasticsearch cold_number_replicas");
+                        config->cold_number_replicas = -1;
+                    }
+                    break;
+                }
+                if (strcmp((char *)event->data.scalar.value, "cold_freeze_index") == 0) {
+                    consume_event(parser, event ,level);
+                    if (strcmp((char *)event->data.scalar.value, "1") == 0 ||
+                        strcmp((char *)event->data.scalar.value, "true") == 0 ||
+                        strcmp((char *)event->data.scalar.value, "yes") == 0) {
+
+                        config->cold_freeze_index = 1;
+                    } else {
+                        config->cold_freeze_index = 0;
+                    }
+                    break;
+                }
+                if (strcmp((char *)event->data.scalar.value, "cold_index_priority") == 0) {
+                    consume_event(parser, event ,level);
+                    config->cold_index_priority = atoi((char *)event->data.scalar.value);
+                    if (config->cold_index_priority == 0) {
+                        logger(LOG_INFO, "Invalid value for elasticsearch cold_index_priority");
+                        config->cold_index_priority = -1;
+                    }
+                    break;
+                }
+                /* ILM delete phase */
+                if (strcmp((char *)event->data.scalar.value, "delete_phase_enabled") == 0) {
+                    consume_event(parser, event ,level);
+                    if (strcmp((char *)event->data.scalar.value, "1") == 0 ||
+                        strcmp((char *)event->data.scalar.value, "true") == 0 ||
+                        strcmp((char *)event->data.scalar.value, "yes") == 0) {
+
+                        config->delete_phase_enabled = 1;
+                    } else {
+                        config->delete_phase_enabled = 0;
+                    }
+                    break;
+                }
+                if (strcmp((char *)event->data.scalar.value, "delete_min_age") == 0) {
+                    consume_event(parser, event ,level);
+                    if (!module_elasticsearch_valid_policy_age((char *)event->data.scalar.value)) {
+                        logger(LOG_INFO, "Invalid value for elasticsearch delete_min_age");
+                    } else {
+                        config->delete_min_age = strdup((char *)event->data.scalar.value);
+                    }
+                    break;
+                }
+
                 consume_event(parser, event, level);
                 break;
             default:
@@ -371,6 +618,31 @@ int module_elasticsearch_init(bd_bigdata_t *bigdata) {
     config->batch_results = 0;
     config->batch_count = 200;
 
+    /* ILM policy settings */
+    config->ilm_policy_enabled = 0;
+    config->ilm_policy_name = NULL;
+    /* hot ilm phase */
+    config->hot_max_index_size = NULL;
+    config->hot_max_documents = -1;
+    config->hot_max_age = NULL;
+    config->hot_index_priority = -1;
+    /* warm ilm phase */
+    config->warm_phase_enabled = 0;
+    config->warm_min_age = NULL;
+    config->warm_number_replicas = -1;
+    config->warm_shrink_shards = -1;
+    config->warm_merge_segments = -1;
+    config->warm_index_priority = -1;
+    /* cold ilm phase */
+    config->cold_phase_enabled = 0;
+    config->cold_min_age = NULL;
+    config->cold_number_replicas = -1;
+    config->cold_freeze_index = 0;
+    config->cold_index_priority = -1;
+    /* delete phase */
+    config->delete_phase_enabled = 0;
+    config->delete_min_age = NULL;
+
     // create callback structure
     config->callbacks = bd_create_cb_set("elasticsearch");
 
@@ -382,4 +654,299 @@ int module_elasticsearch_init(bd_bigdata_t *bigdata) {
     bd_register_cb_set(bigdata, config->callbacks);
 
     return 0;
+}
+
+static int module_elasticsearch_valid_policy_age(char *age) {
+
+    int len = strlen(age);
+
+    /* len must be atleast 2 */
+    if (len < 2) {
+        return 0;
+    }
+    if (age[len-1] == 'd' ||
+        age[len-1] == 'h' ||
+        age[len-1] == 'm' ||
+        age[len-1] == 's') {
+
+        return 1;
+    }
+
+    /* len must now be 3 or more */
+    if (len < 3) {
+        return 0;
+    }
+    if (age[len-2] == 'm' && age[len-1] == 's') {
+        return 1;
+    }
+
+    /* len must now be 6 or more */
+    if (len < 6) {
+        return 0;
+    }
+    if (age[len-5] == 'n' && age[len-4] == 'a' && age[len-3] == 'n' &&
+        age[len-2] == 'o' && age[len-1] == 's') {
+
+        return 1;
+    }
+
+    /* len must now be 7 or more */
+    if (len < 7) {
+        return 0;
+    }
+    if (age[len-6] == 'm' && age[len-5] == 'i' && age[len-4] == 'c' &&
+        age[len-3] == 'r' && age[len-2] == 'o' && age[len-1] == 's') {
+
+        return 1;
+    }
+
+    return 0;
+}
+
+static int module_elasticsearch_valid_policy_size(char *size) {
+
+    int len = strlen(size);
+
+    /* must be atleast 2 */
+    if (len < 2) {
+        return 0;
+    }
+    if (size[len-1] == 'b') {
+        return 1;
+    }
+
+    /* must be atleast 3 */
+    if (size[len-1] == 'b') {
+
+        if (size[len-2] == 't' || size[len-2] == 'p' ||
+            size[len-2] == 'g' || size[len-2] == 'm' ||
+            size[len-2] == 'k') {
+
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+static void module_elasticsearch_policy_create() {
+
+    std::string policy_json;
+    char buf[100];
+    bool prev = 0;
+    CURL *ilm_curl;
+    struct curl_slist *headers = NULL;
+
+    /* return if ilm policy is not enabled */
+    if (!(config->ilm_policy_enabled)) {
+        return;
+    }
+
+    /* generate the policy json */
+    policy_json = "{\"policy\":{\"phases\":{";
+    policy_json += "\"hot\":{\"min_age\":\"0\",\"actions\":{";
+
+    if (config->hot_max_index_size != NULL ||
+        config->hot_max_documents > 0 ||
+        config->hot_max_age != NULL) {
+
+        policy_json += "\"rollover\":{";
+
+        if (config->hot_max_index_size != NULL) {
+            policy_json += "\"max_size\":\"";
+            policy_json += config->hot_max_index_size;
+            policy_json += "\"";
+            prev = 1;
+        }
+
+        if (config->hot_max_documents > 0) {
+            if (prev) { policy_json += ","; }
+            snprintf(buf, sizeof(buf), "%d", config->hot_max_documents);
+            policy_json += "\"max_docs\":";
+            policy_json += buf;
+            prev = 1;
+        }
+
+        if (config->hot_max_age != NULL) {
+            if (prev) { policy_json += ","; }
+            policy_json += "\"max_age\":\"";
+            policy_json += config->hot_max_age;
+            policy_json += "\"";
+            prev = 1;
+        }
+
+            policy_json += "}";
+    }
+
+    if (config->hot_index_priority > 0) {
+        if (prev) { policy_json += ","; }
+        snprintf(buf, sizeof(buf), "%d", config->hot_index_priority);
+        policy_json += "\"set_priority\":{\"priority\":";
+        policy_json += buf;
+        policy_json += "}";
+    }
+
+    policy_json += "}}";
+
+    /* warm phase */
+    if (config->warm_phase_enabled &&
+        config->warm_min_age != NULL) {
+
+        policy_json += ",\"warm\":{\"min_age\":\"";
+        policy_json += config->warm_min_age;
+        policy_json += "\",\"actions\":{";
+        prev = 0;
+
+        if (config->warm_number_replicas > 0) {
+            snprintf(buf, sizeof(buf), "%d", config->warm_number_replicas);
+            policy_json += "\"allocate\":{\"number_of_replicas\":";
+            policy_json += buf;
+            policy_json += "}";
+            prev = 1;
+        }
+
+        if (config->warm_merge_segments > 0) {
+            if (prev) { policy_json += ","; }
+            snprintf(buf, sizeof(buf), "%d", config->warm_merge_segments);
+            policy_json += "\"forcemerge\":{\"max_num_segments\":";
+            policy_json += buf;
+            policy_json += "}";
+            prev = 1;
+        }
+
+        if (config->warm_shrink_shards > 0) {
+            if (prev) { policy_json += ","; }
+            snprintf(buf, sizeof(buf), "%d", config->warm_shrink_shards);
+            policy_json += "\"shrink\":{\"number_of_shards\":";
+            policy_json += buf;
+            policy_json += "}";
+            prev = 1;
+        }
+
+        if (config->warm_index_priority > 0) {
+            if (prev) { policy_json += ","; }
+            snprintf(buf, sizeof(buf), "%d", config->warm_index_priority);
+            policy_json += "\"set_priority\":{\"priority\":";
+            policy_json += buf;
+            policy_json += "}";
+            prev = 1;
+        }
+
+        policy_json += "}}";
+    }
+
+    /* cold phase */
+    if (config->cold_phase_enabled &&
+        config->cold_min_age != NULL) {
+
+        policy_json += ",\"cold\":{\"min_age\":\"";
+        policy_json += config->cold_min_age;
+        policy_json += "\",\"actions\":{";
+        prev = 0;
+
+        if (config->cold_number_replicas > 0) {
+            snprintf(buf, sizeof(buf), "%d", config->cold_number_replicas);
+            policy_json += "\"allocate\":{\"number_of_replicas\":";
+            policy_json += buf;
+            policy_json += "}";
+            prev = 1;
+        }
+
+        if (config->cold_freeze_index) {
+            if (prev) { policy_json += ","; }
+            policy_json += "\"freeze\": {}";
+            prev = 1;
+        }
+
+        if (config->cold_index_priority > 0) {
+            if (prev) { policy_json += ","; }
+            snprintf(buf, sizeof(buf), "%d", config->cold_index_priority);
+            policy_json += "\"set_priority\":{\"priority\":";
+            policy_json += buf;
+            policy_json += "}";
+            prev = 1;
+        }
+
+        policy_json += "}}";
+    }
+
+    /* delete phase */
+    if (config->delete_phase_enabled &&
+        config->delete_min_age != NULL) {
+
+        policy_json += ",\"delete\":{\"min_age\":\"";
+        policy_json += config->delete_min_age;
+        policy_json += "\",\"actions\":{\"delete\":{}}}";
+    }
+
+    policy_json += "}}}";
+
+    fprintf(stderr, "policy %s\n", policy_json.c_str());
+
+    ilm_curl = curl_easy_init();
+    if (ilm_curl) {
+
+        snprintf(buf, sizeof(buf), "%s:%d/_ilm/policy/%s", config->host,
+            config->port, config->ilm_policy_name);
+
+        curl_easy_setopt(ilm_curl, CURLOPT_URL, buf);
+        curl_easy_setopt(ilm_curl, CURLOPT_PORT, config->port);
+        curl_easy_setopt(ilm_curl, CURLOPT_WRITEFUNCTION,
+            module_elasticsearch_ilm_write_cb);
+        curl_easy_setopt(ilm_curl, CURLOPT_READFUNCTION,
+            module_elasticsearch_ilm_read_cb);
+
+        headers = curl_slist_append(headers, "Content-Type: application/x-ndjson");
+        curl_easy_setopt(ilm_curl, CURLOPT_HTTPHEADER, headers);
+
+        curl_easy_setopt(ilm_curl, CURLOPT_UPLOAD, 1L);
+        curl_easy_setopt(ilm_curl, CURLOPT_PUT, 1L);
+
+        if (config->require_user_auth) {
+            curl_easy_setopt(ilm_curl, CURLOPT_USERNAME, config->username);
+            curl_easy_setopt(ilm_curl, CURLOPT_PASSWORD, config->password);
+        }
+
+        if (config->ssl_verifypeer) {
+            curl_easy_setopt(ilm_curl, CURLOPT_SSL_VERIFYPEER, 1);
+        } else {
+            curl_easy_setopt(ilm_curl, CURLOPT_SSL_VERIFYPEER, 0);
+        }
+
+        struct ilm_json_put ilm_data;
+        ilm_data.data = policy_json.c_str();
+        ilm_data.len = policy_json.size();
+
+        curl_easy_setopt(ilm_curl, CURLOPT_READDATA, &ilm_data);
+
+        curl_easy_perform(ilm_curl);
+        curl_slist_free_all(headers);
+        curl_easy_cleanup(ilm_curl);
+    }
+}
+
+static size_t module_elasticsearch_ilm_read_cb(void *buffer, size_t size, size_t nmemb,
+    void *userp) {
+
+    struct ilm_json_put *userdata = (struct ilm_json_put *)userp;
+
+    size_t curl_size = nmemb * size;
+    size_t to_copy = (userdata->len < curl_size) ? userdata->len : curl_size;
+    memcpy(buffer, userdata->data, to_copy);
+    userdata->len -= to_copy;
+    userdata->data += to_copy;
+
+    return to_copy;
+
+}
+
+static size_t module_elasticsearch_ilm_write_cb(void *buffer, size_t size, size_t nmemb,
+    void *userp) {
+
+    bool error;
+    char *errorstr;
+
+    fprintf(stderr, "%s\n", (char *)buffer);
+
+    return size * nmemb;
 }

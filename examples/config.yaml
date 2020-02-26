@@ -202,8 +202,38 @@ where:
     require_user_auth: 0
     username: elasticuser
     password: elasticpassword
+
     # Enable to send results to elasticsearch in batches
     batch_results: 1
     # If batching results, how many to send at a time
     batch_count: 200
-    
+
+    # Elasticsearch index lifecycle policy
+    # hot phase - when the index reaches hot_max_index_size or an age of hot_max_index_age
+    # or has more than hot_max_documents a new index will be created and the old index will
+    # be rolled over to the next phase.
+    hot_phase_enabled: 0
+    # tb - terabytes, pb - petabytes, gb - gigabytes, mb - megabytes, kb - kilobytes, b - bytes
+    hot_max_index_size: 10gb
+    hot_max_documents: -1
+    # d - days, h - hours, m - minutes, s - seconds, ms - milliseconds, micros - microseconds,
+    # nanos - nanoseconds.
+    hot_max_age: 30d
+    hot_index_priority: 100
+    # warm phase - the index will enter the warm phase once it has existed for warm_min_age
+    warm_phase_enabled: 0
+    warm_min_age: 0
+    warm_number_replicas: -1
+    warm_shrink_shards: -1
+    warm_merge_segments: -1
+    warm_index_priority: -1
+    # cold phase
+    cold_phase_enabled: 0
+    cold_min_age: 0
+    cold_number_replicas: -1
+    cold_freeze_index: -1
+    cold_index_priority: -1
+    # delete phase - the index will enter the delete phase once it has existed for
+    # delete_min_age
+    delete_phase_enabled: 0
+    delete_min_age: 0
