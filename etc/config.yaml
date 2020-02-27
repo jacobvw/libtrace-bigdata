@@ -136,7 +136,7 @@ filter:
     enabled: 0
     # Location of the maxmind database to use. Can be obtained from
     # https://dev.maxmind.com/geoip/geoip2/geolite2/
-    database: /etc/bigdata/GeoLite2-City.mmdb
+    database: @sysconfdir@/bigdata/GeoLite2-City.mmdb
     metrics:
       - coordinates
       - geohash
@@ -153,7 +153,7 @@ filter:
     # Users can create their own signature file with the following structure:
     # [{"User-Agent":"user agent name", "md5":"MD5HASH"},
     #  {"User-Agent":"user agent name", "md5":"MD5HASH"}]
-    signatures: /etc/bigdata/ja3signatures.json
+    signatures: @sysconfdir@/bigdata/ja3signatures.json
 
 # output modules
 where:
@@ -208,32 +208,44 @@ where:
     # If batching results, how many to send at a time
     batch_count: 200
 
-    # Elasticsearch index lifecycle policy
-    # hot phase - when the index reaches hot_max_index_size or an age of hot_max_index_age
-    # or has more than hot_max_documents a new index will be created and the old index will
-    # be rolled over to the next phase.
-    hot_phase_enabled: 0
+    # Elasticsearch template
+    template_name: libtrace-bigdata
+    template_mapping: @sysconfdir@/bigdata/elasticsearch_template.json
+
+    # Enable ILM policy for elasticsearch
+    # https://www.elastic.co/guide/en/elasticsearch/reference/current/index-lifecycle-management.html
+    ilm_policy_enabled: 1
+    ilm_policy_name: libtrace-bigdata
+    # ILM policy HOT phase
     # tb - terabytes, pb - petabytes, gb - gigabytes, mb - megabytes, kb - kilobytes, b - bytes
-    hot_max_index_size: 10gb
+    hot_max_index_size: 30gb
     hot_max_documents: -1
     # d - days, h - hours, m - minutes, s - seconds, ms - milliseconds, micros - microseconds,
     # nanos - nanoseconds.
     hot_max_age: 30d
-    hot_index_priority: 100
-    # warm phase - the index will enter the warm phase once it has existed for warm_min_age
+    hot_index_priority: -1
+
+    # ILM policy WARM phase
     warm_phase_enabled: 0
-    warm_min_age: 0
+    # d - days, h - hours, m - minutes, s - seconds, ms - milliseconds, micros - microseconds,
+    # nanos - nanoseconds.
+    warm_min_age: 30d
     warm_number_replicas: -1
     warm_shrink_shards: -1
     warm_merge_segments: -1
     warm_index_priority: -1
-    # cold phase
+
+    # ILM policy COLD phase
     cold_phase_enabled: 0
-    cold_min_age: 0
+    # d - days, h - hours, m - minutes, s - seconds, ms - milliseconds, micros - microseconds,
+    # nanos - nanoseconds.
+    cold_min_age: 30d
     cold_number_replicas: -1
     cold_freeze_index: -1
     cold_index_priority: -1
-    # delete phase - the index will enter the delete phase once it has existed for
-    # delete_min_age
-    delete_phase_enabled: 0
-    delete_min_age: 0
+
+    # ILM policy DELETE phase
+    delete_phase_enabled: 1
+    # d - days, h - hours, m - minutes, s - seconds, ms - milliseconds, micros - microseconds,
+    # nanos - nanoseconds.
+    delete_min_age: 30d

@@ -1,4 +1,4 @@
-curl -X PUT "localhost:9200/_template/libtrace-bigdata" -H 'Content-Type: application/json' -d'
+curl -X PUT "192.168.20.40:9200/_template/libtrace-bigdata" -H 'Content-Type: application/json' -d'
 {
   "version": 1,
   "order": 0,
@@ -10,6 +10,13 @@ curl -X PUT "localhost:9200/_template/libtrace-bigdata" -H 'Content-Type: applic
     "protocol_statistics",
     "smtp"
   ],
+  "settings": {
+    "index": {
+      "lifecycle": {
+        "name": "libtrace-bigdata"
+      }
+    }
+  },
   "mappings": {    
     "_routing": {
       "required": false

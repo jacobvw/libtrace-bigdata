@@ -25,7 +25,7 @@ AC_PROG_INSTALL
 #AC_PROG_AWK
 #AC_PROG_CPP
 #AC_PROG_MKDIR_P
-#AC_PROG_SED
+AC_PROG_SED
 
 # Checks for libraries.
 
@@ -91,5 +91,6 @@ AM_CONDITIONAL([HAVE_SYSTEMD], [test -n "$with_systemdsystemunitdir"])
 
 AM_COND_IF([HAVE_DOXYGEN], [AC_CONFIG_FILES([docs/Doxyfile docs/Makefile])])
 AM_COND_IF([HAVE_SYSTEMD], [AC_CONFIG_FILES([systemd/Makefile])])
+AC_CONFIG_FILES([etc/Makefile])
 
 AC_OUTPUT(Makefile lib/Makefile)

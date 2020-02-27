@@ -1,8 +1,7 @@
 DISTCHECK_CONFIGURE_FLAGS = \
         --with-systemdsystemunitdir=$$dc_install_base/$(systemdsystemunitdir)
 
-SUBDIRS = lib
-EXTRA_DIST = examples/config.yaml
+SUBDIRS = lib etc
 
 AUTOMAKE_OPTIONS=foreign
 
@@ -13,7 +12,3 @@ endif
 if HAVE_SYSTEMD
 SUBDIRS += systemd
 endif
-
-bigdataconfdir = $(sysconfdir)/bigdata
-bigdataconf_DATA = examples/config.yaml
-
