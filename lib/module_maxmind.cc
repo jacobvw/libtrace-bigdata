@@ -72,95 +72,119 @@ int module_maxmind_result_cb(bd_bigdata_t *bigdata, void *mls, bd_result_set *re
 
     /* try to find a IP address in this result */
     for (int i = 0; i < result->num_results; i++) {
-        if (result->results[i]->type == BD_TYPE_IP_STRING) {
-            // get the IP
-            ip = result->results[i]->value.data_string;
+        switch (result->results[i]->type) {
 
-            if (ip != NULL) {
+            case BD_TYPE_IP_STRING: {
+                // get the IP
+                ip = result->results[i]->value.data_string;
 
-                mmdb_result = MMDB_lookup_string(&(storage->mmdb), ip, &gai_error, &mmdb_error);
-                if (mmdb_result.found_entry) {
+                if (ip != NULL) {
 
-                    // If coordinates are set to output
-                    if (config->coordinates || config->geohash) {
+                    mmdb_result = MMDB_lookup_string(&(storage->mmdb), ip, &gai_error, &mmdb_error);
+                    if (mmdb_result.found_entry) {
 
-                        // get the longitude
-                        status = MMDB_get_value(&(mmdb_result.entry), &entry_data,
-                            "location", "longitude", NULL);
-                        if (status == MMDB_SUCCESS) {
-                            if (entry_data.has_data) {
-                                // insert longitude into the result set
-                                snprintf(buf, sizeof(buf), "%s_longitude",
+                        // If coordinates are set to output
+                        if (config->coordinates || config->geohash) {
+
+                            // get the longitude
+                            status = MMDB_get_value(&(mmdb_result.entry), &entry_data,
+                                "location", "longitude", NULL);
+                            if (status == MMDB_SUCCESS) {
+                                if (entry_data.has_data) {
+                                    // insert longitude into the result set
+                                    snprintf(buf, sizeof(buf), "%s_longitude",
+                                        result->results[i]->key);
+                                    longitude = entry_data.double_value;
+                                    if (config->coordinates) {
+                                        bd_result_set_insert_double(result, buf,
+                                            longitude);
+                                    }
+                                }
+                            }
+
+                            // get the latitude
+                            status = MMDB_get_value(&(mmdb_result.entry), &entry_data,
+                                "location", "latitude", NULL);
+                            if (status == MMDB_SUCCESS) {
+                                if (entry_data.has_data) {
+                                    snprintf(buf, sizeof(buf), "%s_latitude",
+                                        result->results[i]->key);
+                                    latitude = entry_data.double_value;
+                                    if (config->coordinates) {
+                                        bd_result_set_insert_double(result, buf,
+                                            latitude);
+                                    }
+                                }
+                            }
+
+                            // calculate the geohash if set
+                            if (config->geohash) {
+                                // calculate the geohash
+                                char *geohash = module_maxmind_geohash_encode(latitude, longitude, 6);
+                                // insert geohash into result set
+                                snprintf(buf, sizeof(buf), "%s_geohash",
                                     result->results[i]->key);
-                                longitude = entry_data.double_value;
-                                if (config->coordinates) {
-                                    bd_result_set_insert_double(result, buf,
-                                        longitude);
+                                bd_result_set_insert_tag(result, buf, geohash);
+                                // grafana worldmap panel needs a value for each one??
+                                snprintf(buf, sizeof(buf), "%s_geohash_value",
+                                    result->results[i]->key);
+                                bd_result_set_insert_uint(result, buf, 1);
+                                free(geohash);
+                            }
+                        }
+
+                        // If city name is set to output
+                        if (config->city) {
+                            status = MMDB_get_value(&(mmdb_result.entry), &entry_data,
+                                "city", "names", "en", NULL);
+                            if (status == MMDB_SUCCESS) {
+                                if (entry_data.has_data) {
+                                    snprintf(buf, sizeof(buf), "%s_city",
+                                        result->results[i]->key);
+                                    snprintf(buf2, entry_data.data_size + 1, "%s",
+                                        entry_data.utf8_string);
+                                    bd_result_set_insert_string(result, buf, buf2);
                                 }
                             }
                         }
 
-                        // get the latitude
-                        status = MMDB_get_value(&(mmdb_result.entry), &entry_data,
-                            "location", "latitude", NULL);
-                        if (status == MMDB_SUCCESS) {
-                            if (entry_data.has_data) {
-                                snprintf(buf, sizeof(buf), "%s_latitude",
-                                    result->results[i]->key);
-                                latitude = entry_data.double_value;
-                                if (config->coordinates) {
-                                    bd_result_set_insert_double(result, buf,
-                                        latitude);
-                                }
-                            }
-                        }
+	                // If country name is set to output
+	                if (config->country) {
+	                    status = MMDB_get_value(&(mmdb_result.entry), &entry_data,
+	                        "country", "names", "en", NULL);
+	                    if (status == MMDB_SUCCESS) {
+	                        if (entry_data.has_data) {
+	                            snprintf(buf, sizeof(buf), "%s_country",
+	                                result->results[i]->key);
+	                            snprintf(buf2, entry_data.data_size + 1, "%s",
+	                                entry_data.utf8_string);
+	                            bd_result_set_insert_string(result, buf, buf2);
+	                        }
+	                    }
+	                }
 
-                        // calculate the geohash if set
-                        if (config->geohash) {
-                            // calculate the geohash
-                            char *geohash = module_maxmind_geohash_encode(latitude, longitude, 6);
-                            // insert geohash into result set
-                            snprintf(buf, sizeof(buf), "%s_geohash",
-                                result->results[i]->key);
-                            bd_result_set_insert_tag(result, buf, geohash);
-                            // grafana worldmap panel needs a value for each one??
-                            snprintf(buf, sizeof(buf), "%s_geohash_value",
-                                result->results[i]->key);
-                            bd_result_set_insert_uint(result, buf, 1);
-                            free(geohash);
-                        }
-                    }
-
-                    // If city name is set to output
-                    if (config->city) {
-                        status = MMDB_get_value(&(mmdb_result.entry), &entry_data,
-                            "city", "names", "en", NULL);
-                        if (status == MMDB_SUCCESS) {
-                            if (entry_data.has_data) {
-                                snprintf(buf, sizeof(buf), "%s_city",
-                                    result->results[i]->key);
-                                snprintf(buf2, entry_data.data_size + 1, "%s",
-                                    entry_data.utf8_string);
-                                bd_result_set_insert_string(result, buf, buf2);
-                            }
-                        }
-                    }
-
-                    // If country name is set to output
-                    if (config->country) {
-                        status = MMDB_get_value(&(mmdb_result.entry), &entry_data,
-                            "country", "names", "en", NULL);
-                        if (status == MMDB_SUCCESS) {
-                            if (entry_data.has_data) {
-                                snprintf(buf, sizeof(buf), "%s_country",
-                                    result->results[i]->key);
-                                snprintf(buf2, entry_data.data_size + 1, "%s",
-                                    entry_data.utf8_string);
-                                bd_result_set_insert_string(result, buf, buf2);
-                            }
-                        }
-                    }
+	            }
+	        }
+                break;
+            }
+            case BD_TYPE_RESULT_SET: {
+                module_maxmind_result_cb(
+                    bigdata,
+                    mls,
+                    result->results[i]->value.data_result_set);
+                break;
+            }
+            case BD_TYPE_RESULT_SET_ARRAY: {
+                for (int j = 0; j < result->results[i]->num_values; j++) {
+                    module_maxmind_result_cb(
+                        bigdata,
+                        mls,
+                        result->results[i]->value.data_result_set_array[j]);
                 }
+                break;
+            }
+            default: {
+                break;
             }
         }
     }
