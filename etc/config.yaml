@@ -248,7 +248,7 @@ where:
     cold_index_priority: -1
 
     # ILM policy DELETE phase
-    delete_phase_enabled: 1
+    delete_phase_enabled: 0
     # d - days, h - hours, m - minutes, s - seconds, ms - milliseconds, micros - microseconds,
     # nanos - nanoseconds.
     delete_min_age: 30d
