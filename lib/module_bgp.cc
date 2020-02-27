@@ -641,8 +641,13 @@ int module_bgp_generate_result(bd_bigdata_t *bigdata, mod_bgp_sess sess,
     bd_result_set_insert_uint(res, "source_hold_time", sess.src_hold_time);
     bd_result_set_insert_uint(res, "destination_hold_time", sess.dst_hold_time);
 
-    bd_result_set_insert_string(res, "source_ip", sess.src_ip);
-    bd_result_set_insert_string(res, "destination_ip", sess.dst_ip);
+    bd_result_set_t *res_source = bd_result_set_create(bigdata, "bgp");
+    bd_result_set_insert_ip_string(res_source, "ip", sess.src_ip);
+    bd_result_set_insert_result_set(res, "source", res_source);
+
+    bd_result_set_t *res_dest = bd_result_set_create(bigdata, "bgp");
+    bd_result_set_insert_ip_string(res_dest, "ip", sess.dst_ip);
+    bd_result_set_insert_result_set(res, "destination", res_dest);
 
     bd_result_set_insert_timestamp(res, timestamp);
 

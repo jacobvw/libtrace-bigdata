@@ -208,8 +208,8 @@ where:
     # If batching results, how many to send at a time
     batch_count: 200
 
-    # Elasticsearch prefix for each index created
-    index_prefix: libtrace-bigdata-
+    # Elasticsearch index to store results in
+    index_name: libtrace-bigdata
 
     # Elasticsearch template
     # NOTE: still experimental

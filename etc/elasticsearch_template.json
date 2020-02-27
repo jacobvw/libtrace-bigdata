@@ -39,8 +39,15 @@
         "type": "date",
         "doc_values": true
       },
-      "destination_ip": {
-        "type": "ip"
+      "destination": {
+        "properties": {
+          "ip": {
+            "type": "ip"
+          },
+          "ip_geohash": {
+            "type": "geo_point"
+          }
+        }
       },
       "end_ts": {
         "format": "epoch_millis",
@@ -50,12 +57,6 @@
         "type": "date",
         "doc_values": true
       },
-      "source_ip_geohash": {
-        "type": "geo_point"
-      },
-      "destination_ip_geohash": {
-        "type": "geo_point"
-      },
       "timestamp": {
         "format": "epoch_millis",
         "index": true,
@@ -64,8 +65,15 @@
         "type": "date",
         "doc_values": true
       },
-      "source_ip": {
-        "type": "ip"
+      "source": {
+        "properties": {
+          "ip": {
+            "type": "ip"
+          },
+          "ip_geohash": {
+            "type": "geo_point"
+          }
+        }
       }
     }
   }

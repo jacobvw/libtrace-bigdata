@@ -91,13 +91,17 @@ int module_flow_statistics_foreach_flow(Flow *flow, void *data) {
             bd_result_set_insert_double(res, "duration", flow_rec->end_ts - flow_rec->start_ts);
             bd_result_set_insert_double(res, "ttfb", flow_rec->ttfb);
 
+            bd_result_set_t *res_source = bd_result_set_create(f->bigdata, "flow_statistics");
             bd_flow_get_source_ip_string(flow, ip_tmp, INET6_ADDRSTRLEN);
-            bd_result_set_insert_ip_string(res, "source_ip", ip_tmp);
-            bd_flow_get_destination_ip_string(flow, ip_tmp, INET6_ADDRSTRLEN);
-            bd_result_set_insert_ip_string(res, "destination_ip", ip_tmp);
+            bd_result_set_insert_ip_string(res_source, "ip", ip_tmp);
+            bd_result_set_insert_int(res_source, "port", flow_rec->src_port);
+            bd_result_set_insert_result_set(res, "source", res_source);
 
-            bd_result_set_insert_int(res, "src_port", flow_rec->src_port);
-            bd_result_set_insert_int(res, "dst_port", flow_rec->dst_port);
+            bd_result_set_t *res_dest = bd_result_set_create(f->bigdata, "flow_statistics");
+            bd_flow_get_destination_ip_string(flow, ip_tmp, INET6_ADDRSTRLEN);
+            bd_result_set_insert_ip_string(res_dest, "ip", ip_tmp);
+            bd_result_set_insert_int(res_dest, "port", flow_rec->dst_port);
+            bd_result_set_insert_result_set(res, "destination", res_dest);
 
             bd_result_set_insert_uint(res, "in_bytes", stats.in_bytes);
             bd_result_set_insert_uint(res, "out_bytes", stats.out_bytes);
@@ -210,13 +214,17 @@ int module_flow_statistics_protocol_updated(bd_bigdata_t *bigdata, void *mls, lp
         bd_result_set_insert_double(res, "duration", flow_rec->end_ts - flow_rec->start_ts);
         bd_result_set_insert_double(res, "ttfb", flow_rec->ttfb);
 
+        bd_result_set_t *res_source = bd_result_set_create(bigdata, "flow_statistics");
         bd_flow_get_source_ip_string(bigdata->flow, ip_tmp, INET6_ADDRSTRLEN);
-        bd_result_set_insert_ip_string(res, "source_ip", ip_tmp);
-        bd_flow_get_destination_ip_string(bigdata->flow, ip_tmp, INET6_ADDRSTRLEN);
-        bd_result_set_insert_ip_string(res, "destination_ip", ip_tmp);
+        bd_result_set_insert_ip_string(res_source, "ip", ip_tmp);
+        bd_result_set_insert_int(res_source, "port", flow_rec->src_port);
+        bd_result_set_insert_result_set(res, "source", res_source);
 
-        bd_result_set_insert_int(res, "src_port", flow_rec->src_port);
-        bd_result_set_insert_int(res, "dst_port", flow_rec->dst_port);
+        bd_result_set_t *res_dest = bd_result_set_create(bigdata, "flow_statistics");
+        bd_flow_get_destination_ip_string(bigdata->flow, ip_tmp, INET6_ADDRSTRLEN);
+        bd_result_set_insert_ip_string(res_dest, "ip", ip_tmp);
+        bd_result_set_insert_int(res_dest, "port", flow_rec->dst_port);
+        bd_result_set_insert_result_set(res, "destination", res_dest);
 
         bd_result_set_insert_uint(res, "in_bytes", flow_rec->in_bytes);
         bd_result_set_insert_uint(res, "out_bytes", flow_rec->out_bytes);
@@ -419,14 +427,17 @@ int module_flow_statistics_flowend(bd_bigdata_t *bigdata, void *mls, bd_flow_rec
         bd_result_set_insert_uint(res, "end_ts",
             bd_flow_get_end_time_milliseconds(bigdata->flow));
 
+        bd_result_set_t *res_source = bd_result_set_create(bigdata, "flow_statistics");
         bd_flow_get_source_ip_string(bigdata->flow, ip_tmp, INET6_ADDRSTRLEN);
-        bd_result_set_insert_ip_string(res, "source_ip", ip_tmp);
+        bd_result_set_insert_ip_string(res_source, "ip", ip_tmp);
+        bd_result_set_insert_int(res_source, "port", flow_record->src_port);
+        bd_result_set_insert_result_set(res, "source", res_source);
+
+        bd_result_set_t *res_dest = bd_result_set_create(bigdata, "flow_statistics");
         bd_flow_get_destination_ip_string(bigdata->flow, ip_tmp, INET6_ADDRSTRLEN);
-        bd_result_set_insert_ip_string(res, "destination_ip", ip_tmp);
-
-
-        bd_result_set_insert_int(res, "src_port", flow_record->src_port);
-        bd_result_set_insert_int(res, "dst_port", flow_record->dst_port);
+        bd_result_set_insert_ip_string(res_dest, "ip", ip_tmp);
+        bd_result_set_insert_int(res_dest, "port", flow_record->dst_port);
+        bd_result_set_insert_result_set(res, "destination", res_dest);
 
         bd_result_set_insert_uint(res, "in_bytes", stats.in_bytes);
         bd_result_set_insert_uint(res, "out_bytes", stats.out_bytes);

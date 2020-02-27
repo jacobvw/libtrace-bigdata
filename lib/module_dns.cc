@@ -153,8 +153,14 @@ int module_dns_packet(bd_bigdata_t *bigdata, void *mls) {
 
         /* flip source/dst IPs because this is the response packet, want them to match
          * the request packet */
-        bd_result_set_insert_ip_string(result_set, "source_ip", req->dst_ip);
-        bd_result_set_insert_ip_string(result_set, "destination_ip", req->src_ip);
+        bd_result_set_t *res_source = bd_result_set_create(bigdata, "dns");
+        bd_result_set_insert_ip_string(res_source, "ip", req->src_ip);
+        bd_result_set_insert_result_set(result_set, "source", res_source);
+
+        bd_result_set_t *res_dest = bd_result_set_create(bigdata, "dns");
+        bd_result_set_insert_ip_string(res_dest, "ip", req->dst_ip);
+        bd_result_set_insert_result_set(result_set, "destination", res_dest);
+
         bd_result_set_insert_tag(result_set, "protocol", is_udp ? "udp" : "tcp");
         bd_result_set_insert_tag(result_set, "ethertype", is_ip4 ? "ipv4" : "ipv6");
 

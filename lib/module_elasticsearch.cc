@@ -15,7 +15,7 @@ struct module_elasticsearch_conf {
     bool require_user_auth;
     bool batch_results;
     int batch_count;
-    char *index_prefix;
+    char *index_name;
     bool template_enabled;
     char *template_name;
     char *template_mapping;
@@ -135,7 +135,7 @@ void *module_elasticsearch_starting(void *tls) {
     /* create elasticseach template and policy */
     module_elasticsearch_policy_create();
     module_elasticsearch_template_create();
-    //module_elasticsearch_bootstrap_index();
+    module_elasticsearch_bootstrap_index();
 
     return opts;
 }
@@ -217,9 +217,12 @@ int module_elasticsearch_result(bd_bigdata_t *bigdata, void *mls, bd_result_set 
     char *result_queue;
     mod_elastic_opts_t *opts = (mod_elastic_opts_t *)mls;
 
+    /* add the module name to the result to help with queries in elasticsearch */
+    bd_result_set_insert_string(result, "module", result->module);
+
     /* build the curl url */
-    snprintf(buf, sizeof(buf), "%s:%d/%s%s/_bulk", config->host, config->port,
-        config->index_prefix, result->module);
+    snprintf(buf, sizeof(buf), "%s:%d/%s/_bulk", config->host, config->port,
+        config->index_name);
 
     /* If elasticsearch is online try to procces any results that may be stored within
      * elasticsearch's temp file */
@@ -245,8 +248,7 @@ int module_elasticsearch_result(bd_bigdata_t *bigdata, void *mls, bd_result_set 
 
                 // build the batch command
                 snprintf(buf2, sizeof(buf2), "{\"index\":{\"_index\":\""
-                    "%s%s\",\"_type\":\"_doc\"}}", config->index_prefix,
-                    cur_res->module);
+                    "%s\",\"_type\":\"_doc\"}}", config->index_name);
                 // build the json string
                 json = bd_result_set_to_json_string(cur_res);
 
@@ -278,8 +280,7 @@ int module_elasticsearch_result(bd_bigdata_t *bigdata, void *mls, bd_result_set 
 
         // build the index string
         snprintf(buf2, sizeof(buf2), "{\"index\":{\"_index\":\""
-            "%s%s\",\"_type\":\"_doc\"}}", config->index_prefix,
-             result->module);
+            "%s\",\"_type\":\"_doc\"}}", config->index_name);
         /* get the json representation for the result */
         json = bd_result_set_to_json_string(result);
 
@@ -409,10 +410,10 @@ int module_elasticsearch_config(yaml_parser_t *parser, yaml_event_t *event, int 
                     config->port = atoi((char *)event->data.scalar.value);
                     break;
                 }
-                if (strcmp((char *)event->data.scalar.value, "index_prefix") == 0) {
+                if (strcmp((char *)event->data.scalar.value, "index_name") == 0) {
                     consume_event(parser, event, level);
-                    free(config->index_prefix);
-                    config->index_prefix = strdup((char *)event->data.scalar.value);
+                    free(config->index_name);
+                    config->index_name = strdup((char *)event->data.scalar.value);
                 }
                 if (strcmp((char *)event->data.scalar.value, "template_enabled") == 0) {
                     consume_event(parser, event, level);
@@ -658,7 +659,7 @@ int module_elasticsearch_init(bd_bigdata_t *bigdata) {
     config->batch_results = 0;
     config->batch_count = 200;
 
-    config->index_prefix = strdup("libtrace-bigdata-");
+    config->index_name = strdup("libtrace-bigdata");
 
     config->template_enabled = 0;
     config->template_name = NULL;
@@ -1005,10 +1006,11 @@ static void module_elasticsearch_bootstrap_index() {
     std::string bootstrap;
     char buf[100];
 
-    bootstrap = "{\"aliases\":{\"libtrace-bigdata\":{";
-    bootstrap += "\"is_write_index\":true}}}";
+    bootstrap = "{\"aliases\":{\"";
+    bootstrap += config->index_name;
+    bootstrap += "\":{\"is_write_index\":true}}}";
 
-    snprintf(buf, sizeof(buf), "libtrace-bigdata-000001");
+    snprintf(buf, sizeof(buf), "%s-000001", config->index_name);
     module_elasticsearch_put(buf, (char *)bootstrap.c_str(),
         bootstrap.size());
 }

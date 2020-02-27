@@ -177,10 +177,15 @@ int module_http_packet(bd_bigdata_t *bigdata, void *mls) {
                 bd_result_set_insert_uint(result_set, "flow_id", flow_id);
 
                 /* insert source/destination ips */
+                bd_result_set_t *res_source = bd_result_set_create(bigdata, "http");
                 bd_flow_get_source_ip_string(bigdata->flow, ip_tmp, INET6_ADDRSTRLEN);
-                bd_result_set_insert_ip_string(result_set, "source_ip", ip_tmp);
+                bd_result_set_insert_ip_string(res_source, "ip", ip_tmp);
+                bd_result_set_insert_result_set(result_set, "source", res_source);
+
+                bd_result_set_t *res_dest = bd_result_set_create(bigdata, "http");
                 bd_flow_get_destination_ip_string(bigdata->flow, ip_tmp, INET6_ADDRSTRLEN);
-                bd_result_set_insert_ip_string(result_set, "destination_ip", ip_tmp);
+                bd_result_set_insert_ip_string(res_dest, "ip", ip_tmp);
+                bd_result_set_insert_result_set(result_set, "destination", res_dest);
 
                 /* insert request data */
                 bd_result_set_insert_tag(result_set, "request_method", request->method);
