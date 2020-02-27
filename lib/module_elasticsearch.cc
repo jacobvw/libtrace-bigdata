@@ -16,6 +16,7 @@ struct module_elasticsearch_conf {
     bool batch_results;
     int batch_count;
 
+    bool template_enabled;
     char *template_name;
     char *template_mapping;
     /* ILM policy settings */
@@ -241,8 +242,8 @@ int module_elasticsearch_result(bd_bigdata_t *bigdata, void *mls, bd_result_set 
                 cur_res = opts->results[i];
 
                 // build the batch command
-                snprintf(buf2, sizeof(buf2), "%s%s%s", "{\"index\":{\"_index\":\"",
-                    cur_res->module, "\",\"_type\":\"_doc\"}}");
+                snprintf(buf2, sizeof(buf2), "%s%s%s", "{\"index\":{\"_index\":\""
+                    "libtrace-bigdata-", cur_res->module, "\",\"_type\":\"_doc\"}}");
                 // build the json string
                 json = bd_result_set_to_json_string(cur_res);
 
@@ -273,8 +274,8 @@ int module_elasticsearch_result(bd_bigdata_t *bigdata, void *mls, bd_result_set 
     } else {
 
         // build the index string
-        snprintf(buf2, sizeof(buf2), "%s%s%s", "{\"index\":{\"_index\":\"",
-            result->module, "\",\"_type\":\"_doc\"}}");
+        snprintf(buf2, sizeof(buf2), "%s%s%s", "{\"index\":{\"_index\":\""
+            "libtrace-bigdata-", result->module, "\",\"_type\":\"_doc\"}}");
         /* get the json representation for the result */
         json = bd_result_set_to_json_string(result);
 
@@ -402,6 +403,18 @@ int module_elasticsearch_config(yaml_parser_t *parser, yaml_event_t *event, int 
                 if (strcmp((char *)event->data.scalar.value, "port") == 0) {
                     consume_event(parser, event, level);
                     config->port = atoi((char *)event->data.scalar.value);
+                    break;
+                }
+                if (strcmp((char *)event->data.scalar.value, "template_enabled") == 0) {
+                    consume_event(parser, event, level);
+                    if (strcmp((char *)event->data.scalar.value, "1") == 0 ||
+                        strcmp((char *)event->data.scalar.value, "true") == 0 ||
+                        strcmp((char *)event->data.scalar.value, "yes") == 0) {
+
+                        config->template_enabled = 1;
+                    } else {
+                        config->template_enabled = 0;
+                    }
                     break;
                 }
                 if (strcmp((char *)event->data.scalar.value, "template_name") == 0) {
@@ -636,6 +649,7 @@ int module_elasticsearch_init(bd_bigdata_t *bigdata) {
     config->batch_results = 0;
     config->batch_count = 200;
 
+    config->template_enabled = 0;
     config->template_name = NULL;
     config->template_mapping = NULL;
 
@@ -913,6 +927,10 @@ static void module_elasticsearch_template_create() {
     long filesize;
     size_t readsize;
     char *buf, endpoint[100];
+
+    if (!(config->template_enabled)) {
+        return;
+    }
 
     if (config->template_name == NULL) {
         logger(LOG_DEBUG, "Elasticsearch template name not supplied."
