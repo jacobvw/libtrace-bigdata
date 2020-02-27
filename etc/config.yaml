@@ -212,7 +212,7 @@ where:
     index_name: libtrace-bigdata
 
     # Elasticsearch template
-    template_enable: 1
+    template_enabled: 1
     # Note: do not edit the template name and mapping unless you are aware of what you are doing
     template_name: libtrace-bigdata-template
     template_mapping: @sysconfdir@/bigdata/elasticsearch_template.json
@@ -220,7 +220,7 @@ where:
     # Enable ILM policy for elasticsearch
     # https://www.elastic.co/guide/en/elasticsearch/reference/current/index-lifecycle-management.html
     ilm_policy_enabled: 1
-    # Note: do not edit policy name unless you are aware of what you are doing
+    # Note: do not edit the policy name unless you are aware of what you are doing
     ilm_policy_name: libtrace-bigdata-policy
     # ILM policy HOT phase
     # tb - terabytes, pb - petabytes, gb - gigabytes, mb - megabytes, kb - kilobytes, b - bytes
