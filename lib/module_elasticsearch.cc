@@ -16,6 +16,8 @@ struct module_elasticsearch_conf {
     bool batch_results;
     int batch_count;
 
+    char *template_name;
+    char *template_mapping;
     /* ILM policy settings */
     bool ilm_policy_enabled;
     char *ilm_policy_name;
@@ -57,12 +59,18 @@ struct ilm_json_put {
 
 static size_t module_elasticsearch_callback(void *buffer, size_t size, size_t nmemb,
     void *userp);
+
 static void module_elasticsearch_policy_create();
 static int module_elasticsearch_valid_policy_age(char *age);
 static int module_elasticsearch_valid_policy_size(char *size);
-static size_t module_elasticsearch_ilm_read_cb(void *buffer, size_t size, size_t nmemb,
+
+static void module_elasticsearch_template_create();
+
+static int module_elasticsearch_put(char *endpoint, char *data,
+    size_t len);
+static size_t module_elasticsearch_put_read_cb(void *buffer, size_t size, size_t nmemb,
     void *userp);
-static size_t module_elasticsearch_ilm_write_cb(void *buffer, size_t size, size_t nmemb,
+static size_t module_elasticsearch_put_write_cb(void *buffer, size_t size, size_t nmemb,
     void *userp);
 
 void *module_elasticsearch_starting(void *tls) {
@@ -122,6 +130,8 @@ void *module_elasticsearch_starting(void *tls) {
             module_elasticsearch_callback);
     }
 
+    /* create elasticseach template and policy */
+    module_elasticsearch_template_create();
     module_elasticsearch_policy_create();
 
     return opts;
@@ -394,6 +404,14 @@ int module_elasticsearch_config(yaml_parser_t *parser, yaml_event_t *event, int 
                     config->port = atoi((char *)event->data.scalar.value);
                     break;
                 }
+                if (strcmp((char *)event->data.scalar.value, "template_name") == 0) {
+                    consume_event(parser, event, level);
+                    config->template_name = strdup((char *)event->data.scalar.value);
+                }
+                if (strcmp((char *)event->data.scalar.value, "template_mapping") == 0) {
+                    consume_event(parser, event, level);
+                    config->template_mapping = strdup((char *)event->data.scalar.value);
+                }
                 /* ILM policy hot phase */
                 if (strcmp((char *)event->data.scalar.value, "ilm_policy_enabled") == 0) {
                     consume_event(parser, event, level);
@@ -618,6 +636,9 @@ int module_elasticsearch_init(bd_bigdata_t *bigdata) {
     config->batch_results = 0;
     config->batch_count = 200;
 
+    config->template_name = NULL;
+    config->template_mapping = NULL;
+
     /* ILM policy settings */
     config->ilm_policy_enabled = 0;
     config->ilm_policy_name = NULL;
@@ -734,8 +755,6 @@ static void module_elasticsearch_policy_create() {
     std::string policy_json;
     char buf[100];
     bool prev = 0;
-    CURL *ilm_curl;
-    struct curl_slist *headers = NULL;
 
     /* return if ilm policy is not enabled */
     if (!(config->ilm_policy_enabled)) {
@@ -881,49 +900,131 @@ static void module_elasticsearch_policy_create() {
 
     policy_json += "}}}";
 
-    ilm_curl = curl_easy_init();
-    if (ilm_curl) {
+    /* HTTP PUT request with the policy */
+    snprintf(buf, sizeof(buf), "_ilm/policy/%s",
+        config->ilm_policy_name);
+    module_elasticsearch_put(buf, (char *)policy_json.c_str(),
+        policy_json.size());
+}
 
-        snprintf(buf, sizeof(buf), "%s:%d/_ilm/policy/%s", config->host,
-            config->port, config->ilm_policy_name);
+static void module_elasticsearch_template_create() {
 
-        curl_easy_setopt(ilm_curl, CURLOPT_URL, buf);
-        curl_easy_setopt(ilm_curl, CURLOPT_PORT, config->port);
-        curl_easy_setopt(ilm_curl, CURLOPT_WRITEFUNCTION,
-            module_elasticsearch_ilm_write_cb);
-        curl_easy_setopt(ilm_curl, CURLOPT_READFUNCTION,
-            module_elasticsearch_ilm_read_cb);
+    FILE *fp;
+    long filesize;
+    size_t readsize;
+    char *buf, endpoint[100];
+
+    if (config->template_name == NULL) {
+        logger(LOG_DEBUG, "Elasticsearch template name not supplied."
+            " Not creating template");
+        return;
+    }
+
+    if ((fp = fopen(config->template_mapping, "r")) == NULL) {
+        logger(LOG_CRIT, "Unable to open elasticsearch template"
+            " mapping: %s", config->template_mapping);
+        exit(1);
+    }
+
+    // determine the filesize
+    fseek(fp, 0, SEEK_END);
+    filesize = ftell(fp);
+    fseek(fp, 0, SEEK_SET);
+
+    // if filesize is 0 nothing in file so return NULL
+    if (filesize == 0) {
+        logger(LOG_DEBUG, "Invalid elasticsearch template");
+        return;
+    }
+
+    /* allocate space to read the file into. include space to null terminate the string */
+    buf = (char *)malloc(filesize + 1);
+    if (buf == NULL) {
+        logger(LOG_CRIT, "Unable to allocate memory. func. "
+            "module_elasticsearch_template_create()");
+        exit(BD_OUTOFMEMORY);
+    }
+
+    /* read data from the file */
+    readsize = fread(buf, 1, filesize, fp);
+    /* make sure something was actually read, if not return */
+    if (readsize == 0) {
+        logger(LOG_DEBUG, "Invalid elasticsearch template");
+        free(buf);
+        return;
+    }
+    buf[filesize] = '\0';
+
+    /* close the file */
+    if (fclose(fp) != 0) {
+        logger(LOG_CRIT, "Unable to close elasticsearch template file");
+        free(buf);
+        exit(1);
+    }
+
+    /* perform the put request */
+    snprintf(endpoint, sizeof(endpoint), "_template/%s",
+        config->template_name);
+    module_elasticsearch_put(endpoint, buf, readsize);
+
+    /* free the buffer */
+    free(buf);
+}
+
+static int module_elasticsearch_put(char *endpoint, char *data,
+    size_t len) {
+
+    CURL *c = curl_easy_init();
+    char buf[100];
+    struct curl_slist *headers = NULL;
+
+    if (c) {
+
+        /* set the URI */
+        snprintf(buf, sizeof(buf), "%s:%d/%s", config->host,
+            config->port, endpoint);
+        curl_easy_setopt(c, CURLOPT_URL, buf);
+
+        curl_easy_setopt(c, CURLOPT_PORT, config->port);
+        curl_easy_setopt(c, CURLOPT_WRITEFUNCTION,
+            module_elasticsearch_put_write_cb);
+        curl_easy_setopt(c, CURLOPT_READFUNCTION,
+            module_elasticsearch_put_read_cb);
 
         headers = curl_slist_append(headers, "Content-Type: application/x-ndjson");
-        curl_easy_setopt(ilm_curl, CURLOPT_HTTPHEADER, headers);
+        curl_easy_setopt(c, CURLOPT_HTTPHEADER, headers);
 
-        curl_easy_setopt(ilm_curl, CURLOPT_UPLOAD, 1L);
-        curl_easy_setopt(ilm_curl, CURLOPT_PUT, 1L);
+        curl_easy_setopt(c, CURLOPT_UPLOAD, 1L);
+        curl_easy_setopt(c, CURLOPT_PUT, 1L);
 
         if (config->require_user_auth) {
-            curl_easy_setopt(ilm_curl, CURLOPT_USERNAME, config->username);
-            curl_easy_setopt(ilm_curl, CURLOPT_PASSWORD, config->password);
+            curl_easy_setopt(c, CURLOPT_USERNAME, config->username);
+            curl_easy_setopt(c, CURLOPT_PASSWORD, config->password);
         }
 
         if (config->ssl_verifypeer) {
-            curl_easy_setopt(ilm_curl, CURLOPT_SSL_VERIFYPEER, 1);
+            curl_easy_setopt(c, CURLOPT_SSL_VERIFYPEER, 1);
         } else {
-            curl_easy_setopt(ilm_curl, CURLOPT_SSL_VERIFYPEER, 0);
+            curl_easy_setopt(c, CURLOPT_SSL_VERIFYPEER, 0);
         }
 
         struct ilm_json_put ilm_data;
-        ilm_data.data = policy_json.c_str();
-        ilm_data.len = policy_json.size();
+        ilm_data.data = data;
+        ilm_data.len = len;
 
-        curl_easy_setopt(ilm_curl, CURLOPT_READDATA, &ilm_data);
+        curl_easy_setopt(c, CURLOPT_READDATA, &ilm_data);
 
-        curl_easy_perform(ilm_curl);
+        curl_easy_perform(c);
         curl_slist_free_all(headers);
-        curl_easy_cleanup(ilm_curl);
+        curl_easy_cleanup(c);
+
+        return 0;
     }
+
+    return 1;
 }
 
-static size_t module_elasticsearch_ilm_read_cb(void *buffer, size_t size, size_t nmemb,
+static size_t module_elasticsearch_put_read_cb(void *buffer, size_t size, size_t nmemb,
     void *userp) {
 
     struct ilm_json_put *userdata = (struct ilm_json_put *)userp;
@@ -937,7 +1038,7 @@ static size_t module_elasticsearch_ilm_read_cb(void *buffer, size_t size, size_t
     return to_copy;
 }
 
-static size_t module_elasticsearch_ilm_write_cb(void *buffer, size_t size, size_t nmemb,
+static size_t module_elasticsearch_put_write_cb(void *buffer, size_t size, size_t nmemb,
     void *userp) {
 
     bool error;
