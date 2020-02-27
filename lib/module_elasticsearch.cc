@@ -66,6 +66,7 @@ static int module_elasticsearch_valid_policy_age(char *age);
 static int module_elasticsearch_valid_policy_size(char *size);
 
 static void module_elasticsearch_template_create();
+static void module_elasticsearch_bootstrap_index();
 
 static int module_elasticsearch_put(char *endpoint, char *data,
     size_t len);
@@ -132,8 +133,9 @@ void *module_elasticsearch_starting(void *tls) {
     }
 
     /* create elasticseach template and policy */
-    module_elasticsearch_template_create();
     module_elasticsearch_policy_create();
+    module_elasticsearch_template_create();
+    module_elasticsearch_bootstrap_index();
 
     return opts;
 }
@@ -987,6 +989,19 @@ static void module_elasticsearch_template_create() {
 
     /* free the buffer */
     free(buf);
+}
+
+static void module_elasticsearch_bootstrap_index() {
+
+    std::string bootstrap;
+    char buf[100];
+
+    bootstrap = "{\"aliases\":{\"libtrace-bigdata\":{";
+    bootstrap += "\"is_write_index\":true}}}";
+
+    snprintf(buf, sizeof(buf), "libtrace-bigdata-000001");
+    module_elasticsearch_put(buf, (char *)bootstrap.c_str(),
+        bootstrap.size());
 }
 
 static int module_elasticsearch_put(char *endpoint, char *data,
