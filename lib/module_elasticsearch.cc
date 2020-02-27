@@ -242,8 +242,8 @@ int module_elasticsearch_result(bd_bigdata_t *bigdata, void *mls, bd_result_set 
                 cur_res = opts->results[i];
 
                 // build the batch command
-                snprintf(buf2, sizeof(buf2), "%s%s%s", "{\"index\":{\"_index\":\""
-                    "libtrace-bigdata-", cur_res->module, "\",\"_type\":\"_doc\"}}");
+                snprintf(buf2, sizeof(buf2), "{\"index\":{\"_index\":\""
+                    "libtrace-bigdata\",\"_type\":\"_doc\"}}");
                 // build the json string
                 json = bd_result_set_to_json_string(cur_res);
 
@@ -274,8 +274,8 @@ int module_elasticsearch_result(bd_bigdata_t *bigdata, void *mls, bd_result_set 
     } else {
 
         // build the index string
-        snprintf(buf2, sizeof(buf2), "%s%s%s", "{\"index\":{\"_index\":\""
-            "libtrace-bigdata-", result->module, "\",\"_type\":\"_doc\"}}");
+        snprintf(buf2, sizeof(buf2), "{\"index\":{\"_index\":\""
+            "libtrace-bigdata\",\"_type\":\"_doc\"}}");
         /* get the json representation for the result */
         json = bd_result_set_to_json_string(result);
 

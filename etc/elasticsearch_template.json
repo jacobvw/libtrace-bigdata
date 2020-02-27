@@ -2,17 +2,13 @@
   "version": 1,
   "order": 0,
   "index_patterns": [
-    "bgp",
-    "dns",
-    "flow_statistics",
-    "http",
-    "protocol_statistics",
-    "smtp"
+    "libtrace-bigdata*"
   ],
   "settings": {
     "index": {
       "lifecycle": {
-        "name": "libtrace-bigdata"
+        "name": "libtrace-bigdata-policy",
+        "rollover_alias": "libtrace-bigdata"
       }
     }
   },
