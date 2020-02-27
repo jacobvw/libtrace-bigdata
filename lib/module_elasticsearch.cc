@@ -67,9 +67,11 @@ static int module_elasticsearch_valid_policy_size(char *size);
 
 static void module_elasticsearch_template_create();
 static void module_elasticsearch_bootstrap_index();
+static size_t module_elasticsearch_bootstrap_cb(void *buffer, size_t size, size_t nmemb,
+    void *userp);
 
 static int module_elasticsearch_put(char *endpoint, char *data,
-    size_t len);
+    size_t len, void *write_func);
 static size_t module_elasticsearch_put_read_cb(void *buffer, size_t size, size_t nmemb,
     void *userp);
 static size_t module_elasticsearch_put_write_cb(void *buffer, size_t size, size_t nmemb,
@@ -920,7 +922,7 @@ static void module_elasticsearch_policy_create() {
     snprintf(buf, sizeof(buf), "_ilm/policy/%s",
         config->ilm_policy_name);
     module_elasticsearch_put(buf, (char *)policy_json.c_str(),
-        policy_json.size());
+        policy_json.size(), (void *)module_elasticsearch_put_write_cb);
 }
 
 static void module_elasticsearch_template_create() {
@@ -985,12 +987,15 @@ static void module_elasticsearch_template_create() {
     /* perform the put request */
     snprintf(endpoint, sizeof(endpoint), "_template/%s",
         config->template_name);
-    module_elasticsearch_put(endpoint, buf, readsize);
+    module_elasticsearch_put(endpoint, buf, readsize,
+        (void *)module_elasticsearch_put_write_cb);
 
     /* free the buffer */
     free(buf);
 }
 
+/* creates the initial index in elasticsearch. This must be done for
+ * ILM policies to rollover different phases */
 static void module_elasticsearch_bootstrap_index() {
 
     std::string bootstrap;
@@ -1002,11 +1007,31 @@ static void module_elasticsearch_bootstrap_index() {
 
     snprintf(buf, sizeof(buf), "%s-000001", config->index_name);
     module_elasticsearch_put(buf, (char *)bootstrap.c_str(),
-        bootstrap.size());
+        bootstrap.size(), (void *)module_elasticsearch_bootstrap_cb);
+}
+
+static size_t module_elasticsearch_bootstrap_cb(void *buffer, size_t size, size_t nmemb,
+    void *userp) {
+
+    bool error;
+    char *errorstr;
+
+    errorstr = strstr((char *)buffer, "error");
+    if (errorstr != NULL) {
+        /* if the error does not contain resource already exists output the error.
+         * Note: we expect the resource to exist all time expect first creation. We
+         * must however ensure this index is created or ILM policies will not work. */
+        errorstr = strstr((char *)buffer, "resource_already_exists_exception");
+        if (errorstr == NULL) {
+            logger(LOG_INFO, "%s", (char *)buffer);
+        }
+    }
+
+    return size * nmemb;
 }
 
 static int module_elasticsearch_put(char *endpoint, char *data,
-    size_t len) {
+    size_t len, void *write_func) {
 
     CURL *c = curl_easy_init();
     char buf[100];
@@ -1020,10 +1045,14 @@ static int module_elasticsearch_put(char *endpoint, char *data,
         curl_easy_setopt(c, CURLOPT_URL, buf);
 
         curl_easy_setopt(c, CURLOPT_PORT, config->port);
-        curl_easy_setopt(c, CURLOPT_WRITEFUNCTION,
-            module_elasticsearch_put_write_cb);
+
+        if (write_func != NULL) {
+            curl_easy_setopt(c, CURLOPT_WRITEFUNCTION,
+                write_func);
+        }
+
         curl_easy_setopt(c, CURLOPT_READFUNCTION,
-            module_elasticsearch_put_read_cb);
+                module_elasticsearch_put_read_cb);
 
         headers = curl_slist_append(headers, "Content-Type: application/x-ndjson");
         curl_easy_setopt(c, CURLOPT_HTTPHEADER, headers);
