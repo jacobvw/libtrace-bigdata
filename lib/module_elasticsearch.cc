@@ -303,27 +303,17 @@ int module_elasticsearch_stopping(void *tls, void *mls) {
     curl_easy_cleanup(opts->curl);
     curl_global_cleanup();
 
-    if (config->username != NULL) {
-        free(config->username);
-    }
-    if (config->password != NULL) {
-        free(config->password);
-    }
-    if (config->hot_max_index_size != NULL) {
-        free(config->hot_max_index_size);
-    }
-    if (config->hot_max_age != NULL) {
-        free(config->hot_max_age);
-    }
-    if (config->warm_min_age != NULL) {
-        free(config->warm_min_age);
-    }
-    if (config->cold_min_age != NULL) {
-        free(config->cold_min_age);
-    }
-    if (config->delete_min_age != NULL) {
-        free(config->delete_min_age);
-    }
+    if (config->username != NULL) { free(config->username); }
+    if (config->password != NULL) { free(config->password); }
+    if (config->index_name != NULL) { free(config->index_name); }
+    if (config->template_name != NULL) { free(config->template_name); }
+    if (config->template_mapping != NULL) { free(config->template_mapping); }
+    if (config->ilm_policy_name != NULL) { free(config->ilm_policy_name); }
+    if (config->hot_max_index_size != NULL) { free(config->hot_max_index_size); }
+    if (config->hot_max_age != NULL) { free(config->hot_max_age); }
+    if (config->warm_min_age != NULL) { free(config->warm_min_age); }
+    if (config->cold_min_age != NULL) { free(config->cold_min_age); }
+    if (config->delete_min_age != NULL) { free(config->delete_min_age); }
 
     free(opts);
 
