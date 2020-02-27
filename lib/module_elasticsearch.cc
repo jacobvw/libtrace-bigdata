@@ -15,7 +15,7 @@ struct module_elasticsearch_conf {
     bool require_user_auth;
     bool batch_results;
     int batch_count;
-
+    char *index_prefix;
     bool template_enabled;
     char *template_name;
     char *template_mapping;
@@ -135,7 +135,7 @@ void *module_elasticsearch_starting(void *tls) {
     /* create elasticseach template and policy */
     module_elasticsearch_policy_create();
     module_elasticsearch_template_create();
-    module_elasticsearch_bootstrap_index();
+    //module_elasticsearch_bootstrap_index();
 
     return opts;
 }
@@ -218,8 +218,8 @@ int module_elasticsearch_result(bd_bigdata_t *bigdata, void *mls, bd_result_set 
     mod_elastic_opts_t *opts = (mod_elastic_opts_t *)mls;
 
     /* build the curl url */
-    snprintf(buf, sizeof(buf), "%s%s%d%s%s%s", config->host, ":", config->port,
-        "/", result->module, "/_bulk");
+    snprintf(buf, sizeof(buf), "%s:%d/%s%s/_bulk", config->host, config->port,
+        config->index_prefix, result->module);
 
     /* If elasticsearch is online try to procces any results that may be stored within
      * elasticsearch's temp file */
@@ -245,7 +245,8 @@ int module_elasticsearch_result(bd_bigdata_t *bigdata, void *mls, bd_result_set 
 
                 // build the batch command
                 snprintf(buf2, sizeof(buf2), "{\"index\":{\"_index\":\""
-                    "libtrace-bigdata\",\"_type\":\"_doc\"}}");
+                    "%s%s\",\"_type\":\"_doc\"}}", config->index_prefix,
+                    cur_res->module);
                 // build the json string
                 json = bd_result_set_to_json_string(cur_res);
 
@@ -277,7 +278,8 @@ int module_elasticsearch_result(bd_bigdata_t *bigdata, void *mls, bd_result_set 
 
         // build the index string
         snprintf(buf2, sizeof(buf2), "{\"index\":{\"_index\":\""
-            "libtrace-bigdata\",\"_type\":\"_doc\"}}");
+            "%s%s\",\"_type\":\"_doc\"}}", config->index_prefix,
+             result->module);
         /* get the json representation for the result */
         json = bd_result_set_to_json_string(result);
 
@@ -406,6 +408,11 @@ int module_elasticsearch_config(yaml_parser_t *parser, yaml_event_t *event, int 
                     consume_event(parser, event, level);
                     config->port = atoi((char *)event->data.scalar.value);
                     break;
+                }
+                if (strcmp((char *)event->data.scalar.value, "index_prefix") == 0) {
+                    consume_event(parser, event, level);
+                    free(config->index_prefix);
+                    config->index_prefix = strdup((char *)event->data.scalar.value);
                 }
                 if (strcmp((char *)event->data.scalar.value, "template_enabled") == 0) {
                     consume_event(parser, event, level);
@@ -650,6 +657,8 @@ int module_elasticsearch_init(bd_bigdata_t *bigdata) {
     config->require_user_auth = 0;
     config->batch_results = 0;
     config->batch_count = 200;
+
+    config->index_prefix = strdup("libtrace-bigdata-");
 
     config->template_enabled = 0;
     config->template_name = NULL;
