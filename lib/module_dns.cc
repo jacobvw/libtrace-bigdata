@@ -164,21 +164,22 @@ int module_dns_packet(bd_bigdata_t *bigdata, void *mls) {
         bd_result_set_insert_tag(result_set, "protocol", is_udp ? "udp" : "tcp");
         bd_result_set_insert_tag(result_set, "ethertype", is_ip4 ? "ipv4" : "ipv6");
 
-        bd_result_set_insert_uint(result_set, "question_count", (uint64_t)resp->qdcount);
-        bd_result_set_insert_uint(result_set, "answer_count", (uint64_t)resp->ancount);
-        bd_result_set_insert_uint(result_set, "nameserver_count", (uint64_t)resp->nscount);
-        bd_result_set_insert_uint(result_set, "additional_count", (uint64_t)resp->arcount);
-        bd_result_set_insert_double(result_set, "rtt", req->end_ts - req->start_ts);
+        bd_result_set_t *dns = bd_result_set_create(bigdata, "dns");
+        bd_result_set_insert_uint(dns, "question_count", (uint64_t)resp->qdcount);
+        bd_result_set_insert_uint(dns, "answer_count", (uint64_t)resp->ancount);
+        bd_result_set_insert_uint(dns, "nameserver_count", (uint64_t)resp->nscount);
+        bd_result_set_insert_uint(dns, "additional_count", (uint64_t)resp->arcount);
 
         // add tags
-        bd_result_set_insert_tag(result_set, "authoritive_result", resp->aa ? "true" : "false");
-        bd_result_set_insert_tag(result_set, "truncated_result", resp->tc ? "true" : "false");
-        bd_result_set_insert_tag(result_set, "recursion_desired", resp->rd ? "true" : "false");
-        bd_result_set_insert_tag(result_set, "recursion_available", resp->ra ? "true" : "false");
+        bd_result_set_insert_tag(dns, "authoritive_result", resp->aa ? "true" : "false");
+        bd_result_set_insert_tag(dns, "truncated_result", resp->tc ? "true" : "false");
+        bd_result_set_insert_tag(dns, "recursion_desired", resp->rd ? "true" : "false");
+        bd_result_set_insert_tag(dns, "recursion_available", resp->ra ? "true" : "false");
         snprintf(buf, sizeof(buf), "%d", resp->rcode);
-        bd_result_set_insert_tag(result_set, "response_code", buf);
+        bd_result_set_insert_tag(dns, "response_code", buf);
         snprintf(buf, sizeof(buf), "%d", resp->opcode);
-        bd_result_set_insert_tag(result_set, "opcode", buf);
+        bd_result_set_insert_tag(dns, "opcode", buf);
+        bd_result_set_insert_double(dns, "rtt", req->end_ts - req->start_ts);
 
         // for each question
         std::list<bd_result_set_t *> questions;
@@ -190,7 +191,7 @@ int module_dns_packet(bd_bigdata_t *bigdata, void *mls) {
 
             questions.push_back(q);
         }
-        bd_result_set_insert_result_set_array(result_set, "questions", &questions);
+        bd_result_set_insert_result_set_array(dns, "questions", &questions);
 
         // for each answer
         std::list<bd_result_set_t *> answers;
@@ -201,7 +202,7 @@ int module_dns_packet(bd_bigdata_t *bigdata, void *mls) {
 
             answers.push_back(a);
         }
-        bd_result_set_insert_result_set_array(result_set, "answers", &answers);
+        bd_result_set_insert_result_set_array(dns, "answers", &answers);
 
         // for each nameserver
         std::list<bd_result_set_t *> nameservers;
@@ -212,7 +213,7 @@ int module_dns_packet(bd_bigdata_t *bigdata, void *mls) {
 
             nameservers.push_back(n);
         }
-        bd_result_set_insert_result_set_array(result_set, "nameservers", &nameservers);
+        bd_result_set_insert_result_set_array(dns, "nameservers", &nameservers);
 
         // for each additional
         std::list<bd_result_set_t *> additionals;
@@ -223,7 +224,9 @@ int module_dns_packet(bd_bigdata_t *bigdata, void *mls) {
 
             additionals.push_back(a);
         }
-        bd_result_set_insert_result_set_array(result_set, "additionals", &additionals);
+        bd_result_set_insert_result_set_array(dns, "additionals", &additionals);
+
+        bd_result_set_insert_result_set(result_set, "dns", dns);
 
         // set the timestamp for the result
         struct timeval tv = trace_get_timeval(bigdata->packet);
