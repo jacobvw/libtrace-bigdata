@@ -1248,17 +1248,22 @@ int module_bgp_reporter_combiner(bd_bigdata_t *bigdata, void *mls,
     /* check if a result is due to be generated */
     if (combined->last_tick < tick) {
 
-        /* create a result */
+        /* parent result */
         bd_result_set_t *res = bd_result_set_create(bigdata, "bgp");
-        bd_result_set_insert_tag(res, "type", "statistics");
-        bd_result_set_insert_uint(res, "session_starts",
+
+        /* bgp result */
+        bd_result_set_t *bgp = bd_result_set_create(bigdata, "bgp");
+        bd_result_set_insert_tag(bgp, "type", "statistics");
+        bd_result_set_insert_uint(bgp, "session_starts",
             combined->session_starts);
-        bd_result_set_insert_uint(res, "session_timeouts",
+        bd_result_set_insert_uint(bgp, "session_timeouts",
             combined->session_timeouts);
-        bd_result_set_insert_uint(res, "session_closes",
+        bd_result_set_insert_uint(bgp, "session_closes",
             combined->session_closes);
-        bd_result_set_insert_uint(res, "active_sessions",
+        bd_result_set_insert_uint(bgp, "active_sessions",
             combined->active_sessions);
+        bd_result_set_insert_result_set(res, "bgp", bgp);
+
         /* insert timestamp into the result */
         bd_result_set_insert_timestamp(res, combined->last_tick);
         /* publish the result */
