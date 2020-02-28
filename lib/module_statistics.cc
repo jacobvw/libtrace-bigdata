@@ -196,31 +196,34 @@ int module_statistics_combiner(bd_bigdata_t *bigdata, void *mls,
     // if a new result is due
     if (tally->lastkey <  tick) {
         bd_result_set_t *result_set = bd_result_set_create(bigdata, "statistics");
-        bd_result_set_insert_uint(result_set, "in_bytes", tally->c_in_bytes);
-        bd_result_set_insert_uint(result_set, "out_bytes", tally->c_out_bytes);
-        bd_result_set_insert_uint(result_set, "in_packets", tally->c_in_packets);
-        bd_result_set_insert_uint(result_set, "out_packets", tally->c_out_packets);
+
+        bd_result_set_t *stats_res = bd_result_set_create(bigdata, "statistics");
+        bd_result_set_insert_uint(stats_res, "in_bytes", tally->c_in_bytes);
+        bd_result_set_insert_uint(stats_res, "out_bytes", tally->c_out_bytes);
+        bd_result_set_insert_uint(stats_res, "in_packets", tally->c_in_packets);
+        bd_result_set_insert_uint(stats_res, "out_packets", tally->c_out_packets);
         // output ip4 packet count if enabled
         if (config->ip4_packet_count) {
-            bd_result_set_insert_uint(result_set, "ip4_packets", tally->ip4_pkts);
+            bd_result_set_insert_uint(stats_res, "ip4_packets", tally->ip4_pkts);
         }
         // output ip6 packet count if enabled
         if (config->ip6_packet_count) {
-            bd_result_set_insert_uint(result_set, "ip6_packets", tally->ip6_pkts);
+            bd_result_set_insert_uint(stats_res, "ip6_packets", tally->ip6_pkts);
         }
         // output tcp packet count if enabled
         if (config->tcp_packet_count) {
-            bd_result_set_insert_uint(result_set, "tcp_packets", tally->tcp_pkts);
+            bd_result_set_insert_uint(stats_res, "tcp_packets", tally->tcp_pkts);
         }
         // output udp packet count if enabled
         if (config->udp_packet_count) {
-            bd_result_set_insert_uint(result_set, "udp_packets", tally->udp_pkts);
+            bd_result_set_insert_uint(stats_res, "udp_packets", tally->udp_pkts);
         }
+        // insert time interval
+        bd_result_set_insert_int(stats_res, "interval", config->output_interval);
+        bd_result_set_insert_result_set(result_set, "statistics", stats_res);
 
         // insert timestamp into result
         bd_result_set_insert_timestamp(result_set, tick);
-        // insert time interval
-        bd_result_set_insert_int(result_set, "interval", config->output_interval);
 
         // post the result
         bd_result_set_publish(bigdata, result_set, tick);

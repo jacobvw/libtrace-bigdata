@@ -339,54 +339,57 @@ int module_protocol_statistics_combiner(bd_bigdata_t *bigdata, void *mls,
             // create and populate the result set
             bd_result_set_t *result_set = bd_result_set_create(bigdata, "protocol_statistics");
 
-            bd_result_set_insert_tag(result_set, "protocol", lpi_print(protocol) );
-            bd_result_set_insert_tag(result_set, "category", lpi_print_category(category) );
+            // create statistics result
+            bd_result_set_t *proto_res = bd_result_set_create(bigdata, "protocol_statistics");
+            bd_result_set_insert_tag(proto_res, "protocol", lpi_print(protocol) );
+            bd_result_set_insert_tag(proto_res, "category", lpi_print_category(category) );
 
             if (config->packet_count) {
-                bd_result_set_insert_uint(result_set, "in_packets", proto->in_packets);
-                bd_result_set_insert_uint(result_set, "out_packets", proto->out_packets);
+                bd_result_set_insert_uint(proto_res, "in_packets", proto->in_packets);
+                bd_result_set_insert_uint(proto_res, "out_packets", proto->out_packets);
             }
             if (config->byte_count) {
-                bd_result_set_insert_uint(result_set, "in_bytes", proto->in_bytes);
-                bd_result_set_insert_uint(result_set, "out_bytes", proto->out_bytes);
+                bd_result_set_insert_uint(proto_res, "in_bytes", proto->in_bytes);
+                bd_result_set_insert_uint(proto_res, "out_bytes", proto->out_bytes);
             }
             if (config->ip_count) {
-                bd_result_set_insert_uint(result_set, "count_esrc_ips",
+                bd_result_set_insert_uint(proto_res, "count_esrc_ips",
                     proto->esrc_ips->size());
-                bd_result_set_insert_uint(result_set, "count_edst_ips",
+                bd_result_set_insert_uint(proto_res, "count_edst_ips",
                     proto->edst_ips->size());
-                bd_result_set_insert_uint(result_set, "count_isrc_ips",
+                bd_result_set_insert_uint(proto_res, "count_isrc_ips",
                     proto->isrc_ips->size());
-                bd_result_set_insert_uint(result_set, "count_idst_ips",
+                bd_result_set_insert_uint(proto_res, "count_idst_ips",
                     proto->idst_ips->size());
             }
             if (config->flow_count) {
-                bd_result_set_insert_uint(result_set, "count_flows",
+                bd_result_set_insert_uint(proto_res, "count_flows",
                     proto->flow_ids->size());
             }
 
             // calculate ~transfer speed
             if (config->bitrate) {
                 if (proto->in_bytes > 0) {
-                    bd_result_set_insert_double(result_set, "in_bitrate", proto->in_bytes /
+                    bd_result_set_insert_double(proto_res, "in_bitrate", proto->in_bytes /
                         config->output_interval);
                 } else {
-                    bd_result_set_insert_double(result_set, "in_bitrate", 0);
+                    bd_result_set_insert_double(proto_res, "in_bitrate", 0);
                 }
 
                 if (proto->out_bytes > 0) {
-                    bd_result_set_insert_double(result_set, "out_bitrate", proto->out_bytes /
+                    bd_result_set_insert_double(proto_res, "out_bitrate", proto->out_bytes /
                         config->output_interval);
                 } else {
-                    bd_result_set_insert_double(result_set, "out_bitrate", 0);
+                    bd_result_set_insert_double(proto_res, "out_bitrate", 0);
                 }
             }
-
+            // add interval
+            bd_result_set_insert_int(proto_res, "interval", config->output_interval);
+            bd_result_set_insert_result_set(result_set, "protocol_statistics",
+                proto_res);
 
             // set the timestamp for the result
             bd_result_set_insert_timestamp(result_set, tally->lastkey);
-            // add interval
-            bd_result_set_insert_int(result_set, "interval", config->output_interval);
 
             // post the result - the application handles freeing the result set
             bd_result_set_publish(bigdata, result_set, tick);
