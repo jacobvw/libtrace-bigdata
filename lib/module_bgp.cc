@@ -626,28 +626,32 @@ int module_bgp_generate_result(bd_bigdata_t *bigdata, mod_bgp_sess sess,
     struct in_addr ip4;
     char ip[INET6_ADDRSTRLEN];
 
+    /* parent result */
     res = bd_result_set_create(bigdata, "bgp");
-    bd_result_set_insert_tag(res, "type", type);
 
-    bd_result_set_insert_uint(res, "session_id", sess.flow_id);
-    bd_result_set_insert_uint(res, "source_asn", sess.src_asn);
-    bd_result_set_insert_uint(res, "destination_asn", sess.dst_asn);
-
-    ip4.s_addr = sess.src_identifier;
-    bd_result_set_insert_string(res, "source_identifier", inet_ntoa(ip4));
-    ip4.s_addr = sess.dst_identifier;
-    bd_result_set_insert_string(res, "destination_identifier", inet_ntoa(ip4));
-
-    bd_result_set_insert_uint(res, "source_hold_time", sess.src_hold_time);
-    bd_result_set_insert_uint(res, "destination_hold_time", sess.dst_hold_time);
-
+    /* source information result */
     bd_result_set_t *res_source = bd_result_set_create(bigdata, "bgp");
     bd_result_set_insert_ip_string(res_source, "ip", sess.src_ip);
     bd_result_set_insert_result_set(res, "source", res_source);
 
+    /* destination information result */
     bd_result_set_t *res_dest = bd_result_set_create(bigdata, "bgp");
     bd_result_set_insert_ip_string(res_dest, "ip", sess.dst_ip);
     bd_result_set_insert_result_set(res, "destination", res_dest);
+
+    /* bgp information result */
+    bd_result_set_t *bgp = bd_result_set_create(bigdata, "bgp");
+    bd_result_set_insert_tag(bgp, "type", type);
+    bd_result_set_insert_uint(bgp, "session_id", sess.flow_id);
+    bd_result_set_insert_uint(bgp, "source_asn", sess.src_asn);
+    bd_result_set_insert_uint(bgp, "destination_asn", sess.dst_asn);
+    ip4.s_addr = sess.src_identifier;
+    bd_result_set_insert_string(bgp, "source_identifier", inet_ntoa(ip4));
+    ip4.s_addr = sess.dst_identifier;
+    bd_result_set_insert_string(bgp, "destination_identifier", inet_ntoa(ip4));
+    bd_result_set_insert_uint(bgp, "source_hold_time", sess.src_hold_time);
+    bd_result_set_insert_uint(bgp, "destination_hold_time", sess.dst_hold_time);
+    bd_result_set_insert_result_set(res, "bgp", bgp);
 
     bd_result_set_insert_timestamp(res, timestamp);
 
