@@ -81,32 +81,37 @@ int module_flow_statistics_foreach_flow(Flow *flow, void *data) {
                 it->second.out_bytes = 0;
             }
 
+            /* create the parent result */
             bd_result_set_t *res = bd_result_set_create(f->bigdata, "flow_statistics");
-            bd_result_set_insert_uint(res, "flow_id", flow->id.get_id_num());
-            bd_result_set_insert_tag(res, "protocol", lpi_print(flow_rec->lpi_module->protocol));
-            bd_result_set_insert_tag(res, "category", lpi_print_category(bd_flow_get_category(flow)));
-            bd_result_set_insert_tag(res, "type", "flow_interval");
 
-            bd_result_set_insert_uint(res, "start_ts", bd_flow_get_start_time_milliseconds(flow));
-            bd_result_set_insert_double(res, "duration", flow_rec->end_ts - flow_rec->start_ts);
-            bd_result_set_insert_double(res, "ttfb", flow_rec->ttfb);
-
+            /* create source information result */
             bd_result_set_t *res_source = bd_result_set_create(f->bigdata, "flow_statistics");
             bd_flow_get_source_ip_string(flow, ip_tmp, INET6_ADDRSTRLEN);
             bd_result_set_insert_ip_string(res_source, "ip", ip_tmp);
             bd_result_set_insert_int(res_source, "port", flow_rec->src_port);
             bd_result_set_insert_result_set(res, "source", res_source);
 
+            /* create destination information result */
             bd_result_set_t *res_dest = bd_result_set_create(f->bigdata, "flow_statistics");
             bd_flow_get_destination_ip_string(flow, ip_tmp, INET6_ADDRSTRLEN);
             bd_result_set_insert_ip_string(res_dest, "ip", ip_tmp);
             bd_result_set_insert_int(res_dest, "port", flow_rec->dst_port);
             bd_result_set_insert_result_set(res, "destination", res_dest);
 
-            bd_result_set_insert_uint(res, "in_bytes", stats.in_bytes);
-            bd_result_set_insert_uint(res, "out_bytes", stats.out_bytes);
-            bd_result_set_insert_uint(res, "in_bytes_total", flow_rec->in_bytes);
-            bd_result_set_insert_uint(res, "out_bytes_total", flow_rec->out_bytes);
+            /* create flow information result */
+            bd_result_set_t *flow_res = bd_result_set_create(f->bigdata, "flow_statistics");
+            bd_result_set_insert_uint(flow_res, "id", flow->id.get_id_num());
+            bd_result_set_insert_tag(flow_res, "protocol", lpi_print(flow_rec->lpi_module->protocol));
+            bd_result_set_insert_tag(flow_res, "category", lpi_print_category(bd_flow_get_category(flow)));
+            bd_result_set_insert_tag(flow_res, "type", "flow_interval");
+            bd_result_set_insert_uint(flow_res, "start_ts", bd_flow_get_start_time_milliseconds(flow));
+            bd_result_set_insert_double(flow_res, "duration", flow_rec->end_ts - flow_rec->start_ts);
+            bd_result_set_insert_double(flow_res, "ttfb", flow_rec->ttfb);
+            bd_result_set_insert_uint(flow_res, "in_bytes", stats.in_bytes);
+            bd_result_set_insert_uint(flow_res, "out_bytes", stats.out_bytes);
+            bd_result_set_insert_uint(flow_res, "in_bytes_total", flow_rec->in_bytes);
+            bd_result_set_insert_uint(flow_res, "out_bytes_total", flow_rec->out_bytes);
+            bd_result_set_insert_result_set(res, "flow", flow_res);
 
             bd_result_set_insert_timestamp(res, f->tick);
 
@@ -202,34 +207,40 @@ int module_flow_statistics_protocol_updated(bd_bigdata_t *bigdata, void *mls, lp
         /* This is done here because the flowstart event does not yet
          * have the correct protocol with only the first packet
          */
+
+        /* parent result */
         bd_result_set_t *res = bd_result_set_create(bigdata, "flow_statistics");
-        bd_result_set_insert_uint(res, "flow_id", bigdata->flow->id.get_id_num());
-        bd_result_set_insert_tag(res, "protocol", lpi_print(newproto));
-        bd_result_set_insert_tag(res, "category", lpi_print_category(
-            bd_flow_get_category(bigdata->flow)));
-        bd_result_set_insert_tag(res, "type", "flow_start");
 
-        bd_result_set_insert_uint(res, "start_ts",
-           bd_flow_get_start_time_milliseconds(bigdata->flow));
-        bd_result_set_insert_double(res, "duration", flow_rec->end_ts - flow_rec->start_ts);
-        bd_result_set_insert_double(res, "ttfb", flow_rec->ttfb);
-
+        /* source information result */
         bd_result_set_t *res_source = bd_result_set_create(bigdata, "flow_statistics");
         bd_flow_get_source_ip_string(bigdata->flow, ip_tmp, INET6_ADDRSTRLEN);
         bd_result_set_insert_ip_string(res_source, "ip", ip_tmp);
         bd_result_set_insert_int(res_source, "port", flow_rec->src_port);
         bd_result_set_insert_result_set(res, "source", res_source);
 
+        /* destination information result */
         bd_result_set_t *res_dest = bd_result_set_create(bigdata, "flow_statistics");
         bd_flow_get_destination_ip_string(bigdata->flow, ip_tmp, INET6_ADDRSTRLEN);
         bd_result_set_insert_ip_string(res_dest, "ip", ip_tmp);
         bd_result_set_insert_int(res_dest, "port", flow_rec->dst_port);
         bd_result_set_insert_result_set(res, "destination", res_dest);
 
-        bd_result_set_insert_uint(res, "in_bytes", flow_rec->in_bytes);
-        bd_result_set_insert_uint(res, "out_bytes", flow_rec->out_bytes);
-        bd_result_set_insert_uint(res, "in_bytes_total", flow_rec->in_bytes);
-        bd_result_set_insert_uint(res, "out_bytes_total", flow_rec->out_bytes);
+        /* flow information result */
+        bd_result_set_t *flow_res = bd_result_set_create(bigdata, "flow_statistics");
+        bd_result_set_insert_uint(flow_res, "id", bigdata->flow->id.get_id_num());
+        bd_result_set_insert_tag(flow_res, "protocol", lpi_print(newproto));
+        bd_result_set_insert_tag(flow_res, "category", lpi_print_category(
+            bd_flow_get_category(bigdata->flow)));
+        bd_result_set_insert_tag(flow_res, "type", "flow_start");
+        bd_result_set_insert_uint(flow_res, "start_ts",
+           bd_flow_get_start_time_milliseconds(bigdata->flow));
+        bd_result_set_insert_double(flow_res, "duration", flow_rec->end_ts - flow_rec->start_ts);
+        bd_result_set_insert_double(flow_res, "ttfb", flow_rec->ttfb);
+        bd_result_set_insert_uint(flow_res, "in_bytes", flow_rec->in_bytes);
+        bd_result_set_insert_uint(flow_res, "out_bytes", flow_rec->out_bytes);
+        bd_result_set_insert_uint(flow_res, "in_bytes_total", flow_rec->in_bytes);
+        bd_result_set_insert_uint(flow_res, "out_bytes_total", flow_rec->out_bytes);
+        bd_result_set_insert_result_set(res, "flow", flow_res);
 
         /* include tls info if this is an encrypted flow and export_tls is enabled */
         if (config->export_tls && bd_tls_flow(flow)) {
@@ -413,36 +424,41 @@ int module_flow_statistics_flowend(bd_bigdata_t *bigdata, void *mls, bd_flow_rec
             storage->flow_stats->erase(flow_record->flow_id);
         }
 
+        /* parent result */
         bd_result_set_t *res = bd_result_set_create(bigdata, "flow_statistics");
-        bd_result_set_insert_uint(res, "flow_id", bigdata->flow->id.get_id_num());
-        bd_result_set_insert_tag(res, "protocol", lpi_print(bd_flow_get_protocol(bigdata->flow)));
-        bd_result_set_insert_tag(res, "category", lpi_print_category(
-            bd_flow_get_category(bigdata->flow)));
-        bd_result_set_insert_tag(res, "type", "flow_end");
 
-        bd_result_set_insert_uint(res, "start_ts",
-            bd_flow_get_start_time_milliseconds(bigdata->flow));
-        bd_result_set_insert_double(res, "duration", flow_record->end_ts - flow_record->start_ts);
-        bd_result_set_insert_double(res, "ttfb", flow_record->ttfb);
-        bd_result_set_insert_uint(res, "end_ts",
-            bd_flow_get_end_time_milliseconds(bigdata->flow));
-
+        /* source information result */
         bd_result_set_t *res_source = bd_result_set_create(bigdata, "flow_statistics");
         bd_flow_get_source_ip_string(bigdata->flow, ip_tmp, INET6_ADDRSTRLEN);
         bd_result_set_insert_ip_string(res_source, "ip", ip_tmp);
         bd_result_set_insert_int(res_source, "port", flow_record->src_port);
         bd_result_set_insert_result_set(res, "source", res_source);
 
+        /* destination information result */
         bd_result_set_t *res_dest = bd_result_set_create(bigdata, "flow_statistics");
         bd_flow_get_destination_ip_string(bigdata->flow, ip_tmp, INET6_ADDRSTRLEN);
         bd_result_set_insert_ip_string(res_dest, "ip", ip_tmp);
         bd_result_set_insert_int(res_dest, "port", flow_record->dst_port);
         bd_result_set_insert_result_set(res, "destination", res_dest);
 
-        bd_result_set_insert_uint(res, "in_bytes", stats.in_bytes);
-        bd_result_set_insert_uint(res, "out_bytes", stats.out_bytes);
-        bd_result_set_insert_uint(res, "in_bytes_total", flow_record->in_bytes);
-        bd_result_set_insert_uint(res, "out_bytes_total", flow_record->out_bytes);
+        /* flow information result */
+        bd_result_set_t *flow_res = bd_result_set_create(bigdata, "flow_statistics");
+        bd_result_set_insert_uint(flow_res, "id", bigdata->flow->id.get_id_num());
+        bd_result_set_insert_tag(flow_res, "protocol", lpi_print(bd_flow_get_protocol(bigdata->flow)));
+        bd_result_set_insert_tag(flow_res, "category", lpi_print_category(
+            bd_flow_get_category(bigdata->flow)));
+        bd_result_set_insert_tag(flow_res, "type", "flow_end");
+        bd_result_set_insert_uint(flow_res, "start_ts",
+            bd_flow_get_start_time_milliseconds(bigdata->flow));
+        bd_result_set_insert_double(flow_res, "duration", flow_record->end_ts - flow_record->start_ts);
+        bd_result_set_insert_double(flow_res, "ttfb", flow_record->ttfb);
+        bd_result_set_insert_uint(flow_res, "end_ts",
+            bd_flow_get_end_time_milliseconds(bigdata->flow));
+        bd_result_set_insert_uint(flow_res, "in_bytes", stats.in_bytes);
+        bd_result_set_insert_uint(flow_res, "out_bytes", stats.out_bytes);
+        bd_result_set_insert_uint(flow_res, "in_bytes_total", flow_record->in_bytes);
+        bd_result_set_insert_uint(flow_res, "out_bytes_total", flow_record->out_bytes);
+        bd_result_set_insert_result_set(res, "flow", flow_res);
 
         /* Makes most sense to insert the timestamp from when the flow ended here??
            Because the packet received in this function is not for the current flow */
