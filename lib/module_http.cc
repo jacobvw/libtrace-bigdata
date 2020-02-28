@@ -187,10 +187,13 @@ int module_http_packet(bd_bigdata_t *bigdata, void *mls) {
                 bd_result_set_insert_ip_string(res_dest, "ip", ip_tmp);
                 bd_result_set_insert_result_set(result_set, "destination", res_dest);
 
-                /* insert request data */
-                bd_result_set_insert_tag(result_set, "request_method", request->method);
-                bd_result_set_insert_string(result_set, "request_path", request->path);
+                /* http result data */
+                bd_result_set_t *http = bd_result_set_create(bigdata, "http");
 
+                /* insert request data */
+                bd_result_set_t *req = bd_result_set_create(bigdata, "http");
+                bd_result_set_insert_tag(req, "method", request->method);
+                bd_result_set_insert_string(req, "path", request->path);
                 /* create result set for the request headers */
                 bd_result_set_t *req_hdrs = bd_result_set_create(bigdata, "http");
                 for (int i = 0; i != request->num_headers; i++) {
@@ -200,11 +203,12 @@ int module_http_packet(bd_bigdata_t *bigdata, void *mls) {
                     free(request->headers[i].name);
                     free(request->headers[i].value);
                 }
-                bd_result_set_insert_result_set(result_set, "request_headers", req_hdrs);
+                bd_result_set_insert_result_set(req, "headers", req_hdrs);
+                bd_result_set_insert_result_set(http, "request", req);
 
                 /* insert response data */
-                bd_result_set_insert_int(result_set, "response_code", status);
-
+                bd_result_set_t *resp = bd_result_set_create(bigdata, "http");
+                bd_result_set_insert_int(resp, "code", status);
                 /* insert response headers */
                 bd_result_set_t *resp_hdrs = bd_result_set_create(bigdata, "http");
                 for (int i = 0; i != num_headers; i++) {
@@ -223,7 +227,10 @@ int module_http_packet(bd_bigdata_t *bigdata, void *mls) {
                         bd_result_set_insert_string(resp_hdrs, header_name, header_value);
                     }
                 }
-                bd_result_set_insert_result_set(result_set, "response_headers", resp_hdrs);
+                bd_result_set_insert_result_set(resp, "headers", resp_hdrs);
+                bd_result_set_insert_result_set(http, "response", resp);
+
+                bd_result_set_insert_result_set(result_set, "http", http);
 
                 /* insert the timestamp */
                 struct timeval tv = trace_get_timeval(bigdata->packet);
