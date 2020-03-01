@@ -31,14 +31,6 @@
     "dynamic_templates": [],
     "date_detection": true,
     "properties": {
-      "start_ts": {
-        "format": "epoch_millis",
-        "index": true,
-        "ignore_malformed": false,
-        "store": false,
-        "type": "date",
-        "doc_values": true
-      },
       "destination": {
         "properties": {
           "ip": {
@@ -49,22 +41,6 @@
           }
         }
       },
-      "end_ts": {
-        "format": "epoch_millis",
-        "index": true,
-        "ignore_malformed": false,
-        "store": false,
-        "type": "date",
-        "doc_values": true
-      },
-      "timestamp": {
-        "format": "epoch_millis",
-        "index": true,
-        "ignore_malformed": false,
-        "store": false,
-        "type": "date",
-        "doc_values": true
-      },
       "source": {
         "properties": {
           "ip": {
@@ -74,6 +50,34 @@
             "type": "geo_point"
           }
         }
+      },
+      "flow": {
+        "properties": {
+          "start_ts" :{
+            "format": "epoch_millis",
+            "index": true,
+            "ignore_malformed": false,
+            "store": false,
+            "type": "date",
+            "doc_values": true
+          },
+          "end_ts": {
+            "format": "epoch_millis",
+            "index": true,
+            "ignore_malformed": false,
+            "store": false,
+            "type": "date",
+            "doc_values": true
+          }
+        }
+      },
+      "timestamp": {
+        "format": "epoch_millis",
+        "index": true,
+        "ignore_malformed": false,
+        "store": false,
+        "type": "date",
+        "doc_values": true
       }
     }
   }
