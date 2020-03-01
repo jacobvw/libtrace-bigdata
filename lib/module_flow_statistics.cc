@@ -240,7 +240,6 @@ int module_flow_statistics_protocol_updated(bd_bigdata_t *bigdata, void *mls, lp
         bd_result_set_insert_uint(flow_res, "out_bytes", flow_rec->out_bytes);
         bd_result_set_insert_uint(flow_res, "in_bytes_total", flow_rec->in_bytes);
         bd_result_set_insert_uint(flow_res, "out_bytes_total", flow_rec->out_bytes);
-        bd_result_set_insert_result_set(res, "flow", flow_res);
 
         /* include tls info if this is an encrypted flow and export_tls is enabled */
         if (config->export_tls && bd_tls_flow(flow)) {
@@ -384,9 +383,12 @@ int module_flow_statistics_protocol_updated(bd_bigdata_t *bigdata, void *mls, lp
             bd_result_set_insert_result_set(tls, "client", tls_client);
             bd_result_set_insert_result_set(tls, "server", tls_server);
 
-            /* insert the tls information into the main result */
-            bd_result_set_insert_result_set(res, "tls", tls);
+            /* insert the tls information into the flow result */
+            bd_result_set_insert_result_set(flow_res, "tls", tls);
         }
+
+        /* insert the flow information into the main result */
+        bd_result_set_insert_result_set(res, "flow", flow_res);
 
         // set the timestamp for the result
         tv = trace_get_timeval(bigdata->packet);
