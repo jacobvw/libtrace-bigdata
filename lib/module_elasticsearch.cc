@@ -67,9 +67,12 @@ static int module_elasticsearch_valid_policy_size(char *size);
 
 static void module_elasticsearch_template_create();
 static void module_elasticsearch_bootstrap_index();
+static size_t module_elasticsearch_bootstrap_check_cb(void *buffer,
+    size_t size, size_t nmemb, void *userp);
 static size_t module_elasticsearch_bootstrap_cb(void *buffer, size_t size, size_t nmemb,
     void *userp);
 
+static int module_elasticsearch_get(char *endpoint, void *write_func);
 static int module_elasticsearch_put(char *endpoint, char *data,
     size_t len, void *write_func);
 static size_t module_elasticsearch_put_read_cb(void *buffer, size_t size, size_t nmemb,
@@ -1001,13 +1004,38 @@ static void module_elasticsearch_bootstrap_index() {
     std::string bootstrap;
     char buf[100];
 
-    bootstrap = "{\"aliases\":{\"";
-    bootstrap += config->index_name;
-    bootstrap += "\":{\"is_write_index\":true}}}";
+    /* create the enpoint URI */
+    snprintf(buf, sizeof(buf), "_cat/aliases/%s?format=json",
+        config->index_name);
 
-    snprintf(buf, sizeof(buf), "%s-000001", config->index_name);
-    module_elasticsearch_put(buf, (char *)bootstrap.c_str(),
-        bootstrap.size(), (void *)module_elasticsearch_bootstrap_cb);
+    /* perform the get requested to see if the index has a write index */
+    module_elasticsearch_get(buf,
+        (void *)module_elasticsearch_bootstrap_check_cb);
+}
+
+static size_t module_elasticsearch_bootstrap_check_cb(void *buffer,
+    size_t size, size_t nmemb, void *userp) {
+
+    std::string bootstrap;
+    char buf[100];
+    char *write_index;
+
+    /* search for a write index */
+    write_index = strstr((char *)buffer, "\"is_write_index\":\"true\"");
+    /* if a write index was not found create one */
+    if (write_index == NULL) {
+
+        bootstrap = "{\"aliases\":{\"";
+        bootstrap += config->index_name;
+        bootstrap += "\":{\"is_write_index\":true}}}";
+
+        snprintf(buf, sizeof(buf), "%s-000001", config->index_name);
+
+        module_elasticsearch_put(buf, (char *)bootstrap.c_str(),
+            bootstrap.size(), (void *)module_elasticsearch_bootstrap_cb);
+    }
+
+    return size *nmemb;
 }
 
 static size_t module_elasticsearch_bootstrap_cb(void *buffer, size_t size, size_t nmemb,
@@ -1028,6 +1056,39 @@ static size_t module_elasticsearch_bootstrap_cb(void *buffer, size_t size, size_
     }
 
     return size * nmemb;
+}
+
+static int module_elasticsearch_get(char *endpoint, void *write_func) {
+
+    CURL *c = curl_easy_init();
+    char buf[100];
+
+    if (c) {
+
+        snprintf(buf, sizeof(buf), "%s:%d/%s", config->host,
+            config->port, endpoint);
+
+        curl_easy_setopt(c, CURLOPT_URL, buf);
+        curl_easy_setopt(c, CURLOPT_PORT, config->port);
+        curl_easy_setopt(c, CURLOPT_WRITEFUNCTION,
+                write_func);
+
+        if (config->require_user_auth) {
+            curl_easy_setopt(c, CURLOPT_USERNAME, config->username);
+            curl_easy_setopt(c, CURLOPT_PASSWORD, config->password);
+        }
+
+        if (config->ssl_verifypeer) {
+            curl_easy_setopt(c, CURLOPT_SSL_VERIFYPEER, 1);
+        } else {
+            curl_easy_setopt(c, CURLOPT_SSL_VERIFYPEER, 0);
+        }
+
+        curl_easy_perform(c);
+        curl_easy_cleanup(c);
+    }
+
+    return 0;
 }
 
 static int module_elasticsearch_put(char *endpoint, char *data,
