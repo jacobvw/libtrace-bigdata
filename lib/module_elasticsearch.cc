@@ -1061,6 +1061,7 @@ static size_t module_elasticsearch_bootstrap_cb(void *buffer, size_t size, size_
 static int module_elasticsearch_get(char *endpoint, void *write_func) {
 
     CURL *c = curl_easy_init();
+    CURLcode res;
     char buf[100];
 
     if (c) {
@@ -1084,7 +1085,10 @@ static int module_elasticsearch_get(char *endpoint, void *write_func) {
             curl_easy_setopt(c, CURLOPT_SSL_VERIFYPEER, 0);
         }
 
-        curl_easy_perform(c);
+        res = curl_easy_perform(c);
+        if (res != CURLE_OK) {
+            logger(LOG_WARNING, "Elasticsearch: %s", curl_easy_strerror(res));
+        }
         curl_easy_cleanup(c);
     }
 
@@ -1095,6 +1099,7 @@ static int module_elasticsearch_put(char *endpoint, char *data,
     size_t len, void *write_func) {
 
     CURL *c = curl_easy_init();
+    CURLcode res;
     char buf[100];
     struct curl_slist *headers = NULL;
 
@@ -1138,7 +1143,10 @@ static int module_elasticsearch_put(char *endpoint, char *data,
 
         curl_easy_setopt(c, CURLOPT_READDATA, &ilm_data);
 
-        curl_easy_perform(c);
+        res = curl_easy_perform(c);
+        if (res != CURLE_OK) {
+            logger(LOG_WARNING, "Elasticsearch: %s", curl_easy_strerror(res));
+        }
         curl_slist_free_all(headers);
         curl_easy_cleanup(c);
 
