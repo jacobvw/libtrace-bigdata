@@ -96,6 +96,7 @@ void *module_influxdb_starting(void *tls) {
 static void module_influxdb_policy_create(const char *action) {
 
     CURL *retention_curl;
+    CURLcode res;
     char retention_url[200];
     char retention_data[200];
 
@@ -123,7 +124,10 @@ static void module_influxdb_policy_create(const char *action) {
         }
 
         curl_easy_setopt(retention_curl, CURLOPT_POSTFIELDS, retention_data);
-        curl_easy_perform(retention_curl);
+        res = curl_easy_perform(retention_curl);
+        if (res != CURLE_OK) {
+            logger(LOG_WARNING, "InfluxDB: %s", curl_easy_strerror(res));
+        }
         curl_easy_cleanup(retention_curl);
     }
 }
@@ -142,7 +146,7 @@ static size_t module_influxdb_policy_callback(void *buffer, size_t size,
         if (errorstr != NULL) {
             module_influxdb_policy_create("ALTER");
         } else {
-            logger(LOG_INFO, "InfluxDB policy error: %.*s",
+            logger(LOG_WARNING, "InfluxDB policy error: %.*s",
                 strlen((char *)buffer)-1, (char *)buffer);
         }
     }
@@ -153,15 +157,12 @@ static size_t module_influxdb_policy_callback(void *buffer, size_t size,
 static size_t module_influxdb_callback(void *buffer, size_t size, size_t nmemb,
     void *userp) {
 
-    bool error;
     char *errorstr;
 
     /* influx only returns a string on error? */
     errorstr = strstr((char *)buffer, "error");
-    if (errorstr == NULL) {
-        error = 0;
-    } else {
-        logger(LOG_INFO, "InfluxDB error: %.*s", strlen((char *)buffer)-1,
+    if (errorstr != NULL) {
+        logger(LOG_WARNING, "InfluxDB error: %.*s", strlen((char *)buffer)-1,
             (char *)buffer);
     }
 
